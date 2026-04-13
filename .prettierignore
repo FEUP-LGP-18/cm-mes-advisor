@@ -1,0 +1,11 @@
+.next
+node_modules
+coverage
+docs/discovery/*.md
+docs/phase-1-epic-plan.md
+exports
+uploads
+data
+local-data
+fixtures/*.xlsx
+pnpm-lock.yaml
