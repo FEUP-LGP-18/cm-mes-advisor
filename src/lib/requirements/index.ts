@@ -9,3 +9,14 @@ export {
   type ParsedRequirement,
   type RequirementsSummary,
 } from "./parser";
+
+export {
+  buildReviewRequirements,
+  filterReviewRequirements,
+  requirementReviewFilters,
+  summarizeReviewRequirements,
+  type RequirementReviewFilter,
+  type RequirementReviewStatus,
+  type RequirementsReviewSummary,
+  type ReviewRequirement,
+} from "./review";

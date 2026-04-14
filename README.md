@@ -61,19 +61,30 @@ It parses the `Requirements` sheet from the committed fixture, treats row 2 as t
 
 The existing Excel `Comment` column is mapped to `sourceComment`. Epic 1 does not generate AI output and does not create a `generatedComment` field.
 
-Run the home-page validation summary with:
+Run the fixture-backed review workspace with:
 
 ```bash
 pnpm dev
 ```
 
-Then open `http://localhost:3000` to see row, demo, MVP, and sample requirement data parsed from the fixture.
+Then open `http://localhost:3000` to scan and inspect requirement data parsed from the fixture.
 
 Run the parser tests with:
 
 ```bash
 pnpm test
 ```
+
+## Epic 2 Requirements Review Without AI
+
+The home page now shows a fixture-backed requirements review workspace for the
+committed Customer X Excel workbook. Consultants can scan parsed rows, use
+read-only filters, select a requirement, and inspect the full source row details.
+
+All requirements default to `pending` until Epic 3 adds review actions and local
+persistence. The Review and Approved filters are intentionally empty for now.
+Epic 2 does not generate AI comments, demo guidance, uploads, or Phase 2 Master
+Data output.
 
 ## Secret Safety
 
