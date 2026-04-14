@@ -1,6 +1,6 @@
 # LGP Discovery
 
-Last updated: 2026-04-13
+Last updated: 2026-04-14
 
 ## Project Snapshot
 
@@ -74,6 +74,7 @@ Security note:
 | Source | Workspace Location | Confidence | Role |
 | --- | --- | --- | --- |
 | Rui WhatsApp scope message | `02_partner-conversation/rui-whatsapp-scope-message.md` | current canonical | Defines the live two-phase scope |
+| Rui answers from 2026-04-14 | `docs/discovery/rui-answers-2026-04-14.md` | current canonical | Clarifies Phase 1 ambiguity handling, demo-step detail target, traceability priority, and Phase 2 Master Data MVP guidance |
 | Teams client thread summary | `02_partner-conversation/teams-client-thread-summary.md` | current canonical / supporting | Adds timeline, partner guidance, Phase 2 advice, and security caveats |
 | Review Meeting deck | `03_review-meeting/Review Meeting (1).pdf` | current canonical / supporting | Active copy; confirms product vision, Phase 1/2 functionality, UI flow, architecture, and BML plan |
 | UI/UX decisions note | `03_review-meeting/ui-ux-decisions.md` | synthesized support | Screen-by-screen UI/UX reference extracted from the Review Meeting deck |
@@ -140,6 +141,32 @@ Security implications:
 - Do not store the ZIP/MES password in notes.
 - Do not copy the Bedrock API key out of `.env` into notes.
 - Do not broadly share the API key because Rui said it has a usage limit.
+
+### Rui Answers From 2026-04-14
+
+What it confirms:
+
+- Partial support should be handled by suggesting a workaround when possible.
+- If no good workaround exists, the row should be marked for consultant review.
+- The team should avoid framing gaps as hard "limitations"; the workflow should be workaround-first, then review-needed.
+- The ideal demo script is click-by-click MES guidance with exact screens, modules, and actions, although Rui recognizes this may be time-limited.
+- MCP-based traceability to MES documentation is useful if time allows.
+- Phase 2 can be simplified around requirements that make sense for Master Data generation, including team-created simpler requirements for demonstration.
+- First Phase 2 object types should follow `enterprise -> site -> facility -> area -> resource`, ideally adding `material` and `product` if time allows.
+- The minimum useful Phase 2 output is something directly importable in MES that works.
+- DEE file generation is an end goal but should be treated as a stretch goal.
+- Naming conventions are flexible for now.
+- Missing or uncertain required Master Data fields should use defaults so the Master Data import works.
+
+What it conflicts with:
+
+- It reduces several previous open questions. Phase 2 is still complex, but the first object-type subset and missing-field policy are no longer unknown.
+
+What it implies for the team:
+
+- Phase 1 generation should produce safe consultant-facing output: explain the MES path, propose a workaround, or flag for review.
+- Epic 4/5 generation contracts should leave room for warnings, assumptions, and MCP traceability references.
+- Phase 2 should start with a small importable hierarchy before broad CookieFactory-level generation.
 
 ### Review Meeting Deck
 
@@ -330,11 +357,16 @@ What it implies for the team:
 - Requirement-level comments explaining how the MES addresses each requirement.
 - Step-by-step demo script or guide for showing each capability to the customer.
 - Confirmed user decision: Phase 1 output should appear both in the app UI and as a separate generated document.
+- Rui's ideal demo detail level is click-by-click MES steps with exact screens, modules, and actions, if time allows.
+- Partial or uncertain rows should suggest a workaround when possible, otherwise be marked for consultant review.
 
 ### Confirmed Phase 2 Outputs
 
 - Master Data package or workbook content for applicable requirements.
 - Importable MES objects needed to run a demo.
+- First object hierarchy should start with enterprise, site, facility, area, and resource.
+- Material and product are desirable next if time allows.
+- DEE file generation is a stretch goal, not the required first output.
 - CookieFactory ZIP is the concrete reference example.
 
 ## Architecture and Platform Notes
@@ -384,30 +416,29 @@ Resolution for now:
 
 - Which separate document format should Phase 1 export first: Word/PDF, Markdown, Excel, or another format?
 - Should Phase 1 also update the original Excel file's `Comment` column, or only show comments in-app and in the separate generated document?
-- Which requirements are considered applicable for Phase 2 Master Data generation?
-- Which Master Data object types are in scope for the first implementation: Flow, Step, Resource, DataCollection, Material, Product, or something else?
-- Does the team need to generate a full ZIP package or only a valid `MasterDataSample.xlsx` first?
 - What exact capabilities does the MCP Server expose?
 - What exact role should LibreChat have in the final system, if any, now that the product is expected to be a separate application?
 - What is the expected review/approval loop for AI-generated comments, demo scripts, and Master Data?
+- For Phase 2, what exact workbook/package structure is the smallest importable output for the enterprise/site/facility/area/resource slice?
 
 ## Fast Onboarding Checklist
 
 Recommended path to get up to speed quickly:
 
 1. Read `02_partner-conversation/rui-whatsapp-scope-message.md` first. This is the current scope anchor.
-2. Read `02_partner-conversation/teams-client-thread-summary.md` for the partner timeline and Rui's Phase 2 advice.
-3. Open `06_example-inputs/Customer X Functional Requirements (1).xlsx` and understand the requirement columns.
-4. Read `03_review-meeting/Review Meeting (1).pdf` for the product vision, Phase 1/2 UX, and architecture.
-5. Read `03_review-meeting/ui-ux-decisions.md` for the screen-by-screen app flow and locked UI/UX decisions.
-6. Read `09_phase-1-planning/phase-1-epic-plan.md` before starting implementation, so Phase 1 is built in reviewable chunks.
-7. Inspect `06_example-inputs/MasterData_CookieFactory .zip` at a high level to understand Phase 2 complexity.
-8. Read `08_librechat-mcp-package/lgp2026-zip-notes.md` to understand the local LibreChat / MCP package without exposing secrets.
-9. Read this `disocvery.md` file end to end.
-10. Skim `05_pmr/PM_Report (2).pdf` for current project status and risks.
-11. Skim `04_strategic-plan/Strategic_Plan.pdf` for business and strategy framing, but watch for legacy scope.
-12. Use `98_archive/legacy-scope/Project Documentation_ AI-Guided MES Configuration Advisor (MVP) - Google Docs.pdf` only for architecture and historical context.
-13. Explore the MES test environment after login, especially `Administration -> Master Data Package`.
+2. Read `docs/discovery/rui-answers-2026-04-14.md` for the latest answered implementation questions.
+3. Read `02_partner-conversation/teams-client-thread-summary.md` for the partner timeline and Rui's Phase 2 advice.
+4. Open `06_example-inputs/Customer X Functional Requirements (1).xlsx` and understand the requirement columns.
+5. Read `03_review-meeting/Review Meeting (1).pdf` for the product vision, Phase 1/2 UX, and architecture.
+6. Read `03_review-meeting/ui-ux-decisions.md` for the screen-by-screen app flow and locked UI/UX decisions.
+7. Read `09_phase-1-planning/phase-1-epic-plan.md` before starting implementation, so Phase 1 is built in reviewable chunks.
+8. Inspect `06_example-inputs/MasterData_CookieFactory .zip` at a high level to understand Phase 2 complexity.
+9. Read `08_librechat-mcp-package/lgp2026-zip-notes.md` to understand the local LibreChat / MCP package without exposing secrets.
+10. Read this `disocvery.md` file end to end.
+11. Skim `05_pmr/PM_Report (2).pdf` for current project status and risks.
+12. Skim `04_strategic-plan/Strategic_Plan.pdf` for business and strategy framing, but watch for legacy scope.
+13. Use `98_archive/legacy-scope/Project Documentation_ AI-Guided MES Configuration Advisor (MVP) - Google Docs.pdf` only for architecture and historical context.
+14. Explore the MES test environment after login, especially `Administration -> Master Data Package`.
 
 ## Missing Expected Sources
 

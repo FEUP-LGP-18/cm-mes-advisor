@@ -1,6 +1,6 @@
 # UI/UX Decisions - Review Meeting Deck
 
-Last updated: 2026-04-13
+Last updated: 2026-04-14
 
 ## Source And Status
 
@@ -20,7 +20,7 @@ Status:
 - Phase 1 output should be available both inside the application UI and as a separate generated document.
 - The team is building a separate application, not building directly on top of LibreChat.
 - LibreChat, the MCP server, and the provided RAG package should be treated as support/reference infrastructure unless the architecture is changed later.
-- Phase 2 object-type applicability and first implementation scope are pending Rui's answer.
+- Rui clarified the first Phase 2 object-type scope on 2026-04-14: start with enterprise, site, facility, area, and resource; ideally add material and product if time allows.
 - Supporting-doc upload appears in the deck, but it should stay optional or future-scope until Rui confirms that non-Excel inputs are in scope.
 - Master Data generation should remain review-first and should not auto-import directly into MES without a consultant approval step.
 
@@ -38,6 +38,7 @@ Status:
 - The overall flow makes sense for the end user: project, upload Excel, AI-generated comments and demo script, consultant review, export, then optional Master Data.
 - Phase 1 should feel complete on its own. Users should be able to finish a valuable workflow with in-app review and a generated demo document without needing to enter Phase 2.
 - Phase 2 should be an optional continuation, not a forced step after script generation.
+- For partial or ambiguous requirements, the UX should guide the consultant toward a workaround when possible, then mark the row for review if no good workaround is clear.
 - The UI should avoid promising broader document ingestion while the canonical partner scope remains Excel-first.
 - The UI should avoid implying that Master Data generation is fully solved before the team has validated the import format against MES.
 - Keep the user-facing MVP simple: shippable Phase 1, optional and validated Phase 2, clear review gates, and no hidden auto-import behavior.
@@ -105,9 +106,10 @@ Status:
 - Requirements review is a table-plus-detail workspace.
 - Left filters include status and category counts.
 - Table columns include ID, category, requirement, AI comment, confidence, and status.
-- Requirement states include approved, review, and flagged.
+- Requirement states include pending, approved, review/flagged, and skipped.
 - Consultants can approve all, export CSV, select a row, edit the AI comment, save, reset to AI, approve, flag, or skip.
 - The selected-row panel shows traceability sources from MES documentation.
+- Rui's 2026-04-14 guidance means the review flow should support workaround notes and consultant-review flags for partial or uncertain requirements.
 - The `Generate Script` action should be disabled or risky while review is pending.
 
 ### Screen 5A - Requirements Review (No Row Selected)
@@ -121,6 +123,7 @@ Status:
 - It groups steps into script sections such as materials setup, process flows, quality gates, reporting demo, and integration.
 - It shows coverage counts such as requirements addressed and demo steps generated.
 - Demo steps should be editable and traceable to requirement IDs and source references.
+- Rui's ideal target is click-by-click MES guidance with exact screens, modules, and actions, if time allows.
 - Top actions include export `.xlsx`, export PDF, and `Generate Master Data`.
 - The primary Phase 1 export should be the generated demo document, with an optional updated Excel/comments export if the team decides to support it.
 - `Generate Master Data` should be presented as an optional continuation into Phase 2, not as a required completion step for Phase 1.
@@ -133,7 +136,8 @@ Status:
 - Master Data setup reuses project context and the left progress rail.
 - Requirements analysis identifies applicable rows and maps them to MES object types.
 - The preview table includes requirement ID, category, description, MES object, and confidence.
-- Selection summary groups generated candidates by object type, such as materials, resources, operations, data collection, and routing.
+- First implementation scope from Rui is enterprise, site, facility, area, and resource; material and product are desirable if time allows.
+- Selection summary groups generated candidates by object type and should keep later object types such as operations, data collection, and routing out of the MVP path unless the team has time.
 - Primary action is `Generate Master Data`.
 
 ### Screen 7a - AI Processing
@@ -167,6 +171,7 @@ Status:
 - MCP server connection status is shown.
 - Primary action is to download the Master Data package.
 - Before offering official-looking ZIP/XML/Excel downloads, the team should validate the import format against the MES environment or clearly mark the output as a draft.
+- Rui's minimum useful Phase 2 output is something directly importable in MES and working; missing required fields should use safe defaults so the import succeeds.
 
 ### Screen 9 - Traceability Matrix / Full Audit Trail
 
@@ -200,5 +205,5 @@ Status:
 - Do not auto-import generated Master Data into MES; keep export and consultant review as the safe default.
 - Do not make Phase 2 feel mandatory for a successful Phase 1 demo-script workflow.
 - Do not promise importable Master Data until the package format has been validated against MES.
-- Confirm with Rui which Phase 2 requirements and MES object types should be handled first.
+- Phase 2 object types are now clarified at a first-pass level: enterprise, site, facility, area, resource, and ideally material/product.
 - Confirm the exact Phase 1 separate document format later: PDF, Word, Markdown, Excel, or another format.

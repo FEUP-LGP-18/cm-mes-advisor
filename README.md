@@ -34,6 +34,7 @@ Open `http://localhost:3000`.
 
 - `docs/discovery/project-context.md`: curated discovery context
 - `docs/discovery/ui-ux-decisions.md`: review meeting UI/UX decisions
+- `docs/discovery/rui-answers-2026-04-14.md`: latest partner answers for Phase 1/2 implementation assumptions
 - `docs/discovery/rui-scope-message.md`: partner scope message
 - `docs/discovery/teams-client-thread-summary.md`: partner conversation summary
 - `docs/discovery/librechat-mcp-notes.md`: safe LibreChat/MCP package notes
@@ -85,6 +86,16 @@ All requirements default to `pending` until Epic 3 adds review actions and local
 persistence. The Review and Approved filters are intentionally empty for now.
 Epic 2 does not generate AI comments, demo guidance, uploads, or Phase 2 Master
 Data output.
+
+## Epic 3 Local Review State
+
+The review workspace now supports local prototype review actions. Consultants
+can add manual notes, approve rows, flag rows for review, skip rows, reset rows
+back to draft, and refresh without losing those local decisions.
+
+This state is stored in browser localStorage behind a small adapter. It is not a
+production database and does not represent generated AI output yet. The original
+Excel `sourceComment` remains read-only source data.
 
 ## Secret Safety
 

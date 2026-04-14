@@ -12,11 +12,34 @@ export {
 
 export {
   buildReviewRequirements,
+  createDefaultRequirementReviewEntry,
+  createGeneratedOutputPlaceholder,
+  createRequirementsReviewState,
   filterReviewRequirements,
+  getRequirementReviewKey,
+  isRequirementReviewStatus,
   requirementReviewFilters,
+  requirementReviewStatuses,
   summarizeReviewRequirements,
+  updateRequirementReviewEntry,
+  updateRequirementsReviewState,
+  type GeneratedOutputPlaceholder,
+  type RequirementReviewAction,
   type RequirementReviewFilter,
+  type RequirementReviewEntry,
+  type RequirementReviewStateByKey,
   type RequirementReviewStatus,
+  type RequirementsReviewState,
   type RequirementsReviewSummary,
+  type ReviewProjectMetadata,
   type ReviewRequirement,
 } from "./review";
+
+export {
+  clearRequirementsReviewState,
+  CUSTOMER_X_REVIEW_STORAGE_KEY,
+  loadRequirementsReviewState,
+  parseRequirementsReviewState,
+  saveRequirementsReviewState,
+  type StorageLike,
+} from "./review-storage";
