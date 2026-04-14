@@ -2,6 +2,12 @@
 
 import { useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import {
+  createMockGeneratedRequirementDraft,
+  mockGenerationStageLabels,
+  type GeneratedRequirementDraft,
+  type MockGenerationStage,
+} from "@/lib/requirements/generation";
+import {
   buildReviewRequirements,
   createRequirementsReviewState,
   filterReviewRequirements,
@@ -51,6 +57,19 @@ const statusStyles: Record<RequirementReviewStatus, string> = {
 
 const reviewStorageChangeEventName = "cm-mes-advisor:review-state-change";
 
+type MockGenerationStageStatus = "waiting" | "running" | "complete";
+
+interface MockGenerationStageState {
+  label: MockGenerationStage;
+  status: MockGenerationStageStatus;
+}
+
+interface MockGenerationRunState {
+  selectedCount: number;
+  generatedCount: number;
+  stages: MockGenerationStageState[];
+}
+
 interface RequirementsReviewWorkspaceProps {
   projectMetadata: ReviewProjectMetadata;
   requirements: ParsedRequirement[];
@@ -79,6 +98,11 @@ export default function RequirementsReviewWorkspace({
   const [selectedRowNumber, setSelectedRowNumber] = useState<number | null>(
     null,
   );
+  const [selectedRequirementKeys, setSelectedRequirementKeys] = useState<
+    Set<string>
+  >(() => new Set());
+  const [mockGenerationRun, setMockGenerationRun] =
+    useState<MockGenerationRunState>(() => createIdleGenerationRun());
 
   const reviewRequirements = useMemo(
     () => buildReviewRequirements(requirements, reviewState.requirements),
@@ -92,10 +116,22 @@ export default function RequirementsReviewWorkspace({
     () => filterReviewRequirements(reviewRequirements, activeFilter),
     [activeFilter, reviewRequirements],
   );
+  const selectedRequirements = useMemo(
+    () =>
+      reviewRequirements.filter((requirement) =>
+        selectedRequirementKeys.has(requirement.requirementKey),
+      ),
+    [reviewRequirements, selectedRequirementKeys],
+  );
   const selectedRequirement =
     reviewRequirements.find(
       (requirement) => requirement.sourceRowNumber === selectedRowNumber,
     ) ?? null;
+  const allFilteredRequirementsSelected =
+    filteredRequirements.length > 0 &&
+    filteredRequirements.every((requirement) =>
+      selectedRequirementKeys.has(requirement.requirementKey),
+    );
 
   function handleReviewAction(
     requirement: ReviewRequirement,
@@ -112,6 +148,75 @@ export default function RequirementsReviewWorkspace({
     );
 
     saveRequirementsReviewState(window.localStorage, nextState);
+    window.dispatchEvent(new Event(reviewStorageChangeEventName));
+  }
+
+  function handleToggleRequirementSelection(requirementKey: string) {
+    setSelectedRequirementKeys((currentSelection) => {
+      const nextSelection = new Set(currentSelection);
+
+      if (nextSelection.has(requirementKey)) {
+        nextSelection.delete(requirementKey);
+      } else {
+        nextSelection.add(requirementKey);
+      }
+
+      return nextSelection;
+    });
+  }
+
+  function handleToggleAllFilteredRequirements() {
+    setSelectedRequirementKeys((currentSelection) => {
+      const nextSelection = new Set(currentSelection);
+      const allFilteredSelected = filteredRequirements.every((requirement) =>
+        nextSelection.has(requirement.requirementKey),
+      );
+
+      filteredRequirements.forEach((requirement) => {
+        if (allFilteredSelected) {
+          nextSelection.delete(requirement.requirementKey);
+        } else {
+          nextSelection.add(requirement.requirementKey);
+        }
+      });
+
+      return nextSelection;
+    });
+  }
+
+  function handleGenerateSelectedRows() {
+    const generatedDrafts = selectedRequirements.map((requirement) => ({
+      requirement,
+      draft: createMockGeneratedRequirementDraft(requirement),
+    }));
+
+    if (generatedDrafts.length === 0) {
+      setMockGenerationRun(createIdleGenerationRun());
+      return;
+    }
+
+    const currentState = loadRequirementsReviewState(
+      window.localStorage,
+      fallbackReviewState,
+    );
+    const nextState = generatedDrafts.reduce(
+      (state, { requirement, draft }) =>
+        updateRequirementsReviewState(state, requirement, {
+          type: "storeMockGeneratedDraft",
+          generatedOutput: draft,
+        }),
+      currentState,
+    );
+
+    saveRequirementsReviewState(window.localStorage, nextState);
+    setMockGenerationRun({
+      selectedCount: selectedRequirements.length,
+      generatedCount: generatedDrafts.length,
+      stages: mockGenerationStageLabels.map((label) => ({
+        label,
+        status: "complete",
+      })),
+    });
     window.dispatchEvent(new Event(reviewStorageChangeEventName));
   }
 
@@ -149,6 +254,12 @@ export default function RequirementsReviewWorkspace({
         ))}
       </section>
 
+      <MockGenerationPanel
+        onGenerateSelectedRows={handleGenerateSelectedRows}
+        runState={mockGenerationRun}
+        selectedCount={selectedRequirements.length}
+      />
+
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(360px,0.8fr)]">
         <div className="overflow-hidden rounded-lg border border-[#d0d7de] bg-white">
           <div className="flex flex-wrap items-end justify-between gap-3 border-b border-[#d0d7de] p-5">
@@ -173,6 +284,20 @@ export default function RequirementsReviewWorkspace({
               <table className="w-full min-w-[980px] border-collapse text-left text-sm">
                 <thead className="bg-[#f0f3f3] text-xs uppercase text-[#4b5563]">
                   <tr>
+                    <th className="px-4 py-3 font-semibold">
+                      <span className="sr-only">Select rows</span>
+                      <input
+                        type="checkbox"
+                        checked={allFilteredRequirementsSelected}
+                        onChange={handleToggleAllFilteredRequirements}
+                        aria-label={
+                          allFilteredRequirementsSelected
+                            ? "Clear selected filtered rows"
+                            : "Select all filtered rows"
+                        }
+                        className="h-4 w-4 accent-[#0f766e]"
+                      />
+                    </th>
                     <th className="px-4 py-3 font-semibold">ID</th>
                     <th className="px-4 py-3 font-semibold">Excel row</th>
                     <th className="px-4 py-3 font-semibold">Requirement</th>
@@ -187,6 +312,9 @@ export default function RequirementsReviewWorkspace({
                   {filteredRequirements.map((requirement) => {
                     const isSelected =
                       requirement.sourceRowNumber === selectedRowNumber;
+                    const isChecked = selectedRequirementKeys.has(
+                      requirement.requirementKey,
+                    );
 
                     return (
                       <tr
@@ -195,6 +323,22 @@ export default function RequirementsReviewWorkspace({
                           isSelected ? "bg-[#e8f4f1]" : "bg-white"
                         }`}
                       >
+                        <td className="px-4 py-3 align-top">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() =>
+                              handleToggleRequirementSelection(
+                                requirement.requirementKey,
+                              )
+                            }
+                            aria-label={`Select requirement ${
+                              requirement.requirementId ||
+                              requirement.sourceRowNumber
+                            } for mock generation`}
+                            className="h-4 w-4 accent-[#0f766e]"
+                          />
+                        </td>
                         <td className="px-4 py-3 align-top font-semibold text-[#0f766e]">
                           <button
                             type="button"
@@ -277,6 +421,68 @@ function getFilterCount(
     case "skipped":
       return summary.skippedCount;
   }
+}
+
+function MockGenerationPanel({
+  onGenerateSelectedRows,
+  runState,
+  selectedCount,
+}: {
+  onGenerateSelectedRows: () => void;
+  runState: MockGenerationRunState;
+  selectedCount: number;
+}) {
+  return (
+    <section
+      aria-label="Mock generation"
+      className="rounded-lg border border-[#d0d7de] bg-white p-5"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold uppercase text-[#0f766e]">
+            Mock generation
+          </p>
+          <h2 className="mt-2 text-xl font-semibold text-[#111827]">
+            Generation contract preview
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[#59636e]">
+            Selected rows receive deterministic mock drafts with placeholder MCP
+            traceability. No Bedrock, MCP, LibreChat, export, upload, auth, or
+            Master Data behavior runs in this slice.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onGenerateSelectedRows}
+          disabled={selectedCount === 0}
+          className="rounded-md border border-[#0f766e] bg-[#0f766e] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0c5f59] disabled:cursor-not-allowed disabled:border-[#a8b3bd] disabled:bg-[#e5e7eb] disabled:text-[#59636e]"
+        >
+          Generate mock drafts for selected rows
+        </button>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-4">
+        {runState.stages.map((stage) => (
+          <div
+            key={stage.label}
+            className="min-h-24 rounded-md border border-[#d0d7de] bg-[#f8fbfb] p-3"
+          >
+            <p className="text-xs font-semibold uppercase text-[#59636e]">
+              {stage.status}
+            </p>
+            <p className="mt-2 text-sm font-semibold text-[#111827]">
+              {stage.label}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <p className="mt-4 text-sm leading-6 text-[#4b5563]">
+        {selectedCount} rows selected. Latest run generated{" "}
+        {runState.generatedCount} of {runState.selectedCount} selected rows.
+      </p>
+    </section>
+  );
 }
 
 function RequirementDetail({
@@ -389,8 +595,9 @@ function ReviewActionsPanel({
             Consultant review state
           </h3>
           <p className="mt-2 text-sm leading-6 text-[#4b5563]">
-            No AI output is generated yet. These fields are local prototype
-            notes for Epic 3 and stay separate from the original Excel comment.
+            Mock AI drafts are local deterministic placeholders. The editable
+            consultant comment stays separate from the read-only Excel source
+            comment.
           </p>
         </div>
         <span className="rounded-md border border-[#d0d7de] bg-white px-2 py-1 text-xs font-semibold text-[#59636e]">
@@ -410,7 +617,7 @@ function ReviewActionsPanel({
               consultantComment: event.currentTarget.value,
             })
           }
-          placeholder="Add a draft comment or workaround note. Future AI drafts will arrive in a later epic."
+          placeholder="Generate a mock draft or add a manual consultant comment."
           className="mt-2 min-h-28 w-full rounded-md border border-[#c9d3d1] bg-white p-3 text-sm leading-6 text-[#1f2937] outline-none transition focus:border-[#0f766e] focus:ring-2 focus:ring-[#b7d7d1]"
         />
       </label>
@@ -433,13 +640,17 @@ function ReviewActionsPanel({
       </label>
 
       <div className="mt-4 rounded-md border border-dashed border-[#a8b3bd] bg-white p-3 text-sm leading-6 text-[#4b5563]">
-        Generated output placeholder:{" "}
-        {requirement.generatedOutput.hasGeneratedOutput
-          ? "available"
+        Generated output:{" "}
+        {requirement.generatedOutput.state === "mock-generated-draft"
+          ? "mock generated draft available"
           : "not generated yet"}
-        . Reset clears local manual edits and returns the row to pending; it
-        never copies over or changes the source Excel comment.
+        . Reset restores the latest generated draft when one exists; otherwise
+        it clears manual edits. The source Excel comment remains read-only.
       </div>
+
+      {requirement.generatedOutput.state === "mock-generated-draft" ? (
+        <GeneratedDraftSummary draft={requirement.generatedOutput.draft} />
+      ) : null}
 
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
         <ReviewActionButton
@@ -464,6 +675,120 @@ function ReviewActionsPanel({
         />
       </div>
     </section>
+  );
+}
+
+function GeneratedDraftSummary({
+  draft,
+}: {
+  draft: GeneratedRequirementDraft;
+}) {
+  return (
+    <section className="mt-4 rounded-md border border-[#c9d3d1] bg-white p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h4 className="text-sm font-semibold text-[#111827]">
+            Mock generated draft
+          </h4>
+          <p className="mt-2 text-sm leading-6 text-[#4b5563]">
+            Confidence: {draft.confidence.level} ({draft.confidence.score}) -{" "}
+            {draft.confidence.rationale}
+          </p>
+        </div>
+        <span className="rounded-md border border-[#d0d7de] bg-[#f7f9fa] px-2 py-1 text-xs font-semibold text-[#59636e]">
+          {draft.generator}
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase text-[#59636e]">
+            Generated comment
+          </p>
+          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#1f2937]">
+            {draft.generatedComment}
+          </p>
+        </div>
+        <GeneratedDraftList
+          emptyText="No assumptions recorded for this mock draft."
+          items={draft.assumptions}
+          label="Assumptions"
+        />
+        <GeneratedDraftList
+          emptyText="No warnings recorded for this mock draft."
+          items={draft.warnings}
+          label="Warnings"
+        />
+      </div>
+
+      <div className="mt-4">
+        <p className="text-xs font-semibold uppercase text-[#59636e]">
+          Demo steps
+        </p>
+        <ol className="mt-2 grid gap-3">
+          {draft.demoSteps.map((step) => (
+            <li
+              key={step.id}
+              className="rounded-md border border-[#e5e7eb] bg-[#f8fbfb] p-3 text-sm leading-6 text-[#1f2937]"
+            >
+              <p className="font-semibold">{step.title}</p>
+              <p className="mt-1 text-[#4b5563]">
+                {step.mesModuleOrScreen} - {step.reviewStatus}
+              </p>
+              <ol className="mt-2 list-decimal space-y-1 pl-5">
+                {step.instructions.map((instruction) => (
+                  <li key={instruction}>{instruction}</li>
+                ))}
+              </ol>
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      <div className="mt-4">
+        <p className="text-xs font-semibold uppercase text-[#59636e]">
+          Mock source references
+        </p>
+        <ul className="mt-2 grid gap-2">
+          {draft.sourceReferences.map((sourceReference) => (
+            <li
+              key={sourceReference.id}
+              className="text-sm leading-6 text-[#4b5563]"
+            >
+              <span className="font-semibold text-[#1f2937]">
+                {sourceReference.kind}
+              </span>
+              : {sourceReference.label}. {sourceReference.note}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+function GeneratedDraftList({
+  emptyText,
+  items,
+  label,
+}: {
+  emptyText: string;
+  items: string[];
+  label: string;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase text-[#59636e]">{label}</p>
+      {items.length > 0 ? (
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-[#4b5563]">
+          {items.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-sm leading-6 text-[#4b5563]">{emptyText}</p>
+      )}
+    </div>
   );
 }
 
@@ -562,6 +887,17 @@ function formatBoolean(value: boolean): string {
 
 function emptyValue(value: string | null | undefined): string {
   return value?.trim() || "Not provided";
+}
+
+function createIdleGenerationRun(): MockGenerationRunState {
+  return {
+    selectedCount: 0,
+    generatedCount: 0,
+    stages: mockGenerationStageLabels.map((label) => ({
+      label,
+      status: "waiting",
+    })),
+  };
 }
 
 function subscribeReviewStorage(onStoreChange: () => void): () => void {

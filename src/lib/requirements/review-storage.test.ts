@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   CUSTOMER_X_REVIEW_STORAGE_KEY,
   createDefaultRequirementReviewEntry,
+  createMockGeneratedRequirementDraft,
   createRequirementsReviewState,
   loadRequirementsReviewState,
   saveRequirementsReviewState,
+  updateRequirementsReviewState,
+  type ParsedRequirement,
   type ReviewProjectMetadata,
   type StorageLike,
 } from ".";
@@ -20,6 +23,26 @@ const projectMetadata: ReviewProjectMetadata = {
 const requirementIdentity = {
   sourceRowNumber: 3,
   requirementId: "01.01",
+};
+
+const parsedRequirement: ParsedRequirement = {
+  ...requirementIdentity,
+  requirementDescription: "UI supporting local language",
+  l2Process: "General",
+  l3Process: "Localization",
+  operation: "",
+  demo: false,
+  demoRaw: "",
+  detailDescriptionAndMotivation: "Consultants need traceable source data.",
+  prioEms: "1",
+  prioCws: "2",
+  mvp: false,
+  mvpRaw: "",
+  availability: "Available",
+  availabilityCm: "Standard",
+  descriptionAvailability: "Supported by configuration.",
+  supportedPercent: "100%",
+  sourceComment: "Existing Excel Comment feedback.",
 };
 
 class MemoryStorage implements StorageLike {
@@ -91,6 +114,56 @@ describe("requirements review local storage adapter", () => {
 
     expect(loadRequirementsReviewState(storage, fallbackState)).toEqual(
       fallbackState,
+    );
+  });
+
+  it("persists generated output and reset restores the generated draft", () => {
+    const storage = new MemoryStorage();
+    const generatedDraft =
+      createMockGeneratedRequirementDraft(parsedRequirement);
+    const generatedState = updateRequirementsReviewState(
+      createRequirementsReviewState(projectMetadata),
+      parsedRequirement,
+      {
+        type: "storeMockGeneratedDraft",
+        generatedOutput: generatedDraft,
+      },
+    );
+    const editedState = updateRequirementsReviewState(
+      generatedState,
+      parsedRequirement,
+      {
+        type: "edit",
+        consultantComment: "Manual consultant rewrite.",
+        reviewNote: "Check wording.",
+      },
+    );
+    const resetState = updateRequirementsReviewState(
+      editedState,
+      parsedRequirement,
+      { type: "resetToDraft" },
+    );
+
+    saveRequirementsReviewState(storage, resetState);
+
+    const loadedState = loadRequirementsReviewState(
+      storage,
+      createRequirementsReviewState(projectMetadata),
+    );
+    const loadedEntry = loadedState.requirements["3:01.01"];
+
+    expect(loadedEntry).toMatchObject({
+      reviewStatus: "pending",
+      consultantComment: generatedDraft.generatedComment,
+      reviewNote: "",
+      generatedOutput: {
+        state: "mock-generated-draft",
+        hasGeneratedOutput: true,
+        generatedCommentDraft: generatedDraft.generatedComment,
+      },
+    });
+    expect(loadedEntry?.consultantComment).not.toBe(
+      parsedRequirement.sourceComment,
     );
   });
 });

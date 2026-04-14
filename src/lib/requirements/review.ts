@@ -1,4 +1,8 @@
 import type { ParsedRequirement } from "./parser";
+import {
+  isGeneratedRequirementDraft,
+  type GeneratedRequirementDraft,
+} from "./generation";
 
 export type RequirementReviewStatus =
   | "pending"
@@ -20,20 +24,37 @@ export type RequirementReviewAction =
   | { type: "flag" }
   | { type: "skip" }
   | { type: "resetToDraft" }
+  | {
+      type: "storeMockGeneratedDraft";
+      generatedOutput: GeneratedRequirementDraft;
+    }
   | { type: "edit"; consultantComment?: string; reviewNote?: string };
 
-export interface GeneratedOutputPlaceholder {
+export interface NotGeneratedOutput {
+  state: "not-generated";
   hasGeneratedOutput: false;
   generatedCommentDraft: null;
   demoStepsDraft: string[];
 }
+
+export interface MockGeneratedDraftOutput {
+  state: "mock-generated-draft";
+  hasGeneratedOutput: true;
+  generatedCommentDraft: string;
+  demoStepsDraft: string[];
+  draft: GeneratedRequirementDraft;
+}
+
+export type RequirementGeneratedOutput =
+  | NotGeneratedOutput
+  | MockGeneratedDraftOutput;
 
 export interface RequirementReviewEntry {
   requirementKey: string;
   reviewStatus: RequirementReviewStatus;
   consultantComment: string;
   reviewNote: string;
-  generatedOutput: GeneratedOutputPlaceholder;
+  generatedOutput: RequirementGeneratedOutput;
 }
 
 export type RequirementReviewStateByKey = Record<
@@ -191,7 +212,7 @@ export function normalizeRequirementReviewEntry(
       typeof entry.reviewNote === "string"
         ? entry.reviewNote
         : defaultEntry.reviewNote,
-    generatedOutput: createGeneratedOutputPlaceholder(),
+    generatedOutput: normalizeGeneratedOutput(entry.generatedOutput),
   };
 }
 
@@ -210,9 +231,19 @@ export function updateRequirementReviewEntry(
       return {
         ...entry,
         reviewStatus: "pending",
-        consultantComment: "",
+        consultantComment:
+          entry.generatedOutput.state === "mock-generated-draft"
+            ? entry.generatedOutput.generatedCommentDraft
+            : "",
         reviewNote: "",
-        generatedOutput: createGeneratedOutputPlaceholder(),
+      };
+    case "storeMockGeneratedDraft":
+      return {
+        ...entry,
+        reviewStatus: "pending",
+        consultantComment: action.generatedOutput.generatedComment,
+        reviewNote: "",
+        generatedOutput: createMockGeneratedDraftOutput(action.generatedOutput),
       };
     case "edit":
       return {
@@ -253,9 +284,56 @@ export function isRequirementReviewStatus(
 }
 
 export function createGeneratedOutputPlaceholder(): GeneratedOutputPlaceholder {
+  return createNotGeneratedOutput();
+}
+
+export function createNotGeneratedOutput(): NotGeneratedOutput {
   return {
+    state: "not-generated",
     hasGeneratedOutput: false,
     generatedCommentDraft: null,
     demoStepsDraft: [],
   };
 }
+
+export function createMockGeneratedDraftOutput(
+  draft: GeneratedRequirementDraft,
+): MockGeneratedDraftOutput {
+  return {
+    state: "mock-generated-draft",
+    hasGeneratedOutput: true,
+    generatedCommentDraft: draft.generatedComment,
+    demoStepsDraft: draft.demoSteps.flatMap((step) => step.instructions),
+    draft,
+  };
+}
+
+export function normalizeGeneratedOutput(
+  value: unknown,
+): RequirementGeneratedOutput {
+  if (!isRecord(value)) {
+    return createNotGeneratedOutput();
+  }
+
+  if (
+    value.state === "mock-generated-draft" &&
+    isGeneratedRequirementDraft(value.draft)
+  ) {
+    return createMockGeneratedDraftOutput(value.draft);
+  }
+
+  if (
+    value.hasGeneratedOutput === true &&
+    isGeneratedRequirementDraft(value.draft)
+  ) {
+    return createMockGeneratedDraftOutput(value.draft);
+  }
+
+  return createNotGeneratedOutput();
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+export type GeneratedOutputPlaceholder = NotGeneratedOutput;
