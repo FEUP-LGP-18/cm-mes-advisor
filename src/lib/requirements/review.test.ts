@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildReviewRequirements,
+  createMockGeneratedRequirementDraft,
   createDefaultRequirementReviewEntry,
   createRequirementsReviewState,
   filterReviewRequirements,
@@ -49,6 +50,7 @@ function requirement(overrides: Partial<ReviewRequirement>): ReviewRequirement {
     consultantComment: "",
     reviewNote: "",
     generatedOutput: {
+      state: "not-generated",
       hasGeneratedOutput: false,
       generatedCommentDraft: null,
       demoStepsDraft: [],
@@ -215,5 +217,56 @@ describe("requirements review view model", () => {
         demoStepsDraft: [],
       },
     });
+  });
+
+  it("stores generated output and resets to the latest generated draft", () => {
+    const generatedDraft = createMockGeneratedRequirementDraft(baseRequirement);
+    const generatedState = updateRequirementsReviewState(
+      createRequirementsReviewState(projectMetadata),
+      baseRequirement,
+      {
+        type: "storeMockGeneratedDraft",
+        generatedOutput: generatedDraft,
+      },
+    );
+    const manuallyEditedState = updateRequirementsReviewState(
+      generatedState,
+      baseRequirement,
+      {
+        type: "edit",
+        consultantComment: "Manual edit after generation.",
+        reviewNote: "Review this exact wording.",
+      },
+    );
+    const resetState = updateRequirementsReviewState(
+      manuallyEditedState,
+      baseRequirement,
+      { type: "resetToDraft" },
+    );
+    const requirementKey = getRequirementReviewKey(baseRequirement);
+
+    expect(generatedState.requirements[requirementKey]).toMatchObject({
+      reviewStatus: "pending",
+      consultantComment: generatedDraft.generatedComment,
+      reviewNote: "",
+      generatedOutput: {
+        state: "mock-generated-draft",
+        hasGeneratedOutput: true,
+        generatedCommentDraft: generatedDraft.generatedComment,
+        draft: generatedDraft,
+      },
+    });
+    expect(resetState.requirements[requirementKey]).toMatchObject({
+      reviewStatus: "pending",
+      consultantComment: generatedDraft.generatedComment,
+      reviewNote: "",
+      generatedOutput: {
+        state: "mock-generated-draft",
+        hasGeneratedOutput: true,
+      },
+    });
+    expect(resetState.requirements[requirementKey]?.consultantComment).not.toBe(
+      baseRequirement.sourceComment,
+    );
   });
 });

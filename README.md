@@ -94,8 +94,20 @@ can add manual notes, approve rows, flag rows for review, skip rows, reset rows
 back to draft, and refresh without losing those local decisions.
 
 This state is stored in browser localStorage behind a small adapter. It is not a
-production database and does not represent generated AI output yet. The original
-Excel `sourceComment` remains read-only source data.
+production database. The original Excel `sourceComment` remains read-only source
+data.
+
+## Epic 4 Mock Generation Contract
+
+The review workspace can generate deterministic mock drafts for selected
+requirements. Drafts include a consultant-facing comment, demo steps,
+confidence, assumptions, warnings, and mock source references labeled as
+`mock-ai` or `mcp-placeholder`.
+
+This is not a real AI integration. Epic 4 does not call Bedrock, MCP, LibreChat,
+MES services, document export, uploads, authentication, or Phase 2 Master Data
+generation. Resetting a generated row restores the latest mock draft; resetting a
+non-generated row clears manual local edits.
 
 ## Secret Safety
 

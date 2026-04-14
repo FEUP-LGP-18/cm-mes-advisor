@@ -1,6 +1,6 @@
 import {
-  createGeneratedOutputPlaceholder,
   isRequirementReviewStatus,
+  normalizeGeneratedOutput,
   type RequirementReviewEntry,
   type RequirementReviewStateByKey,
   type RequirementsReviewState,
@@ -130,7 +130,7 @@ function normalizeStoredRequirementEntry(
         ? value.consultantComment
         : "",
     reviewNote: typeof value.reviewNote === "string" ? value.reviewNote : "",
-    generatedOutput: createGeneratedOutputPlaceholder(),
+    generatedOutput: normalizeGeneratedOutput(value.generatedOutput),
   };
 }
 
