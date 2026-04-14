@@ -49,6 +49,32 @@ fixtures/customer-x-functional-requirements.xlsx
 
 Do not commit raw PDFs, ZIPs, archive folders, exported documents, uploads, local data, or additional partner workbooks without an explicit review.
 
+## Epic 1 Parser Validation
+
+The Excel parser lives in:
+
+```text
+src/lib/requirements/
+```
+
+It parses the `Requirements` sheet from the committed fixture, treats row 2 as the real header row, and preserves the original Excel row number as `sourceRowNumber`.
+
+The existing Excel `Comment` column is mapped to `sourceComment`. Epic 1 does not generate AI output and does not create a `generatedComment` field.
+
+Run the home-page validation summary with:
+
+```bash
+pnpm dev
+```
+
+Then open `http://localhost:3000` to see row, demo, MVP, and sample requirement data parsed from the fixture.
+
+Run the parser tests with:
+
+```bash
+pnpm test
+```
+
 ## Secret Safety
 
 Do not commit `.env` files, MES passwords, ZIP passwords, Bedrock keys, AWS credentials, MCP credentials, or partner secrets. Keep AI credentials server-side only. Use `.env.example` for placeholder names and safe example values.
