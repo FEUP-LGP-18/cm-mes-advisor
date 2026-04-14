@@ -14,8 +14,9 @@ export default async function Home() {
   const parsedRequirements = await parseRequirementsWorkbookFile(
     path.join(process.cwd(), fixturePath),
   );
-  const requirements = buildReviewRequirements(parsedRequirements);
-  const summary = summarizeReviewRequirements(requirements);
+  const summary = summarizeReviewRequirements(
+    buildReviewRequirements(parsedRequirements),
+  );
 
   return (
     <main className="min-h-screen bg-[#f5f7f7] text-[#191919]">
@@ -26,13 +27,12 @@ export default async function Home() {
               FEUP LGP x Critical Manufacturing
             </p>
             <h1 className="text-4xl font-semibold leading-tight text-[#111827]">
-              Requirements Review Without AI
+              Requirements Review With Local Actions
             </h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-[#3a3a3a]">
-              Inspect the parsed Customer X Excel requirements before any AI
-              generation exists. AI comments, demo generation, review actions,
-              and persistence come later; this workspace is read-only for Epic
-              2.
+              Inspect the parsed Customer X Excel requirements, record local
+              consultant notes, and move rows through approve, flag, skip, or
+              reset states before AI generation exists.
             </p>
             <p className="mt-4 text-sm font-semibold text-[#30363d]">
               {phaseOneScope.productName} keeps this slice Excel-first and
@@ -64,8 +64,14 @@ export default async function Home() {
         </header>
 
         <RequirementsReviewWorkspace
-          requirements={requirements}
-          summary={summary}
+          projectMetadata={{
+            projectId: "customer-x-fixture",
+            projectName: "Customer X Demo",
+            customerName: "Customer X",
+            sourceFilename: fixturePath,
+            sourceRowCount: parsedRequirements.length,
+          }}
+          requirements={parsedRequirements}
         />
       </section>
     </main>

@@ -11,6 +11,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 Before implementing product behavior, read:
 
 - `docs/discovery/project-context.md`
+- `docs/discovery/rui-answers-2026-04-14.md`
 - `docs/discovery/ui-ux-decisions.md`
 - `docs/phase-1-epic-plan.md`
 

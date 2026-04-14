@@ -1,6 +1,6 @@
 # Phase 1 Epic-Based Implementation Plan
 
-Last updated: 2026-04-13
+Last updated: 2026-04-14
 
 ## Plan Review
 
@@ -28,6 +28,7 @@ Client-aligned Phase 1 scope:
 - The app generates step-by-step demo guidance for requirements selected for demonstration.
 - A consultant reviews and edits the generated comments and demo steps.
 - The successful Phase 1 output is available in the app UI and as a separate generated demo document.
+- Rui's 2026-04-14 guidance: if a requirement is partially supported, suggest a workaround when possible; if not possible, mark it for consultant review. The ideal demo script is click-by-click MES guidance with exact screens, modules, and actions, if time allows.
 
 Plain-language target:
 
@@ -183,7 +184,8 @@ Implementation:
   - skip
   - reset to draft
 - Track whether a row has generated output or only source data.
-- Keep storage behind an adapter so it can later move to a real database.
+- Keep storage behind an adapter so it can later move to a real database. For this local prototype slice, browser localStorage is acceptable as long as it is isolated and replaceable.
+- Keep `sourceComment` read-only and separate from manual consultant notes or future generated output.
 
 Reviewable output:
 
@@ -194,6 +196,7 @@ Acceptance checks:
 - Status changes persist locally.
 - Edited draft text persists locally.
 - Reset restores the latest draft output, not the original Excel source comment unless explicitly intended.
+- Skipped rows have their own state/filter so intentionally ignored rows do not disappear.
 
 ## Epic 4 - Generation Contract With Mock AI
 
@@ -254,6 +257,8 @@ Implementation:
   - confidence or uncertainty
   - assumptions and warnings
   - source references when available
+- For partial support, prefer workaround suggestions; if no good workaround is available, flag for consultant review.
+- Aim for click-by-click MES screens/modules/actions where the MCP context supports that level of detail.
 - Do not ask the model to generate Master Data.
 - Do not include the same row's existing `sourceComment` in evaluation prompts if the goal is to assess model quality.
 - Optionally use a few existing comments from other rows as style examples.
@@ -397,6 +402,5 @@ Do not treat this subset as final. Replace or adjust it when Rui replies.
 
 - Final Phase 1 document format: Markdown, PDF, Word, Excel, or multiple formats.
 - Whether to write generated comments back to a copy of the Excel file.
-- Exact Rui-approved quality bar for generated comments and demo scripts.
 - Exact role of MCP/RAG integration in the separate app.
 - Whether the first demo should include auth or use a dev-only/mock user.

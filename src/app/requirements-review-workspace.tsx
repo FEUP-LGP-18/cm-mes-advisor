@@ -1,13 +1,26 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import {
+  buildReviewRequirements,
+  createRequirementsReviewState,
   filterReviewRequirements,
   requirementReviewFilters,
+  summarizeReviewRequirements,
+  updateRequirementsReviewState,
+  type RequirementReviewAction,
   type RequirementReviewFilter,
-  type RequirementsReviewSummary,
+  type RequirementReviewStatus,
+  type ReviewProjectMetadata,
   type ReviewRequirement,
 } from "@/lib/requirements/review";
+import type { ParsedRequirement } from "@/lib/requirements/parser";
+import {
+  CUSTOMER_X_REVIEW_STORAGE_KEY,
+  loadRequirementsReviewState,
+  parseRequirementsReviewState,
+  saveRequirementsReviewState,
+} from "@/lib/requirements/review-storage";
 
 const filterLabels: Record<RequirementReviewFilter, string> = {
   all: "All rows",
@@ -16,46 +29,97 @@ const filterLabels: Record<RequirementReviewFilter, string> = {
   pending: "Pending rows",
   review: "Review rows",
   approved: "Approved rows",
+  skipped: "Skipped rows",
 };
 
 const filterDescriptions: Record<RequirementReviewFilter, string> = {
   all: "All parsed requirements from the fixture.",
   demo: "Rows marked for demo in the source Excel file.",
   mvp: "Rows marked as MVP in the source Excel file.",
-  pending: "Rows waiting for future Epic 3 review actions.",
-  review: "Rows that will need review after Epic 3 adds review actions.",
-  approved: "Rows that will be approved after Epic 3 adds persistence.",
+  pending: "Rows waiting for review actions or future AI drafts.",
+  review: "Rows flagged for consultant review or workaround decisions.",
+  approved: "Rows accepted for the Phase 1 demo-script flow.",
+  skipped: "Rows intentionally left out of the current review slice.",
 };
 
+const statusStyles: Record<RequirementReviewStatus, string> = {
+  pending: "border-[#d0d7de] bg-[#f7f9fa] text-[#30363d]",
+  review: "border-[#f59e0b] bg-[#fff7ed] text-[#92400e]",
+  approved: "border-[#0f766e] bg-[#e8f4f1] text-[#0f5132]",
+  skipped: "border-[#8b949e] bg-[#f3f4f6] text-[#4b5563]",
+};
+
+const reviewStorageChangeEventName = "cm-mes-advisor:review-state-change";
+
 interface RequirementsReviewWorkspaceProps {
-  requirements: ReviewRequirement[];
-  summary: RequirementsReviewSummary;
+  projectMetadata: ReviewProjectMetadata;
+  requirements: ParsedRequirement[];
 }
 
 export default function RequirementsReviewWorkspace({
+  projectMetadata,
   requirements,
-  summary,
 }: RequirementsReviewWorkspaceProps) {
+  const fallbackReviewState = useMemo(
+    () => createRequirementsReviewState(projectMetadata),
+    [projectMetadata],
+  );
+  const reviewStorageSnapshot = useSyncExternalStore(
+    subscribeReviewStorage,
+    readReviewStorageSnapshot,
+    getServerReviewStorageSnapshot,
+  );
+  const reviewState = useMemo(
+    () =>
+      parseRequirementsReviewState(reviewStorageSnapshot, fallbackReviewState),
+    [fallbackReviewState, reviewStorageSnapshot],
+  );
   const [activeFilter, setActiveFilter] =
     useState<RequirementReviewFilter>("all");
   const [selectedRowNumber, setSelectedRowNumber] = useState<number | null>(
     null,
   );
 
+  const reviewRequirements = useMemo(
+    () => buildReviewRequirements(requirements, reviewState.requirements),
+    [requirements, reviewState.requirements],
+  );
+  const summary = useMemo(
+    () => summarizeReviewRequirements(reviewRequirements),
+    [reviewRequirements],
+  );
   const filteredRequirements = useMemo(
-    () => filterReviewRequirements(requirements, activeFilter),
-    [activeFilter, requirements],
+    () => filterReviewRequirements(reviewRequirements, activeFilter),
+    [activeFilter, reviewRequirements],
   );
   const selectedRequirement =
-    filteredRequirements.find(
+    reviewRequirements.find(
       (requirement) => requirement.sourceRowNumber === selectedRowNumber,
     ) ?? null;
+
+  function handleReviewAction(
+    requirement: ReviewRequirement,
+    action: RequirementReviewAction,
+  ) {
+    const currentState = loadRequirementsReviewState(
+      window.localStorage,
+      fallbackReviewState,
+    );
+    const nextState = updateRequirementsReviewState(
+      currentState,
+      requirement,
+      action,
+    );
+
+    saveRequirementsReviewState(window.localStorage, nextState);
+    window.dispatchEvent(new Event(reviewStorageChangeEventName));
+  }
 
   return (
     <div className="grid gap-6">
       <section
         aria-label="Requirement filters"
-        className="grid gap-3 md:grid-cols-3 xl:grid-cols-6"
+        className="grid gap-3 md:grid-cols-3 xl:grid-cols-7"
       >
         {requirementReviewFilters.map((filter) => (
           <button
@@ -95,11 +159,12 @@ export default function RequirementsReviewWorkspace({
               <p className="mt-2 text-sm leading-6 text-[#59636e]">
                 {filteredRequirements.length} rows in{" "}
                 {filterLabels[activeFilter].toLowerCase()}. Select one
-                requirement to inspect the original Excel data.
+                requirement to inspect the original Excel data and record local
+                review decisions.
               </p>
             </div>
             <p className="rounded-md border border-[#d0d7de] px-3 py-2 text-sm font-semibold text-[#30363d]">
-              Read-only until Epic 3
+              Local browser state
             </p>
           </div>
 
@@ -125,7 +190,7 @@ export default function RequirementsReviewWorkspace({
 
                     return (
                       <tr
-                        key={`${requirement.sourceRowNumber}-${requirement.requirementId}`}
+                        key={requirement.requirementKey}
                         className={`border-t border-[#e5e7eb] ${
                           isSelected ? "bg-[#e8f4f1]" : "bg-white"
                         }`}
@@ -183,14 +248,17 @@ export default function RequirementsReviewWorkspace({
           )}
         </div>
 
-        <RequirementDetail requirement={selectedRequirement} />
+        <RequirementDetail
+          onReviewAction={handleReviewAction}
+          requirement={selectedRequirement}
+        />
       </section>
     </div>
   );
 }
 
 function getFilterCount(
-  summary: RequirementsReviewSummary,
+  summary: ReturnType<typeof summarizeReviewRequirements>,
   filter: RequirementReviewFilter,
 ): number {
   switch (filter) {
@@ -206,12 +274,19 @@ function getFilterCount(
       return summary.reviewCount;
     case "approved":
       return summary.approvedCount;
+    case "skipped":
+      return summary.skippedCount;
   }
 }
 
 function RequirementDetail({
+  onReviewAction,
   requirement,
 }: {
+  onReviewAction: (
+    requirement: ReviewRequirement,
+    action: RequirementReviewAction,
+  ) => void;
   requirement: ReviewRequirement | null;
 }) {
   if (!requirement) {
@@ -225,8 +300,9 @@ function RequirementDetail({
         </h2>
         <p className="mt-4 leading-7 text-[#4b5563]">
           Choose any row from the requirements list to review the full parsed
-          Excel values, including the original source comment. Review actions,
-          editing, approvals, and persistence arrive in Epic 3.
+          Excel values, including the original source comment. Epic 3 adds local
+          notes, review status actions, skip handling, and refresh-safe
+          prototype persistence.
         </p>
       </aside>
     );
@@ -245,6 +321,11 @@ function RequirementDetail({
         </div>
         <StatusBadge status={requirement.reviewStatus} />
       </div>
+
+      <ReviewActionsPanel
+        onReviewAction={onReviewAction}
+        requirement={requirement}
+      />
 
       <dl className="mt-6 grid gap-4">
         <DetailField label="Source Excel row">
@@ -290,6 +371,129 @@ function RequirementDetail({
   );
 }
 
+function ReviewActionsPanel({
+  onReviewAction,
+  requirement,
+}: {
+  onReviewAction: (
+    requirement: ReviewRequirement,
+    action: RequirementReviewAction,
+  ) => void;
+  requirement: ReviewRequirement;
+}) {
+  return (
+    <section className="mt-6 rounded-lg border border-[#d0d7de] bg-[#f8fbfb] p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-base font-semibold text-[#111827]">
+            Consultant review state
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-[#4b5563]">
+            No AI output is generated yet. These fields are local prototype
+            notes for Epic 3 and stay separate from the original Excel comment.
+          </p>
+        </div>
+        <span className="rounded-md border border-[#d0d7de] bg-white px-2 py-1 text-xs font-semibold text-[#59636e]">
+          Auto-saved locally
+        </span>
+      </div>
+
+      <label className="mt-4 block">
+        <span className="text-xs font-semibold uppercase text-[#59636e]">
+          Manual consultant comment
+        </span>
+        <textarea
+          value={requirement.consultantComment}
+          onChange={(event) =>
+            onReviewAction(requirement, {
+              type: "edit",
+              consultantComment: event.currentTarget.value,
+            })
+          }
+          placeholder="Add a draft comment or workaround note. Future AI drafts will arrive in a later epic."
+          className="mt-2 min-h-28 w-full rounded-md border border-[#c9d3d1] bg-white p-3 text-sm leading-6 text-[#1f2937] outline-none transition focus:border-[#0f766e] focus:ring-2 focus:ring-[#b7d7d1]"
+        />
+      </label>
+
+      <label className="mt-4 block">
+        <span className="text-xs font-semibold uppercase text-[#59636e]">
+          Review note or reason
+        </span>
+        <textarea
+          value={requirement.reviewNote}
+          onChange={(event) =>
+            onReviewAction(requirement, {
+              type: "edit",
+              reviewNote: event.currentTarget.value,
+            })
+          }
+          placeholder="For example: needs Rui/MCP confirmation, workaround required, or not part of this demo slice."
+          className="mt-2 min-h-20 w-full rounded-md border border-[#c9d3d1] bg-white p-3 text-sm leading-6 text-[#1f2937] outline-none transition focus:border-[#0f766e] focus:ring-2 focus:ring-[#b7d7d1]"
+        />
+      </label>
+
+      <div className="mt-4 rounded-md border border-dashed border-[#a8b3bd] bg-white p-3 text-sm leading-6 text-[#4b5563]">
+        Generated output placeholder:{" "}
+        {requirement.generatedOutput.hasGeneratedOutput
+          ? "available"
+          : "not generated yet"}
+        . Reset clears local manual edits and returns the row to pending; it
+        never copies over or changes the source Excel comment.
+      </div>
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <ReviewActionButton
+          label="Approve"
+          onClick={() => onReviewAction(requirement, { type: "approve" })}
+          tone="approve"
+        />
+        <ReviewActionButton
+          label="Flag for review"
+          onClick={() => onReviewAction(requirement, { type: "flag" })}
+          tone="review"
+        />
+        <ReviewActionButton
+          label="Skip"
+          onClick={() => onReviewAction(requirement, { type: "skip" })}
+          tone="neutral"
+        />
+        <ReviewActionButton
+          label="Reset to draft"
+          onClick={() => onReviewAction(requirement, { type: "resetToDraft" })}
+          tone="neutral"
+        />
+      </div>
+    </section>
+  );
+}
+
+function ReviewActionButton({
+  label,
+  onClick,
+  tone,
+}: {
+  label: string;
+  onClick: () => void;
+  tone: "approve" | "review" | "neutral";
+}) {
+  const toneClass =
+    tone === "approve"
+      ? "border-[#0f766e] bg-[#0f766e] text-white hover:bg-[#0c5f59]"
+      : tone === "review"
+        ? "border-[#f59e0b] bg-[#fff7ed] text-[#92400e] hover:bg-[#ffedd5]"
+        : "border-[#d0d7de] bg-white text-[#30363d] hover:bg-[#f3f4f6]";
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-md border px-3 py-2 text-sm font-semibold transition ${toneClass}`}
+    >
+      {label}
+    </button>
+  );
+}
+
 function DetailField({
   children,
   label,
@@ -310,9 +514,9 @@ function DetailField({
 }
 
 function EmptyFilterState({ filter }: { filter: RequirementReviewFilter }) {
-  const futureCopy =
-    filter === "review" || filter === "approved"
-      ? "Epic 3 will add review actions and persistence before rows can enter this state."
+  const emptyCopy =
+    filter === "review" || filter === "approved" || filter === "skipped"
+      ? "Use the row detail panel actions to move requirements into this review state."
       : "No source rows match this fixture-backed filter.";
 
   return (
@@ -323,7 +527,7 @@ function EmptyFilterState({ filter }: { filter: RequirementReviewFilter }) {
       <h2 className="mt-2 text-2xl font-semibold text-[#111827]">
         No {filterLabels[filter].toLowerCase()} yet
       </h2>
-      <p className="mt-4 max-w-2xl leading-7 text-[#4b5563]">{futureCopy}</p>
+      <p className="mt-4 max-w-2xl leading-7 text-[#4b5563]">{emptyCopy}</p>
     </div>
   );
 }
@@ -342,13 +546,11 @@ function FlagBadge({ active }: { active: boolean }) {
   );
 }
 
-function StatusBadge({
-  status,
-}: {
-  status: ReviewRequirement["reviewStatus"];
-}) {
+function StatusBadge({ status }: { status: RequirementReviewStatus }) {
   return (
-    <span className="inline-flex rounded-md border border-[#d0d7de] bg-[#f7f9fa] px-2 py-1 text-xs font-semibold capitalize text-[#30363d]">
+    <span
+      className={`inline-flex rounded-md border px-2 py-1 text-xs font-semibold capitalize ${statusStyles[status]}`}
+    >
       {status}
     </span>
   );
@@ -358,6 +560,28 @@ function formatBoolean(value: boolean): string {
   return value ? "Yes" : "No";
 }
 
-function emptyValue(value: string): string {
-  return value.trim() || "Not provided";
+function emptyValue(value: string | null | undefined): string {
+  return value?.trim() || "Not provided";
+}
+
+function subscribeReviewStorage(onStoreChange: () => void): () => void {
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener(reviewStorageChangeEventName, onStoreChange);
+
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(reviewStorageChangeEventName, onStoreChange);
+  };
+}
+
+function readReviewStorageSnapshot(): string {
+  try {
+    return window.localStorage.getItem(CUSTOMER_X_REVIEW_STORAGE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function getServerReviewStorageSnapshot(): string {
+  return "";
 }

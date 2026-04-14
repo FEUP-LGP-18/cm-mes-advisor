@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   buildReviewRequirements,
+  createDefaultRequirementReviewEntry,
+  createRequirementsReviewState,
   filterReviewRequirements,
+  getRequirementReviewKey,
   summarizeReviewRequirements,
+  updateRequirementsReviewState,
   type ParsedRequirement,
   type ReviewRequirement,
+  type ReviewProjectMetadata,
 } from ".";
 
 const baseRequirement: ParsedRequirement = {
@@ -28,23 +33,40 @@ const baseRequirement: ParsedRequirement = {
   sourceComment: "Existing Excel Comment feedback.",
 };
 
+const projectMetadata: ReviewProjectMetadata = {
+  projectId: "customer-x-fixture",
+  projectName: "Customer X Demo",
+  customerName: "Customer X",
+  sourceFilename: "fixtures/customer-x-functional-requirements.xlsx",
+  sourceRowCount: 167,
+};
+
 function requirement(overrides: Partial<ReviewRequirement>): ReviewRequirement {
   return {
     ...baseRequirement,
+    requirementKey: getRequirementReviewKey(baseRequirement),
     reviewStatus: "pending",
+    consultantComment: "",
+    reviewNote: "",
+    generatedOutput: {
+      hasGeneratedOutput: false,
+      generatedCommentDraft: null,
+      demoStepsDraft: [],
+    },
     ...overrides,
   };
 }
 
 describe("requirements review view model", () => {
-  it("defaults every parsed requirement to pending without generated output", () => {
+  it("defaults every parsed requirement to pending with local review placeholders", () => {
     const reviewRequirements = buildReviewRequirements([
       baseRequirement,
-      requirement({
+      {
+        ...baseRequirement,
         sourceRowNumber: 4,
         requirementId: "01.02",
         sourceComment: "Another source comment.",
-      }),
+      },
     ]);
 
     expect(reviewRequirements).toHaveLength(2);
@@ -56,23 +78,46 @@ describe("requirements review view model", () => {
     expect(reviewRequirements[0]?.sourceComment).toBe(
       "Existing Excel Comment feedback.",
     );
-    expect(
-      Object.prototype.hasOwnProperty.call(
-        reviewRequirements[0] as unknown as Record<string, unknown>,
-        "generatedComment",
-      ),
-    ).toBe(false);
+    expect(reviewRequirements[0]).toMatchObject({
+      requirementKey: "3:01.01",
+      consultantComment: "",
+      reviewNote: "",
+      generatedOutput: {
+        hasGeneratedOutput: false,
+        generatedCommentDraft: null,
+        demoStepsDraft: [],
+      },
+    });
   });
 
-  it("filters all, demo, MVP, pending, review, and approved rows", () => {
+  it("merges local review state without overwriting source comments", () => {
+    const reviewRequirements = buildReviewRequirements([baseRequirement], {
+      [getRequirementReviewKey(baseRequirement)]: {
+        ...createDefaultRequirementReviewEntry(baseRequirement),
+        reviewStatus: "approved",
+        consultantComment: "Manual consultant note.",
+        reviewNote: "Validated during review.",
+      },
+    });
+
+    expect(reviewRequirements[0]).toMatchObject({
+      reviewStatus: "approved",
+      consultantComment: "Manual consultant note.",
+      reviewNote: "Validated during review.",
+      sourceComment: "Existing Excel Comment feedback.",
+    });
+  });
+
+  it("filters all, demo, MVP, pending, review, approved, and skipped rows", () => {
     const requirements: ReviewRequirement[] = [
       requirement({ requirementId: "01.01", demo: true, demoRaw: "x" }),
       requirement({ requirementId: "01.02", mvp: true, mvpRaw: "X" }),
       requirement({ requirementId: "01.03", reviewStatus: "review" }),
       requirement({ requirementId: "01.04", reviewStatus: "approved" }),
+      requirement({ requirementId: "01.05", reviewStatus: "skipped" }),
     ];
 
-    expect(filterReviewRequirements(requirements, "all")).toHaveLength(4);
+    expect(filterReviewRequirements(requirements, "all")).toHaveLength(5);
     expect(filterReviewRequirements(requirements, "demo")).toEqual([
       requirements[0],
     ]);
@@ -89,6 +134,9 @@ describe("requirements review view model", () => {
     expect(filterReviewRequirements(requirements, "approved")).toEqual([
       requirements[3],
     ]);
+    expect(filterReviewRequirements(requirements, "skipped")).toEqual([
+      requirements[4],
+    ]);
   });
 
   it("summarizes review filter counts", () => {
@@ -97,15 +145,75 @@ describe("requirements review view model", () => {
       requirement({ mvp: true, mvpRaw: "X" }),
       requirement({ reviewStatus: "review" }),
       requirement({ reviewStatus: "approved" }),
+      requirement({ reviewStatus: "skipped" }),
     ];
 
     expect(summarizeReviewRequirements(requirements)).toEqual({
-      allCount: 4,
+      allCount: 5,
       demoCount: 1,
       mvpCount: 2,
       pendingCount: 2,
       reviewCount: 1,
       approvedCount: 1,
+      skippedCount: 1,
+    });
+  });
+
+  it("updates local review state with approve, flag, skip, edit, and reset actions", () => {
+    const editedState = updateRequirementsReviewState(
+      createRequirementsReviewState(projectMetadata),
+      baseRequirement,
+      {
+        type: "edit",
+        consultantComment: "Use Rui's workaround guidance here.",
+        reviewNote: "Needs a consultant to confirm the exact MES screen.",
+      },
+    );
+    const flaggedState = updateRequirementsReviewState(
+      editedState,
+      baseRequirement,
+      { type: "flag" },
+    );
+    const approvedState = updateRequirementsReviewState(
+      flaggedState,
+      baseRequirement,
+      { type: "approve" },
+    );
+    const skippedState = updateRequirementsReviewState(
+      approvedState,
+      baseRequirement,
+      { type: "skip" },
+    );
+    const resetState = updateRequirementsReviewState(
+      skippedState,
+      baseRequirement,
+      { type: "resetToDraft" },
+    );
+    const requirementKey = getRequirementReviewKey(baseRequirement);
+
+    expect(editedState.requirements[requirementKey]).toMatchObject({
+      reviewStatus: "pending",
+      consultantComment: "Use Rui's workaround guidance here.",
+      reviewNote: "Needs a consultant to confirm the exact MES screen.",
+    });
+    expect(flaggedState.requirements[requirementKey]?.reviewStatus).toBe(
+      "review",
+    );
+    expect(approvedState.requirements[requirementKey]?.reviewStatus).toBe(
+      "approved",
+    );
+    expect(skippedState.requirements[requirementKey]?.reviewStatus).toBe(
+      "skipped",
+    );
+    expect(resetState.requirements[requirementKey]).toMatchObject({
+      reviewStatus: "pending",
+      consultantComment: "",
+      reviewNote: "",
+      generatedOutput: {
+        hasGeneratedOutput: false,
+        generatedCommentDraft: null,
+        demoStepsDraft: [],
+      },
     });
   });
 });
