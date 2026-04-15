@@ -38,6 +38,7 @@ Open `http://localhost:3000`.
 - `docs/discovery/rui-scope-message.md`: partner scope message
 - `docs/discovery/teams-client-thread-summary.md`: partner conversation summary
 - `docs/discovery/librechat-mcp-notes.md`: safe LibreChat/MCP package notes
+- `docs/discovery/epic-8-validation-slice.md`: small Phase 1 validation slice
 - `docs/phase-1-epic-plan.md`: Phase 1 epic plan
 
 ## Fixture
@@ -164,6 +165,21 @@ consultant edits so the document is readable outside the app.
 Markdown is the first export format. PDF or Word exports can come later if the
 team decides they are worth the added scope. The export flow stays browser-side
 and does not write files back into the repo or workspace.
+
+## Epic 8 Phase 1 Validation And Rui Feedback Pass
+
+The mock Phase 1 output now leans harder into Rui's guidance:
+
+- partial or custom rows start with a workaround-first explanation
+- ambiguous rows stay in consultant review instead of sounding final
+- missing descriptions are flagged clearly so they are not approved blindly
+- the review workspace shows lightweight validation badges so consultants can
+  spot rows that look safe to approve versus rows that still need human
+  judgment
+
+The validation pass is still Phase 1 only. Real MCP or Bedrock generation stays
+blocked until the callable protocol is confirmed, and Phase 2 Master Data
+remains optional and future-facing.
 
 ## Secret Safety
 

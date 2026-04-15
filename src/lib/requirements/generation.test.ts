@@ -39,6 +39,17 @@ const partialRequirement: ParsedRequirement = {
   supportedPercent: "60%",
 };
 
+const missingDescriptionRequirement: ParsedRequirement = {
+  ...standardRequirement,
+  sourceRowNumber: 5,
+  requirementId: "01.03",
+  requirementDescription: "",
+  availability: "Needs review",
+  availabilityCm: "Consultant review required",
+  descriptionAvailability: "Description not provided.",
+  supportedPercent: "",
+};
+
 describe("mock requirement generation", () => {
   it("defines the deck-aligned mock generation stages", () => {
     expect(mockGenerationStageLabels).toEqual([
@@ -73,6 +84,13 @@ describe("mock requirement generation", () => {
     expect(firstDraft.generatedComment).toContain(
       "through standard configuration",
     );
+    expect(firstDraft.demoSteps[0].title).toContain("locate the record");
+    expect(firstDraft.demoSteps[0].instructions[1]).toContain(
+      "from the MES navigation",
+    );
+    expect(firstDraft.demoSteps[1].instructions[1]).toContain(
+      "Walk through the exact field, button, or action",
+    );
     expect(firstDraft.demoSteps[0]).toMatchObject({
       relatedRequirementIds: ["01.01"],
       reviewStatus: "draft",
@@ -106,6 +124,36 @@ describe("mock requirement generation", () => {
       createMockGeneratedRequirementDraft(partialRequirement);
 
     expect(partialDraft.generatedComment).toContain("workaround");
+    expect(partialDraft.generatedComment).not.toMatch(/not supported/i);
+    expect(partialDraft.demoSteps[0].title).toContain(
+      "closest standard MES screen",
+    );
+    expect(partialDraft.demoSteps[0].instructions[2]).toContain(
+      "Click the screen or record",
+    );
     expect(partialDraft.demoSteps[1]?.reviewStatus).toBe("consultant-review");
+  });
+
+  it("keeps missing description rows in consultant review without blunt unsupported wording", () => {
+    const missingDescriptionDraft = createMockGeneratedRequirementDraft(
+      missingDescriptionRequirement,
+    );
+
+    expect(missingDescriptionDraft.confidence.level).toBe("low");
+    expect(missingDescriptionDraft.generatedComment).toContain(
+      "needs consultant review",
+    );
+    expect(missingDescriptionDraft.generatedComment).not.toMatch(
+      /not supported/i,
+    );
+    expect(missingDescriptionDraft.warnings.join(" ")).toContain(
+      "Consultant review needed",
+    );
+    expect(missingDescriptionDraft.demoSteps[0].title).toContain(
+      "consultant review",
+    );
+    expect(missingDescriptionDraft.demoSteps[1]?.reviewStatus).toBe(
+      "consultant-review",
+    );
   });
 });
