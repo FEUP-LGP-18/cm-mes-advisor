@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import {
+  assessRequirementSupport,
   mockGenerationStageLabels,
   type GeneratedRequirementDraft,
   type MockGenerationStage,
@@ -24,6 +25,11 @@ import {
   type ReviewProjectMetadata,
   type ReviewRequirement,
 } from "@/lib/requirements/review";
+import {
+  evaluateRequirementValidation,
+  requirementValidationSignalLabels,
+  type RequirementValidationSummary,
+} from "@/lib/requirements/validation";
 import type { ParsedRequirement } from "@/lib/requirements/parser";
 import {
   CUSTOMER_X_REVIEW_STORAGE_KEY,
@@ -749,6 +755,9 @@ function RequirementDetail({
     );
   }
 
+  const assessment = assessRequirementSupport(requirement);
+  const validation = evaluateRequirementValidation(requirement, assessment);
+
   return (
     <aside className="rounded-lg border border-[#d0d7de] bg-white p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -765,6 +774,7 @@ function RequirementDetail({
 
       <ReviewActionsPanel
         onReviewAction={onReviewAction}
+        validation={validation}
         requirement={requirement}
       />
 
@@ -814,12 +824,14 @@ function RequirementDetail({
 
 function ReviewActionsPanel({
   onReviewAction,
+  validation,
   requirement,
 }: {
   onReviewAction: (
     requirement: ReviewRequirement,
     action: RequirementReviewAction,
   ) => void;
+  validation: RequirementValidationSummary;
   requirement: ReviewRequirement;
 }) {
   return (
@@ -839,6 +851,8 @@ function ReviewActionsPanel({
           Auto-saved locally
         </span>
       </div>
+
+      <RequirementValidationStrip validation={validation} />
 
       <label className="mt-4 block">
         <span className="text-xs font-semibold uppercase text-[#59636e]">
@@ -909,6 +923,52 @@ function ReviewActionsPanel({
           tone="neutral"
         />
       </div>
+    </section>
+  );
+}
+
+function RequirementValidationStrip({
+  validation,
+}: {
+  validation: RequirementValidationSummary;
+}) {
+  const isSafeToApprove = validation.isSafeToApprove;
+  const toneClasses = isSafeToApprove
+    ? "border-[#0f766e] bg-[#e8f4f1] text-[#0f5132]"
+    : validation.severity === "attention"
+      ? "border-[#f59e0b] bg-[#fff7ed] text-[#92400e]"
+      : "border-[#ef4444] bg-[#fef2f2] text-[#991b1b]";
+
+  return (
+    <section className={`mt-4 rounded-md border px-4 py-3 ${toneClasses}`}>
+      <p className="text-xs font-semibold uppercase tracking-wide">
+        Validation
+      </p>
+      <p className="mt-2 text-sm font-semibold">{validation.headline}</p>
+      <p className="mt-2 text-sm leading-6">{validation.guidance}</p>
+
+      {validation.signals.length > 0 ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {validation.signals.map((signal) => (
+            <span
+              key={signal}
+              className={`rounded-full border px-2 py-1 text-xs font-semibold ${
+                isSafeToApprove
+                  ? "border-[#0f766e] bg-white text-[#0f5132]"
+                  : validation.severity === "attention"
+                    ? "border-[#f59e0b] bg-white text-[#92400e]"
+                    : "border-[#ef4444] bg-white text-[#991b1b]"
+              }`}
+            >
+              {requirementValidationSignalLabels[signal]}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-3 text-xs font-semibold uppercase tracking-wide">
+          No validation flags from the mock heuristic.
+        </p>
+      )}
     </section>
   );
 }

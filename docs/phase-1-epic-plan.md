@@ -1,6 +1,6 @@
 # Phase 1 Epic-Based Implementation Plan
 
-Last updated: 2026-04-14
+Last updated: 2026-04-15
 
 ## Plan Review
 
@@ -372,7 +372,7 @@ Acceptance checks:
 
 Goal:
 
-- Align the Phase 1 prototype with partner expectations before expanding.
+- Align the Phase 1 prototype with partner expectations before expanding and make the review UI show lightweight quality signals.
 
 Implementation:
 
@@ -382,18 +382,25 @@ Implementation:
   - demo-step detail
   - traceability expectations
   - unsupported or ambiguous requirement handling
-- Test the first 5-10 requirement outputs.
+- Add a pure runtime validation helper that derives signals from the parsed requirement and support assessment.
+- Surface lightweight badges or a validation strip in the review UI for:
+  - workaround-first paths
+  - consultant review needed
+  - low or unclear support
+  - missing descriptions
+  - do-not-blindly-approve cases
+- Test the first 5-10 requirement outputs against the validation helper and the revised mock wording.
 - Compare generated comments against existing sample comments as a quality reference, without treating those comments as the only acceptable answer.
-- Adjust prompts, UI labels, review statuses, and acceptance criteria.
-- Decide whether to add PDF/Word export or updated Excel export based on confirmed expectations.
+- Capture the sample inspection in a short discovery note.
+- Adjust prompts, UI labels, review statuses, and acceptance criteria only if the sample shows a real mismatch.
 
 Reviewable output:
 
-- A small demo-ready Phase 1 workflow aligned with Rui's feedback.
+- A small demo-ready Phase 1 workflow aligned with Rui's feedback and supported by visible validation cues.
 
 Acceptance checks:
 
-- Rui/team can review a small sample output.
+- Rui/team can review a small sample output and see which rows are safe to approve versus rows that need human judgment.
 - Feedback is captured in discovery notes or project issues.
 - Prompt and UI changes are traceable to feedback.
 - The prototype remains Excel-first and Phase-1-only.
@@ -402,9 +409,9 @@ Acceptance checks:
 
 Use a small subset before expanding:
 
-- Start with 5 requirements where both `Demo` and `MVP` are marked.
-- Include mostly `Standard available` examples plus at least one ambiguous or custom-development-needed requirement.
-- The sample Excel appears to have a useful `Demo` and `MVP` intersection, so the team can pick from that set while waiting for Rui's exact recommendation.
+- Inspect a small slice from the committed fixture, for example rows 3, 4, 5, 6, 17, 43, 47, and 59.
+- Cover mostly `Standard available` and `Configuration` examples plus at least one ambiguous or custom-development-needed requirement.
+- Use the slice to document where the current mock output is already action-oriented and where it still needs consultant review or a future MCP lookup.
 
 Do not treat this subset as final. Replace or adjust it when Rui replies.
 

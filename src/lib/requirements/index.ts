@@ -29,6 +29,14 @@ export {
 } from "./generation";
 
 export {
+  evaluateRequirementValidation,
+  requirementValidationSignalLabels,
+  type RequirementValidationSeverity,
+  type RequirementValidationSignal,
+  type RequirementValidationSummary,
+} from "./validation";
+
+export {
   assembleDemoScript,
   createDefaultDemoScriptDraft,
   normalizeDemoScriptDraft,

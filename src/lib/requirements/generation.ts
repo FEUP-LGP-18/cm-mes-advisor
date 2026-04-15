@@ -88,7 +88,7 @@ export function createMockGeneratedRequirementDraft(
     generatedComment: comment,
     demoSteps: createDemoSteps(
       requirement,
-      assessment.supportType,
+      assessment,
       processPath,
       sourceReferences,
     ),
@@ -186,7 +186,7 @@ export function assessRequirementSupport(
         level: "low",
         score: 0.38,
         rationale:
-          "The source row has limited requirement text, so the mock draft should be reviewed by a consultant.",
+          "The source row does not provide enough requirement text for a reliable demo path, so the row should stay in consultant review.",
       },
       assumptions: [
         "The row belongs to the parsed Customer X requirements workbook.",
@@ -238,7 +238,7 @@ export function assessRequirementSupport(
       level: "medium",
       score: 0.56,
       rationale:
-        "The source row does not clearly indicate standard support or a partial/custom path.",
+        "The source row does not clearly indicate a standard or workaround path, so the row needs consultant review before a demo decision is made.",
     },
     assumptions: [
       "The requirement is still eligible for Phase 1 consultant review.",
@@ -256,35 +256,53 @@ function createGeneratedComment(
   assessment: RequirementSupportAssessment,
 ): string {
   if (assessment.supportType === "standard") {
-    return `CM MES can address "${requirementName}" through standard configuration in ${processPath}. For the customer demo, position this as a configurable MES capability and show the relevant setup or execution screen before walking through the expected user outcome.`;
+    return `CM MES can address "${requirementName}" through standard configuration in ${processPath}. In the demo, click through the relevant MES screen, open the configured record, and show the outcome the customer should see.`;
   }
 
   if (assessment.supportType === "partial-or-custom") {
-    return `CM MES can be used to support "${requirementName}" with a consultant-reviewed workaround in ${processPath}. Start from the closest standard MES flow, explain the configurable part, and call out that the final fit should be validated before the customer-facing demo.`;
+    return `CM MES can support "${requirementName}" with a consultant-reviewed workaround in ${processPath}. Start from the closest standard MES flow, use a workaround-first explanation, and keep the row under consultant review until the final demo path is confirmed.`;
   }
 
-  return `CM MES may support "${requirementName}" in ${processPath}, but this mock draft needs consultant review before it is used in a demo. Confirm the matching MES screen and refine the explanation once MCP-backed documentation lookup is available.`;
+  return `CM MES may support "${requirementName}" in ${processPath}, but this row needs consultant review before it is used in a demo. Confirm the exact MES screen and action path, then tighten the explanation once documentation lookup is available.`;
 }
 
 function createDemoSteps(
   requirement: ParsedRequirement,
-  supportType: RequirementSupportAssessment["supportType"],
+  assessment: RequirementSupportAssessment,
   processPath: string,
   sourceReferences: RequirementGenerationSourceReference[],
 ): GeneratedDemoStep[] {
   const requirementId = requirement.requirementId.trim() || "No ID";
   const screen = inferMesScreen(requirement);
+  const supportType = assessment.supportType;
   const reviewStatus: GeneratedDemoStepReviewStatus =
     supportType === "standard" ? "draft" : "consultant-review";
+  const firstStepTitle =
+    supportType === "standard"
+      ? "Open the MES screen and locate the record"
+      : supportType === "partial-or-custom"
+        ? "Open the closest standard MES screen and locate the record"
+        : "Confirm the MES screen with consultant review";
+  const secondStepTitle =
+    supportType === "standard"
+      ? "Demonstrate the configured outcome"
+      : supportType === "partial-or-custom"
+        ? "Explain the workaround path"
+        : "Capture the consultant-review path";
 
   return [
     {
       id: `${requirement.sourceRowNumber}-demo-1`,
-      title: "Open the relevant MES area",
+      title: firstStepTitle,
       instructions: [
         "Sign in to the MES demo environment.",
-        `Open ${screen}.`,
-        `Use the ${processPath} context to locate the closest matching setup or execution flow.`,
+        `Open the ${screen} area from the MES navigation.`,
+        `Click the screen or record that matches ${processPath}.`,
+        supportType === "standard"
+          ? "Show the configured field, button, or status change the customer should see."
+          : supportType === "partial-or-custom"
+            ? "Capture the closest standard behavior before showing the workaround path."
+            : "Pause before presenting and confirm the exact path with a consultant.",
       ],
       relatedRequirementIds: [requirementId],
       mesModuleOrScreen: screen,
@@ -293,22 +311,25 @@ function createDemoSteps(
     },
     {
       id: `${requirement.sourceRowNumber}-demo-2`,
-      title:
-        supportType === "partial-or-custom"
-          ? "Explain the workaround path"
-          : "Show the configured behavior",
+      title: secondStepTitle,
       instructions:
-        supportType === "partial-or-custom"
+        supportType === "standard"
           ? [
-              "Show the closest standard MES behavior first.",
-              "Describe the workaround decision in consultant language.",
-              "Mark the remaining gap for validation before the final customer demo.",
-            ]
-          : [
               "Open or create the relevant configured record.",
-              "Walk through the field or action that satisfies the requirement.",
-              "Confirm the visible outcome the customer should see during the demo.",
-            ],
+              "Walk through the exact field, button, or action on the screen.",
+              "Show the resulting screen or status change the customer should see.",
+            ]
+          : supportType === "partial-or-custom"
+            ? [
+                "Show the closest standard MES behavior first.",
+                "Explain the workaround in consultant language.",
+                "Call out what still needs validation before the customer demo.",
+              ]
+            : [
+                "Show the closest screen or menu path you can confirm.",
+                "Document the uncertainty for consultant review.",
+                "Do not present the row as approved until the demo path is validated.",
+              ],
       relatedRequirementIds: [requirementId],
       mesModuleOrScreen: screen,
       sourceReferences,
