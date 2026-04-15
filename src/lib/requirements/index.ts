@@ -49,6 +49,12 @@ export {
 } from "./demo-script";
 
 export {
+  createDemoScriptExportFilename,
+  serializeDemoScriptToMarkdown,
+  type DemoScriptMarkdownExportInput,
+} from "./demo-script-export";
+
+export {
   buildReviewRequirements,
   createDefaultRequirementReviewEntry,
   createGeneratedOutputPlaceholder,

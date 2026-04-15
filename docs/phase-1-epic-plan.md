@@ -344,31 +344,29 @@ Goal:
 
 Implementation:
 
-- Export the reviewed Phase 1 result as a separate demo document.
-- Start with Markdown for speed and traceability unless Rui or the team confirms PDF/Word first.
+- Export the assembled Phase 1 demo script as a separate Markdown document from the app UI.
 - Include:
-  - project name
+  - project title / script title
   - customer
   - source Excel filename
-  - selected requirements
-  - approved generated comments
-  - demo steps
-  - assumptions
-  - warnings
-  - traceability notes
-- Do not include secrets or internal credentials.
-- Do not claim Master Data output is ready.
+  - export timestamp
+  - summary counts
+  - grouped sections and ordered steps
+  - consultant notes, generated comments, demo steps, assumptions, warnings, confidence, and traceability
+- Keep the markdown serializer pure and reusable so PDF/Word can be added later without changing the UI flow.
+- Keep the browser download client-side only.
+- Do not include secrets, credentials, or Phase 2 Master Data output.
 
 Reviewable output:
 
-- A user can download or open a separate demo-script document.
+- A user can download a separate demo-script Markdown document.
 
 Acceptance checks:
 
-- Exported document is readable outside the app.
-- Exported document includes requirement IDs.
-- Exported document reflects consultant edits and approvals.
-- Exported document does not include secrets.
+- Exported Markdown is readable outside the app.
+- Exported Markdown includes requirement IDs and Excel row traceability.
+- Exported Markdown reflects consultant edits and approvals.
+- Exported Markdown does not include secrets.
 
 ## Epic 8 - Validation And Rui Feedback Pass
 
@@ -432,7 +430,7 @@ Do not treat this subset as final. Replace or adjust it when Rui replies.
 
 ## Open Decisions To Revisit
 
-- Final Phase 1 document format: Markdown, PDF, Word, Excel, or multiple formats.
+- Future export formats beyond Markdown, such as PDF or Word.
 - Whether to write generated comments back to a copy of the Excel file.
 - Exact role of MCP/RAG integration in the separate app.
 - Whether the first demo should include auth or use a dev-only/mock user.

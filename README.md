@@ -154,6 +154,17 @@ What is still next:
 - Epic 7 will add the separate demo document export.
 - Phase 2 Master Data remains optional and out of the Phase 1 completion path.
 
+## Epic 7 Separate Demo Document Export
+
+The assembled Phase 1 demo script can now be downloaded as a separate Markdown
+document from the app. The export uses the current script title, project
+context, summary counts, grouped sections, ordered steps, traceability, and
+consultant edits so the document is readable outside the app.
+
+Markdown is the first export format. PDF or Word exports can come later if the
+team decides they are worth the added scope. The export flow stays browser-side
+and does not write files back into the repo or workspace.
+
 ## Secret Safety
 
 Do not commit `.env` files, MES passwords, ZIP passwords, Bedrock keys, AWS credentials, MCP credentials, or partner secrets. Keep AI credentials server-side only. Use `.env.example` for placeholder names and safe example values.

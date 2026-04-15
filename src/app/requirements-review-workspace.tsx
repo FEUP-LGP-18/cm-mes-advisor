@@ -415,7 +415,8 @@ export default function RequirementsReviewWorkspace({
             />
           </div>
           <p className="rounded-md border border-[#d0d7de] bg-[#f8fbfb] px-3 py-2 text-sm font-semibold text-[#59636e]">
-            Phase 2 is optional. Epic 7 export comes next.
+            Phase 2 is optional. Markdown export is available from the Demo
+            Script tab once generated rows are approved.
           </p>
         </div>
 
