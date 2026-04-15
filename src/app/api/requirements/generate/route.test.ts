@@ -104,6 +104,8 @@ describe("POST /api/requirements/generate", () => {
     const text = await response.text();
     expect(text).toContain("real-generation-unavailable");
     expect(text).toContain("not configured yet");
+    expect(text).toContain("LibreChat/RAG");
+    expect(text).toContain("callable MCP or HTTP protocol contract");
     expect(text).not.toContain("super-secret-key");
   });
 });

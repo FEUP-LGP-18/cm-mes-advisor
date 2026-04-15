@@ -79,6 +79,11 @@ describe("requirement generation provider", () => {
     if (!result.ok) {
       expect(result.error.missingConfig).toContain("MCP_PROTOCOL_DETAILS");
       expect(result.error.message).toContain("not configured yet");
+      expect(result.error.message).toContain("LibreChat/RAG");
+      expect(result.error.message).toContain(
+        "callable MCP or HTTP protocol contract",
+      );
+      expect(result.error.message).not.toContain("example-bedrock-api-key");
     }
   });
 
@@ -97,5 +102,29 @@ describe("requirement generation provider", () => {
       code: "real-generation-unavailable",
       reason: "not-implemented",
     });
+  });
+
+  it("describes the documented support package without leaking secret values", () => {
+    const availability = getRequirementGenerationAvailability(
+      readRequirementGenerationServerConfig({
+        GENERATION_MODE: "real",
+        MCP_SERVER_URL: "https://example.invalid/mcp",
+        MES_BASE_URL: "https://example.invalid/mes",
+        BEDROCK_API_KEY: "example-bedrock-api-key",
+        BEDROCK_MODEL_ID: "example-bedrock-model-id",
+        AWS_REGION: "eu-west-1",
+        MCP_PROTOCOL_DETAILS: "example-protocol-details",
+      }),
+    );
+
+    expect(availability).toMatchObject({
+      code: "real-generation-unavailable",
+      reason: "not-implemented",
+    });
+    expect(availability?.message).toContain("LibreChat/RAG");
+    expect(availability?.message).toContain(
+      "callable MCP or HTTP protocol contract",
+    );
+    expect(availability?.message).not.toContain("example-bedrock-api-key");
   });
 });
