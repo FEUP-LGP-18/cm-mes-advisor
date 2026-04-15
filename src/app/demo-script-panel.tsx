@@ -7,6 +7,10 @@ import type {
   DemoScriptSection,
   DemoScriptStep,
 } from "@/lib/requirements/demo-script";
+import {
+  createDemoScriptExportFilename,
+  serializeDemoScriptToMarkdown,
+} from "@/lib/requirements/demo-script-export";
 import type { ReviewProjectMetadata } from "@/lib/requirements/review";
 
 interface DemoScriptPanelProps {
@@ -36,8 +40,8 @@ export default function DemoScriptPanel({
           </h2>
           <p className="mt-2 text-sm leading-6 text-[#4b5563]">
             Approved requirement drafts become a grouped, traceable demo script.
-            Keep the script editable here, then finish the workflow with the
-            separate export in Epic 7.
+            Keep the script editable here, then download the separate Markdown
+            document for the Phase 1 demo.
           </p>
           <p className="mt-3 text-sm text-[#59636e]">
             Project:{" "}
@@ -53,13 +57,28 @@ export default function DemoScriptPanel({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            disabled
-            className="rounded-md border border-[#d0d7de] bg-[#f7f9fa] px-3 py-2 text-sm font-semibold text-[#59636e]"
-          >
-            Export document comes next in Epic 7
-          </button>
+          {assembly.emptyState ? (
+            <button
+              type="button"
+              disabled
+              className="rounded-md border border-[#d0d7de] bg-[#f7f9fa] px-3 py-2 text-sm font-semibold text-[#59636e]"
+            >
+              Export document comes next in Epic 7
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() =>
+                handleDownloadMarkdown({
+                  assembly,
+                  projectMetadata,
+                })
+              }
+              className="rounded-md border border-[#0f766e] bg-[#0f766e] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#0c5f59]"
+            >
+              Download Markdown
+            </button>
+          )}
           <button
             type="button"
             onClick={onSwitchToReview}
@@ -132,11 +151,44 @@ export default function DemoScriptPanel({
 
       <div className="rounded-md border border-dashed border-[#a8b3bd] bg-[#f8fbfb] p-4 text-sm leading-6 text-[#4b5563]">
         Phase 2 stays optional here. Approved requirement outputs already give
-        you a complete Phase 1 demo script view, and Epic 7 will turn this into
-        an exportable document.
+        you a complete Phase 1 demo script view, and the Markdown export turns
+        it into a separate document.
       </div>
     </section>
   );
+}
+
+function handleDownloadMarkdown({
+  assembly,
+  projectMetadata,
+}: {
+  assembly: DemoScriptAssembly;
+  projectMetadata: ReviewProjectMetadata;
+}): void {
+  const exportTimestamp = new Date().toISOString();
+  const markdown = serializeDemoScriptToMarkdown({
+    assembly,
+    exportTimestamp,
+    projectMetadata,
+  });
+  const filename = createDemoScriptExportFilename(
+    assembly.title,
+    projectMetadata.projectName,
+  );
+  const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+
+  anchor.href = objectUrl;
+  anchor.download = filename;
+  anchor.rel = "noopener";
+  anchor.style.display = "none";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => {
+    URL.revokeObjectURL(objectUrl);
+  }, 0);
 }
 
 function SectionOrderControls({
