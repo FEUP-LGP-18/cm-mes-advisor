@@ -1,6 +1,12 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type ReactNode,
+} from "react";
 import {
   assessRequirementSupport,
   mockGenerationStageLabels,
@@ -13,7 +19,6 @@ import {
 } from "@/lib/requirements/demo-script";
 import {
   buildReviewRequirements,
-  createRequirementsReviewState,
   filterReviewRequirements,
   requirementReviewFilters,
   summarizeReviewRequirements,
@@ -30,13 +35,24 @@ import {
   requirementValidationSignalLabels,
   type RequirementValidationSummary,
 } from "@/lib/requirements/validation";
-import type { ParsedRequirement } from "@/lib/requirements/parser";
 import {
-  CUSTOMER_X_REVIEW_STORAGE_KEY,
-  loadRequirementsReviewState,
-  parseRequirementsReviewState,
-  saveRequirementsReviewState,
-} from "@/lib/requirements/review-storage";
+  assertRequirementsWorkbookFilename,
+  parseRequirementsWorkbook,
+  type ParsedRequirement,
+} from "@/lib/requirements/parser";
+import {
+  createRequirementsWorkspaceState,
+  loadRequirementsWorkspaceState,
+  loadRequirementsWorkspaceStateForSource,
+  saveRequirementsWorkspaceState,
+  type RequirementsWorkspaceState,
+} from "@/lib/requirements/workspace-state";
+import {
+  createFixtureSourceMetadata,
+  createUploadSourceMetadata,
+  type RequirementsSourceMetadata,
+} from "@/lib/requirements/source";
+import { createFixtureWorkspaceState } from "@/lib/requirements/workspace-state";
 import type { RequirementGenerationRouteBody } from "@/lib/requirements/generation-api";
 import DemoScriptPanel from "./demo-script-panel";
 
@@ -87,6 +103,11 @@ interface GenerationFeedback {
   message: string;
 }
 
+interface SourceFeedback {
+  tone: "neutral" | "success" | "error";
+  message: string;
+}
+
 interface RequirementsReviewWorkspaceProps {
   projectMetadata: ReviewProjectMetadata;
   requirements: ParsedRequirement[];
@@ -96,19 +117,18 @@ export default function RequirementsReviewWorkspace({
   projectMetadata,
   requirements,
 }: RequirementsReviewWorkspaceProps) {
-  const fallbackReviewState = useMemo(
-    () => createRequirementsReviewState(projectMetadata),
+  const fixtureSource = useMemo(
+    () => createFixtureSourceMetadata(projectMetadata),
     [projectMetadata],
   );
-  const reviewStorageSnapshot = useSyncExternalStore(
-    subscribeReviewStorage,
-    readReviewStorageSnapshot,
-    getServerReviewStorageSnapshot,
+  const fallbackWorkspaceState = useMemo(
+    () => createFixtureWorkspaceState(fixtureSource, requirements),
+    [fixtureSource, requirements],
   );
-  const reviewState = useMemo(
-    () =>
-      parseRequirementsReviewState(reviewStorageSnapshot, fallbackReviewState),
-    [fallbackReviewState, reviewStorageSnapshot],
+  const [workspaceState, setWorkspaceState] =
+    useState<RequirementsWorkspaceState>(fallbackWorkspaceState);
+  const [sourceFeedback, setSourceFeedback] = useState<SourceFeedback | null>(
+    null,
   );
   const [activeFilter, setActiveFilter] =
     useState<RequirementReviewFilter>("all");
@@ -127,13 +147,51 @@ export default function RequirementsReviewWorkspace({
     "review" | "script"
   >("review");
 
+  useEffect(() => {
+    const syncWorkspaceState = () => {
+      setWorkspaceState(
+        loadRequirementsWorkspaceState(
+          window.localStorage,
+          fallbackWorkspaceState,
+        ),
+      );
+    };
+
+    syncWorkspaceState();
+    window.addEventListener(reviewStorageChangeEventName, syncWorkspaceState);
+    return () => {
+      window.removeEventListener(
+        reviewStorageChangeEventName,
+        syncWorkspaceState,
+      );
+    };
+  }, [fallbackWorkspaceState]);
+
+  useEffect(() => {
+    setSelectedRowNumber(null);
+    setSelectedRequirementKeys(new Set());
+    setMockGenerationRun(createIdleGenerationRun());
+    setGenerationFeedback(null);
+  }, [workspaceState.source.sourceId]);
+
   const reviewRequirements = useMemo(
-    () => buildReviewRequirements(requirements, reviewState.requirements),
-    [requirements, reviewState.requirements],
+    () =>
+      buildReviewRequirements(
+        workspaceState.parsedRequirements,
+        workspaceState.reviewState.requirements,
+      ),
+    [
+      workspaceState.parsedRequirements,
+      workspaceState.reviewState.requirements,
+    ],
   );
   const demoScriptAssembly = useMemo(
-    () => assembleDemoScript(reviewRequirements, reviewState.demoScriptDraft),
-    [reviewRequirements, reviewState.demoScriptDraft],
+    () =>
+      assembleDemoScript(
+        reviewRequirements,
+        workspaceState.reviewState.demoScriptDraft,
+      ),
+    [reviewRequirements, workspaceState.reviewState.demoScriptDraft],
   );
   const summary = useMemo(
     () => summarizeReviewRequirements(reviewRequirements),
@@ -159,33 +217,112 @@ export default function RequirementsReviewWorkspace({
     filteredRequirements.every((requirement) =>
       selectedRequirementKeys.has(requirement.requirementKey),
     );
+  const sourceMetadata = workspaceState.source;
+  const currentProjectMetadata = workspaceState.reviewState.project;
 
   function handleReviewAction(
     requirement: ReviewRequirement,
     action: RequirementReviewAction,
   ) {
-    const currentState = loadRequirementsReviewState(
+    const currentState = loadRequirementsWorkspaceState(
       window.localStorage,
-      fallbackReviewState,
+      fallbackWorkspaceState,
     );
-    const nextState = updateRequirementsReviewState(
-      currentState,
-      requirement,
-      action,
-    );
+    const nextState = {
+      ...currentState,
+      reviewState: updateRequirementsReviewState(
+        currentState.reviewState,
+        requirement,
+        action,
+      ),
+    };
 
-    saveRequirementsReviewState(window.localStorage, nextState);
+    saveRequirementsWorkspaceState(window.localStorage, nextState);
     window.dispatchEvent(new Event(reviewStorageChangeEventName));
   }
 
   function handleDemoScriptAction(action: DemoScriptDraftAction) {
-    const currentState = loadRequirementsReviewState(
+    const currentState = loadRequirementsWorkspaceState(
       window.localStorage,
-      fallbackReviewState,
+      fallbackWorkspaceState,
     );
-    const nextState = updateRequirementsDemoScriptDraft(currentState, action);
+    const nextState = {
+      ...currentState,
+      reviewState: updateRequirementsDemoScriptDraft(
+        currentState.reviewState,
+        action,
+      ),
+    };
 
-    saveRequirementsReviewState(window.localStorage, nextState);
+    saveRequirementsWorkspaceState(window.localStorage, nextState);
+    window.dispatchEvent(new Event(reviewStorageChangeEventName));
+  }
+
+  async function handleUploadWorkbook(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0] ?? null;
+    event.currentTarget.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    setSourceFeedback(null);
+
+    try {
+      assertRequirementsWorkbookFilename(file.name);
+      const workbookBuffer = await file.arrayBuffer();
+      const parsedRequirements =
+        await parseRequirementsWorkbook(workbookBuffer);
+      const sourceMetadata = createUploadSourceMetadata(
+        file.name,
+        workbookBuffer,
+      );
+      const nextState =
+        loadRequirementsWorkspaceStateForSource(
+          window.localStorage,
+          sourceMetadata.sourceId,
+          createRequirementsWorkspaceState(sourceMetadata, parsedRequirements),
+        ) ??
+        createRequirementsWorkspaceState(sourceMetadata, parsedRequirements);
+      const hydratedState: RequirementsWorkspaceState = {
+        ...nextState,
+        source: sourceMetadata,
+        parsedRequirements,
+      };
+
+      saveRequirementsWorkspaceState(window.localStorage, hydratedState);
+      setSourceFeedback({
+        tone: "success",
+        message: `Loaded ${file.name}. Mock generation stays consultant-review oriented unless real mode is configured later.`,
+      });
+      setActiveWorkspaceTab("review");
+      window.dispatchEvent(new Event(reviewStorageChangeEventName));
+    } catch (error) {
+      setSourceFeedback({
+        tone: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "The uploaded workbook could not be parsed.",
+      });
+    }
+  }
+
+  function handleRestoreFixtureSource() {
+    const fixtureWorkspaceState =
+      loadRequirementsWorkspaceStateForSource(
+        window.localStorage,
+        fallbackWorkspaceState.source.sourceId,
+        fallbackWorkspaceState,
+      ) ?? fallbackWorkspaceState;
+
+    setSourceFeedback({
+      tone: "success",
+      message:
+        "Restored the committed Customer X fixture and its saved review state.",
+    });
+    saveRequirementsWorkspaceState(window.localStorage, fixtureWorkspaceState);
+    setActiveWorkspaceTab("review");
     window.dispatchEvent(new Event(reviewStorageChangeEventName));
   }
 
@@ -314,24 +451,30 @@ export default function RequirementsReviewWorkspace({
         return;
       }
 
-      const currentState = loadRequirementsReviewState(
+      const currentState = loadRequirementsWorkspaceState(
         window.localStorage,
-        fallbackReviewState,
+        fallbackWorkspaceState,
       );
-      const nextState = selectedRequirements.reduce((state, requirement) => {
-        const draft = draftsByRequirementKey.get(requirement.requirementKey);
+      const nextReviewState = selectedRequirements.reduce(
+        (state, requirement) => {
+          const draft = draftsByRequirementKey.get(requirement.requirementKey);
 
-        if (!draft) {
-          return state;
-        }
+          if (!draft) {
+            return state;
+          }
 
-        return updateRequirementsReviewState(state, requirement, {
-          type: "storeMockGeneratedDraft",
-          generatedOutput: draft,
-        });
-      }, currentState);
+          return updateRequirementsReviewState(state, requirement, {
+            type: "storeMockGeneratedDraft",
+            generatedOutput: draft,
+          });
+        },
+        currentState.reviewState,
+      );
 
-      saveRequirementsReviewState(window.localStorage, nextState);
+      saveRequirementsWorkspaceState(window.localStorage, {
+        ...currentState,
+        reviewState: nextReviewState,
+      });
       setMockGenerationRun({
         selectedCount: selectedRequirements.length,
         generatedCount: responseBody.drafts.length,
@@ -397,6 +540,14 @@ export default function RequirementsReviewWorkspace({
           </button>
         ))}
       </section>
+
+      <WorkspaceSourcePanel
+        feedback={sourceFeedback}
+        onRestoreFixtureSource={handleRestoreFixtureSource}
+        onUploadWorkbook={handleUploadWorkbook}
+        sourceMetadata={sourceMetadata}
+        sourceRowCount={currentProjectMetadata.sourceRowCount}
+      />
 
       <MockGenerationPanel
         onGenerateSelectedRows={handleGenerateSelectedRows}
@@ -583,10 +734,10 @@ export default function RequirementsReviewWorkspace({
           ) : (
             <DemoScriptPanel
               assembly={demoScriptAssembly}
-              draft={reviewState.demoScriptDraft}
+              draft={workspaceState.reviewState.demoScriptDraft}
               onDraftAction={handleDemoScriptAction}
               onSwitchToReview={() => setActiveWorkspaceTab("review")}
-              projectMetadata={projectMetadata}
+              projectMetadata={currentProjectMetadata}
             />
           )}
         </div>
@@ -617,6 +768,97 @@ function getFilterCount(
   }
 }
 
+function WorkspaceSourcePanel({
+  feedback,
+  onRestoreFixtureSource,
+  onUploadWorkbook,
+  sourceMetadata,
+  sourceRowCount,
+}: {
+  feedback: SourceFeedback | null;
+  onRestoreFixtureSource: () => void;
+  onUploadWorkbook: (event: ChangeEvent<HTMLInputElement>) => void;
+  sourceMetadata: RequirementsSourceMetadata;
+  sourceRowCount: number;
+}) {
+  const isFixtureSource = sourceMetadata.sourceKind === "fixture";
+
+  return (
+    <section className="rounded-lg border border-[#d0d7de] bg-white p-5">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="max-w-3xl">
+          <p className="text-sm font-semibold uppercase text-[#0f766e]">
+            Source workbook
+          </p>
+          <h2 className="mt-2 text-2xl font-semibold text-[#111827]">
+            {sourceMetadata.sourceLabel}
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-[#4b5563]">
+            Upload a `.xlsx` requirements workbook or return to the committed
+            Customer X fixture. The app keeps fixture and upload state separate
+            so review decisions stay source-aware.
+          </p>
+          <p className="mt-3 text-sm text-[#59636e]">
+            Project:{" "}
+            <span className="font-semibold">{sourceMetadata.projectName}</span>
+            {" · "}Customer:{" "}
+            <span className="font-semibold">{sourceMetadata.customerName}</span>
+            {" · "}Source file:{" "}
+            <span className="font-semibold">
+              {sourceMetadata.sourceFilename}
+            </span>
+            {" · "}Rows: <span className="font-semibold">{sourceRowCount}</span>
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-md border border-[#f59e0b] bg-[#fff7ed] px-3 py-2 text-sm font-semibold text-[#92400e]">
+            Mock / heuristic mode
+          </span>
+          <label className="cursor-pointer rounded-md border border-[#0f766e] bg-[#0f766e] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#0c5f59]">
+            Upload .xlsx
+            <input
+              accept=".xlsx"
+              type="file"
+              onChange={onUploadWorkbook}
+              className="sr-only"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={onRestoreFixtureSource}
+            disabled={isFixtureSource}
+            className="rounded-md border border-[#d0d7de] bg-white px-3 py-2 text-sm font-semibold text-[#30363d] transition hover:bg-[#f3f4f6] disabled:cursor-not-allowed disabled:text-[#a8b3bd]"
+          >
+            Restore sample
+          </button>
+        </div>
+      </div>
+
+      <p className="mt-4 text-sm leading-6 text-[#4b5563]">
+        Mock drafts are consultant-friendly heuristics, not final MES
+        documentation. Real generation remains server-only and unavailable until
+        the callable protocol is confirmed.
+      </p>
+
+      {feedback ? (
+        <div
+          className={`mt-4 rounded-md border px-4 py-3 text-sm leading-6 ${
+            feedback.tone === "success"
+              ? "border-[#0f766e] bg-[#e8f4f1] text-[#0f5132]"
+              : feedback.tone === "error"
+                ? "border-[#f59e0b] bg-[#fff7ed] text-[#92400e]"
+                : "border-[#d0d7de] bg-[#f7f9fa] text-[#30363d]"
+          }`}
+          role="status"
+          aria-live="polite"
+        >
+          {feedback.message}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function MockGenerationPanel({
   onGenerateSelectedRows,
   feedback,
@@ -638,15 +880,15 @@ function MockGenerationPanel({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm font-semibold uppercase text-[#0f766e]">
-            Mock generation
+            Mock / heuristic mode
           </p>
           <h2 className="mt-2 text-xl font-semibold text-[#111827]">
             Generation contract preview
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[#59636e]">
-            Selected rows request drafts from the server route. Mock remains the
-            default provider, and real Bedrock or MCP integration stays
-            server-only until the future protocol is finalized.
+            Selected rows request drafts from the server route. The app keeps
+            using deterministic consultant-friendly heuristics unless real
+            Bedrock or MCP mode is explicitly configured on the server.
           </p>
         </div>
         <button
@@ -1218,26 +1460,4 @@ function toGenerationRequestRequirement(
     supportedPercent: requirement.supportedPercent,
     sourceComment: requirement.sourceComment,
   };
-}
-
-function subscribeReviewStorage(onStoreChange: () => void): () => void {
-  window.addEventListener("storage", onStoreChange);
-  window.addEventListener(reviewStorageChangeEventName, onStoreChange);
-
-  return () => {
-    window.removeEventListener("storage", onStoreChange);
-    window.removeEventListener(reviewStorageChangeEventName, onStoreChange);
-  };
-}
-
-function readReviewStorageSnapshot(): string {
-  try {
-    return window.localStorage.getItem(CUSTOMER_X_REVIEW_STORAGE_KEY) ?? "";
-  } catch {
-    return "";
-  }
-}
-
-function getServerReviewStorageSnapshot(): string {
-  return "";
 }

@@ -1,6 +1,10 @@
+import { Workbook } from "exceljs";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
+  assertRequirementsWorkbookFilename,
+  parseRequirementsWorkbook,
   parseRequirementsWorkbookFile,
   REQUIREMENTS_DATA_START_ROW_NUMBER,
   REQUIREMENTS_HEADER_ROW_NUMBER,
@@ -23,6 +27,19 @@ describe("requirements parser", () => {
   it("detects the Requirements sheet in the real fixture", () => {
     expect(requirements).toHaveLength(167);
     expect(requirements[0]?.requirementId).toBe("01.01");
+  });
+
+  it("parses workbook bytes from an uploaded workbook path", async () => {
+    const uploadedWorkbookBuffer = await readFile(fixturePath);
+    const uploadedRequirements = await parseRequirementsWorkbook(
+      uploadedWorkbookBuffer.buffer.slice(
+        uploadedWorkbookBuffer.byteOffset,
+        uploadedWorkbookBuffer.byteOffset + uploadedWorkbookBuffer.byteLength,
+      ),
+    );
+
+    expect(uploadedRequirements).toHaveLength(167);
+    expect(uploadedRequirements[0]?.requirementId).toBe("01.01");
   });
 
   it("uses row 2 as the header row and starts data at row 3", () => {
@@ -80,5 +97,33 @@ describe("requirements parser", () => {
       mvpCount: 54,
       demoAndMvpCount: 13,
     });
+  });
+
+  it("rejects non-xlsx workbook filenames before parsing", () => {
+    expect(() =>
+      assertRequirementsWorkbookFilename("requirements.csv"),
+    ).toThrow("Only .xlsx workbooks are supported for requirements upload.");
+  });
+
+  it("rejects workbooks that do not contain a Requirements sheet", async () => {
+    const workbook = new Workbook();
+    workbook.addWorksheet("Other Sheet").addRow(["irrelevant"]);
+    const buffer = await workbook.xlsx.writeBuffer();
+
+    await expect(parseRequirementsWorkbook(buffer)).rejects.toThrow(
+      "Workbook is missing Requirements sheet.",
+    );
+  });
+
+  it("rejects workbooks whose row 2 headers are incomplete", async () => {
+    const workbook = new Workbook();
+    const worksheet = workbook.addWorksheet("Requirements");
+    worksheet.getRow(2).getCell(1).value = "#";
+    worksheet.getRow(2).getCell(2).value = "Requirement description";
+    const buffer = await workbook.xlsx.writeBuffer();
+
+    await expect(parseRequirementsWorkbook(buffer)).rejects.toThrow(
+      "Requirements sheet is missing expected row 2 header(s):",
+    );
   });
 });

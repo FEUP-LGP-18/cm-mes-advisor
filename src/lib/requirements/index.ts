@@ -2,13 +2,24 @@ export {
   REQUIREMENTS_DATA_START_ROW_NUMBER,
   REQUIREMENTS_HEADER_ROW_NUMBER,
   REQUIREMENTS_SHEET_NAME,
+  assertRequirementsWorkbookFilename,
   normalizeRequirementFlag,
   parseRequirementsWorkbook,
-  parseRequirementsWorkbookFile,
   summarizeRequirements,
   type ParsedRequirement,
   type RequirementsSummary,
 } from "./parser";
+
+export { parseRequirementsWorkbookFile } from "./parser-node";
+
+export {
+  createDisplayNameFromFilename,
+  createFixtureSourceMetadata,
+  createUploadSourceMetadata,
+  createWorkbookSourceIdentity,
+  type RequirementsSourceKind,
+  type RequirementsSourceMetadata,
+} from "./source";
 
 export {
   assessRequirementSupport,
@@ -61,6 +72,19 @@ export {
   serializeDemoScriptToMarkdown,
   type DemoScriptMarkdownExportInput,
 } from "./demo-script-export";
+
+export {
+  createFixtureWorkspaceState,
+  createRequirementsWorkspaceState,
+  getRequirementsWorkspaceStorageKey,
+  loadRequirementsWorkspaceState,
+  loadRequirementsWorkspaceStateForSource,
+  saveRequirementsWorkspaceState,
+  setActiveRequirementsWorkspaceSource,
+  REQUIREMENTS_WORKSPACE_ACTIVE_SOURCE_STORAGE_KEY,
+  REQUIREMENTS_WORKSPACE_STATE_STORAGE_KEY_PREFIX,
+  type RequirementsWorkspaceState,
+} from "./workspace-state";
 
 export {
   buildReviewRequirements,

@@ -36,8 +36,9 @@ export default async function Home() {
               reset states.
             </p>
             <p className="mt-4 text-sm font-semibold text-[#30363d]">
-              {phaseOneScope.productName} keeps this slice Excel-first and
-              fixture-backed.
+              {phaseOneScope.productName} keeps this slice Excel-first. Start
+              with the committed Customer X fixture or upload your own workbook
+              in the review workspace below.
             </p>
           </div>
 
@@ -51,7 +52,7 @@ export default async function Home() {
             />
             <div>
               <p className="text-sm font-semibold text-[#0f766e]">
-                Fixture parsed server-side
+                Sample workbook parsed server-side
               </p>
               <p className="mt-1 break-words text-sm text-[#4a4a4a]">
                 {fixturePath}
