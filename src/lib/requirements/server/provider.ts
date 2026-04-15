@@ -55,13 +55,14 @@ export function getRequirementGenerationAvailability(
   }
 
   const missingConfig = getMissingRealGenerationConfigKeys(config);
+  const supportPackageNote =
+    "The local LibreChat/RAG support package is documented, but this app has not verified a callable MCP or HTTP protocol contract yet.";
 
   if (missingConfig.length > 0) {
     return {
       code: "real-generation-unavailable",
       reason: "missing-config",
-      message:
-        "Real requirement generation is not configured yet. Server-side mock mode remains the safe default.",
+      message: `Real requirement generation is not configured yet. Server-side mock mode remains the safe default. ${supportPackageNote}`,
       missingConfig,
     };
   }
@@ -69,8 +70,7 @@ export function getRequirementGenerationAvailability(
   return {
     code: "real-generation-unavailable",
     reason: "not-implemented",
-    message:
-      "Real requirement generation is not wired in for Epic 5A yet. Use server-side mock mode until the Bedrock and MCP protocol is finalized.",
+    message: `Real requirement generation is still unavailable. Server-side mock mode remains the safe default. ${supportPackageNote}`,
     missingConfig: [],
   };
 }

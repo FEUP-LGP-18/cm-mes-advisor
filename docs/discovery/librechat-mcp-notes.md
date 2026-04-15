@@ -39,6 +39,25 @@ The `INSTRUCTIONS.txt` file says to:
 - Pick the `rag` MCP Server in the MCP Servers dropdown.
 - Start asking MES documentation questions, for example asking what a Material is.
 
+## Verified Safe Shape
+
+The package appears to be a local LibreChat front end with supporting RAG and
+ClickHouse services, intended for documentation-grounded MES Q&A.
+
+Non-secret details verified from the notes and archive listing:
+
+- LibreChat UI on `http://localhost:3080`
+- RAG container on port `8080`
+- ClickHouse on ports `8123` and `9000`
+- `rag` MCP server as the documentation source in LibreChat
+
+## Still Unverified
+
+- The exact callable MCP or HTTP protocol contract that this app should use
+  from `/api/requirements/generate`
+- Whether the local package exposes a stable endpoint that can be invoked
+  directly from this repo without going through the LibreChat UI
+
 ## Security Notes
 
 - The ZIP password is intentionally not stored here.
@@ -49,4 +68,6 @@ The `INSTRUCTIONS.txt` file says to:
 
 - This package is the fastest route to a Phase 1 technical proof of concept.
 - It gives the team a locally runnable chat interface grounded in MES documentation.
-- The next useful technical step is to connect this documentation access to the Customer X requirements workflow.
+- The next useful technical step is to confirm the callable protocol contract and
+  then connect this documentation access to the Customer X requirements
+  workflow.

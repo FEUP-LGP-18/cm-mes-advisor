@@ -121,6 +121,26 @@ finalized.
 Use `GENERATION_MODE=mock` for normal development. The `.env.example` file only
 contains placeholder names and values for the server-side integration boundary.
 
+## Epic 5B Safe Real Integration Discovery
+
+We verified the support package is a local LibreChat/RAG setup that runs
+LibreChat at `http://localhost:3080`, the RAG container on port `8080`, and the
+ClickHouse containers on `8123` and `9000`. The package instructions also point
+to the `rag` MCP server for MES documentation lookup.
+
+What is still blocked:
+
+- The exact callable MCP or HTTP protocol contract is not yet verified in this
+  repo, so real generation remains unavailable.
+- Mock mode stays the safe default and preserves the existing
+  `GeneratedRequirementDraft` contract for the UI.
+
+Next step:
+
+- Once the safe instruction/config files are directly inspectable or a trusted
+  protocol contract is shared, wire a server-only real adapter behind the
+  existing provider boundary.
+
 ## Secret Safety
 
 Do not commit `.env` files, MES passwords, ZIP passwords, Bedrock keys, AWS credentials, MCP credentials, or partner secrets. Keep AI credentials server-side only. Use `.env.example` for placeholder names and safe example values.
