@@ -3,6 +3,12 @@ import {
   isGeneratedRequirementDraft,
   type GeneratedRequirementDraft,
 } from "./generation";
+import {
+  createDefaultDemoScriptDraft,
+  type DemoScriptDraft,
+  type DemoScriptDraftAction,
+  updateDemoScriptDraft,
+} from "./demo-script";
 
 export type RequirementReviewStatus =
   | "pending"
@@ -84,9 +90,10 @@ export interface ReviewProjectMetadata {
 }
 
 export interface RequirementsReviewState {
-  version: 1;
+  version: 2;
   project: ReviewProjectMetadata;
   requirements: RequirementReviewStateByKey;
+  demoScriptDraft: DemoScriptDraft;
 }
 
 export const requirementReviewFilters: RequirementReviewFilter[] = [
@@ -161,11 +168,25 @@ export function summarizeReviewRequirements(
 export function createRequirementsReviewState(
   project: ReviewProjectMetadata,
   requirements: RequirementReviewStateByKey = {},
+  demoScriptDraft: DemoScriptDraft = createDefaultDemoScriptDraft(
+    project.projectName,
+  ),
 ): RequirementsReviewState {
   return {
-    version: 1,
+    version: 2,
     project,
     requirements,
+    demoScriptDraft,
+  };
+}
+
+export function updateRequirementsDemoScriptDraft(
+  state: RequirementsReviewState,
+  action: DemoScriptDraftAction,
+): RequirementsReviewState {
+  return {
+    ...state,
+    demoScriptDraft: updateDemoScriptDraft(state.demoScriptDraft, action),
   };
 }
 

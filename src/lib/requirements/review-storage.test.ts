@@ -6,6 +6,7 @@ import {
   createRequirementsReviewState,
   loadRequirementsReviewState,
   saveRequirementsReviewState,
+  updateRequirementsDemoScriptDraft,
   updateRequirementsReviewState,
   type ParsedRequirement,
   type ReviewProjectMetadata,
@@ -166,4 +167,103 @@ describe("requirements review local storage adapter", () => {
       parsedRequirement.sourceComment,
     );
   });
+
+  it("migrates a version 1 review state with a default demo script draft", () => {
+    const storage = new MemoryStorage();
+    const fallbackState = createRequirementsReviewState(projectMetadata);
+    const legacyState = {
+      version: 1,
+      project: projectMetadata,
+      requirements: {
+        [requirementKey(requirementIdentity)]: {
+          requirementKey: requirementKey(requirementIdentity),
+          reviewStatus: "approved",
+          consultantComment: "Legacy approved comment.",
+          reviewNote: "",
+          generatedOutput: {
+            state: "not-generated",
+            hasGeneratedOutput: false,
+            generatedCommentDraft: null,
+            demoStepsDraft: [],
+          },
+        },
+      },
+    };
+
+    storage.setItem(CUSTOMER_X_REVIEW_STORAGE_KEY, JSON.stringify(legacyState));
+
+    const loadedState = loadRequirementsReviewState(storage, fallbackState);
+
+    expect(loadedState.version).toBe(2);
+    expect(loadedState.demoScriptDraft.title).toBe("Customer X Demo Script");
+    expect(
+      loadedState.requirements[requirementKey(requirementIdentity)],
+    ).toMatchObject({
+      reviewStatus: "approved",
+      consultantComment: "Legacy approved comment.",
+    });
+  });
+
+  it("persists demo script title, section order, and step edits", () => {
+    const storage = new MemoryStorage();
+    const generatedDraft =
+      createMockGeneratedRequirementDraft(parsedRequirement);
+    const generatedState = updateRequirementsReviewState(
+      createRequirementsReviewState(projectMetadata),
+      parsedRequirement,
+      {
+        type: "storeMockGeneratedDraft",
+        generatedOutput: generatedDraft,
+      },
+    );
+    const approvedState = updateRequirementsReviewState(
+      generatedState,
+      parsedRequirement,
+      { type: "approve" },
+    );
+    const scriptedState = updateRequirementsDemoScriptDraft(approvedState, {
+      type: "renameTitle",
+      title: "Customer X Custom Script",
+    });
+    const sectionKey = "l2:manufacturing-execution";
+    const stepKey = `${requirementKey(requirementIdentity)}:${generatedDraft.demoSteps[0]?.id}`;
+    const editedState = updateRequirementsDemoScriptDraft(
+      updateRequirementsDemoScriptDraft(scriptedState, {
+        type: "setSectionOrder",
+        sectionOrder: [sectionKey],
+      }),
+      {
+        type: "editStep",
+        stepKey,
+        title: "Opening demo step",
+        note: "Use the consultant-approved introduction.",
+      },
+    );
+
+    saveRequirementsReviewState(storage, editedState);
+
+    const loadedState = loadRequirementsReviewState(
+      storage,
+      createRequirementsReviewState(projectMetadata),
+    );
+
+    expect(loadedState.demoScriptDraft).toMatchObject({
+      version: 1,
+      title: "Customer X Custom Script",
+      sectionOrder: [sectionKey],
+      stepEdits: {
+        [stepKey]: {
+          title: "Opening demo step",
+          note: "Use the consultant-approved introduction.",
+        },
+      },
+    });
+  });
 });
+
+function requirementKey(value: {
+  requirementId: string;
+  sourceRowNumber: number;
+}): string {
+  return `${value.sourceRowNumber}:${value.requirementId.trim() || "no-id"}`;
+}

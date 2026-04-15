@@ -5,6 +5,7 @@ import {
   type RequirementReviewStateByKey,
   type RequirementsReviewState,
 } from "./review";
+import { normalizeDemoScriptDraft } from "./demo-script";
 
 export const CUSTOMER_X_REVIEW_STORAGE_KEY =
   "cm-mes-advisor:customer-x-fixture:review-state:v1";
@@ -81,7 +82,11 @@ function normalizeStoredReviewState(
     return fallbackState;
   }
 
-  if (value.version !== 1 || !isRecord(value.project)) {
+  if (value.version !== 1 && value.version !== 2) {
+    return fallbackState;
+  }
+
+  if (!isRecord(value.project)) {
     return fallbackState;
   }
 
@@ -92,6 +97,13 @@ function normalizeStoredReviewState(
   return {
     ...fallbackState,
     requirements: normalizeStoredRequirements(value.requirements),
+    demoScriptDraft:
+      value.version === 2
+        ? normalizeDemoScriptDraft(
+            value.demoScriptDraft,
+            fallbackState.demoScriptDraft,
+          )
+        : fallbackState.demoScriptDraft,
   };
 }
 
