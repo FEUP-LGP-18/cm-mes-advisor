@@ -1,5 +1,3 @@
-import { Buffer } from "node:buffer";
-import { readFile } from "node:fs/promises";
 import {
   Workbook,
   type Cell,
@@ -64,21 +62,12 @@ export interface RequirementsSummary {
   demoAndMvpCount: number;
 }
 
-export async function parseRequirementsWorkbookFile(
-  filePath: string,
-): Promise<ParsedRequirement[]> {
-  const buffer = await readFile(filePath);
-  return parseRequirementsWorkbook(buffer);
-}
-
 export async function parseRequirementsWorkbook(
-  buffer: Buffer | ArrayBuffer,
+  workbookData: ArrayBuffer | Uint8Array,
 ): Promise<ParsedRequirement[]> {
   const workbook = new Workbook();
-  const workbookBuffer = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
-
   await workbook.xlsx.load(
-    workbookBuffer as unknown as Parameters<typeof workbook.xlsx.load>[0],
+    workbookData as unknown as Parameters<typeof workbook.xlsx.load>[0],
   );
 
   const worksheet = workbook.getWorksheet(REQUIREMENTS_SHEET_NAME);
@@ -148,6 +137,14 @@ export function summarizeRequirements(
 
 export function normalizeRequirementFlag(rawValue: string): boolean {
   return TRUE_FLAG_VALUES.has(rawValue.trim().toLowerCase());
+}
+
+export function assertRequirementsWorkbookFilename(fileName: string): void {
+  if (!/\.xlsx$/i.test(fileName.trim())) {
+    throw new Error(
+      "Only .xlsx workbooks are supported for requirements upload.",
+    );
+  }
 }
 
 function readHeaderColumns(worksheet: Worksheet): RequirementColumnMap {

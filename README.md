@@ -181,6 +181,33 @@ The validation pass is still Phase 1 only. Real MCP or Bedrock generation stays
 blocked until the callable protocol is confirmed, and Phase 2 Master Data
 remains optional and future-facing.
 
+## Phase 1 Hardening And MVP Completion
+
+The prototype now supports the complete Phase 1 review loop on either the
+committed Customer X fixture or an uploaded `.xlsx` workbook:
+
+- browser-side workbook upload with row 2 headers and `Requirements` sheet
+  validation
+- source-aware local storage so fixture and upload state stay separate
+- explicit mock / heuristic mode labeling near generation controls
+- review, generation, demo script assembly, validation cues, and Markdown
+  export all working from the same workspace flow
+
+The workbook-copy Excel export is intentionally deferred for now. Markdown is
+the separate document export shipped in this repo, and a workbook round-trip can
+be revisited later if the team wants it.
+
+Still blocked for Phase 1:
+
+- real MCP / Bedrock generation until the callable protocol is confirmed
+- exact click-by-click MES documentation lookup from a verified MCP / RAG path
+- optional PDF or Word export
+- Phase 2 Master Data generation
+
+Manual smoke checklist:
+
+- see [docs/discovery/phase-1-hardening-smoke-checklist.md](docs/discovery/phase-1-hardening-smoke-checklist.md)
+
 ## Secret Safety
 
 Do not commit `.env` files, MES passwords, ZIP passwords, Bedrock keys, AWS credentials, MCP credentials, or partner secrets. Keep AI credentials server-side only. Use `.env.example` for placeholder names and safe example values.

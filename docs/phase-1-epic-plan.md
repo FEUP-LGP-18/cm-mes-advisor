@@ -405,6 +405,33 @@ Acceptance checks:
 - Prompt and UI changes are traceable to feedback.
 - The prototype remains Excel-first and Phase-1-only.
 
+## Phase 1 Hardening / MVP Completion
+
+Goal:
+
+- turn the fixture-backed prototype into a source-aware MVP that works with the committed fixture or an uploaded workbook
+
+Implementation:
+
+- browser-side `.xlsx` upload with `Requirements` sheet and row 2 header validation
+- source-aware local storage so fixture and upload states stay separate
+- explicit mock / heuristic mode labeling near generation controls
+- review, generation, demo script assembly, validation cues, and Markdown export available in the same Phase 1 flow
+- workbook-copy Excel export remains a future follow-up unless a later pass proves the round-trip is worth the added scope
+
+Reviewable output:
+
+- a teammate can upload a workbook or use the fixture, review rows, generate drafts, approve rows, assemble the demo script, and download the Markdown document
+
+Acceptance checks:
+
+- uploaded requirements follow the same Phase 1 flow as the fixture
+- fixture state can be restored after switching to an upload
+- source-specific review and demo-script state remains isolated
+- the UI makes mock mode explicit and consultant-friendly
+- the manual smoke checklist is captured in discovery notes
+- real MCP / Bedrock generation, exact MES lookup paths, optional PDF / Word export, and Phase 2 Master Data all remain blocked or future-facing
+
 ## Suggested First Validation Slice
 
 Use a small subset before expanding:
