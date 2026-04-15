@@ -63,7 +63,7 @@ export default function DemoScriptPanel({
               disabled
               className="rounded-md border border-[#d0d7de] bg-[#f7f9fa] px-3 py-2 text-sm font-semibold text-[#59636e]"
             >
-              Export document comes next in Epic 7
+              Approve generated rows to enable export
             </button>
           ) : (
             <button
