@@ -29,6 +29,26 @@ export {
 } from "./generation";
 
 export {
+  assembleDemoScript,
+  createDefaultDemoScriptDraft,
+  normalizeDemoScriptDraft,
+  updateDemoScriptDraft,
+  type DemoScriptAssembly,
+  type DemoScriptAssemblyEmptyState,
+  type DemoScriptDraft,
+  type DemoScriptDraftAction,
+  type DemoScriptGroupingDimension,
+  type DemoScriptSection,
+  type DemoScriptSectionEdit,
+  type DemoScriptSourceDemoStep,
+  type DemoScriptSourceGeneratedOutput,
+  type DemoScriptSourceRequirement,
+  type DemoScriptStep,
+  type DemoScriptStepEdit,
+  type DemoScriptStepTraceability,
+} from "./demo-script";
+
+export {
   buildReviewRequirements,
   createDefaultRequirementReviewEntry,
   createGeneratedOutputPlaceholder,
@@ -42,6 +62,7 @@ export {
   requirementReviewFilters,
   requirementReviewStatuses,
   summarizeReviewRequirements,
+  updateRequirementsDemoScriptDraft,
   updateRequirementReviewEntry,
   updateRequirementsReviewState,
   type GeneratedOutputPlaceholder,

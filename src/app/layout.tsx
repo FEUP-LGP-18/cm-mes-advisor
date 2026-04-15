@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "CM MES Demo Advisor",
   description:
-    "Excel-first MES demo advisor for the FEUP LGP project with Critical Manufacturing.",
+    "Excel-first MES demo advisor for the FEUP LGP project with Critical Manufacturing, including review, draft generation, and demo script assembly.",
 };
 
 export default function RootLayout({

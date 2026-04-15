@@ -27,12 +27,13 @@ export default async function Home() {
               FEUP LGP x Critical Manufacturing
             </p>
             <h1 className="text-4xl font-semibold leading-tight text-[#111827]">
-              Requirements Review With Server-Side Drafts
+              Requirements Review and Demo Script Assembly
             </h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-[#3a3a3a]">
               Inspect the parsed Customer X Excel requirements, record local
-              consultant notes, request server-side drafts, and move rows
-              through approve, flag, skip, or reset states.
+              consultant notes, request server-side drafts, assemble a traceable
+              Phase 1 demo script, and move rows through approve, flag, skip, or
+              reset states.
             </p>
             <p className="mt-4 text-sm font-semibold text-[#30363d]">
               {phaseOneScope.productName} keeps this slice Excel-first and

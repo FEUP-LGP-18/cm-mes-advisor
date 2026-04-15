@@ -141,6 +141,19 @@ Next step:
   protocol contract is shared, wire a server-only real adapter behind the
   existing provider boundary.
 
+## Epic 6 Demo Script Assembly
+
+Approved generated requirement drafts now assemble into a grouped, traceable
+Phase 1 demo script inside the review workspace. The script stays editable in
+local prototype state, keeps requirement IDs and Excel row numbers visible, and
+shows generated comments, demo steps, assumptions, warnings, confidence, and
+source references where available.
+
+What is still next:
+
+- Epic 7 will add the separate demo document export.
+- Phase 2 Master Data remains optional and out of the Phase 1 completion path.
+
 ## Secret Safety
 
 Do not commit `.env` files, MES passwords, ZIP passwords, Bedrock keys, AWS credentials, MCP credentials, or partner secrets. Keep AI credentials server-side only. Use `.env.example` for placeholder names and safe example values.

@@ -7,12 +7,17 @@ import {
   type MockGenerationStage,
 } from "@/lib/requirements/generation";
 import {
+  assembleDemoScript,
+  type DemoScriptDraftAction,
+} from "@/lib/requirements/demo-script";
+import {
   buildReviewRequirements,
   createRequirementsReviewState,
   filterReviewRequirements,
   requirementReviewFilters,
   summarizeReviewRequirements,
   updateRequirementsReviewState,
+  updateRequirementsDemoScriptDraft,
   type RequirementReviewAction,
   type RequirementReviewFilter,
   type RequirementReviewStatus,
@@ -27,6 +32,7 @@ import {
   saveRequirementsReviewState,
 } from "@/lib/requirements/review-storage";
 import type { RequirementGenerationRouteBody } from "@/lib/requirements/generation-api";
+import DemoScriptPanel from "./demo-script-panel";
 
 const filterLabels: Record<RequirementReviewFilter, string> = {
   all: "All rows",
@@ -111,10 +117,17 @@ export default function RequirementsReviewWorkspace({
   const [generationFeedback, setGenerationFeedback] =
     useState<GenerationFeedback | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<
+    "review" | "script"
+  >("review");
 
   const reviewRequirements = useMemo(
     () => buildReviewRequirements(requirements, reviewState.requirements),
     [requirements, reviewState.requirements],
+  );
+  const demoScriptAssembly = useMemo(
+    () => assembleDemoScript(reviewRequirements, reviewState.demoScriptDraft),
+    [reviewRequirements, reviewState.demoScriptDraft],
   );
   const summary = useMemo(
     () => summarizeReviewRequirements(reviewRequirements),
@@ -154,6 +167,17 @@ export default function RequirementsReviewWorkspace({
       requirement,
       action,
     );
+
+    saveRequirementsReviewState(window.localStorage, nextState);
+    window.dispatchEvent(new Event(reviewStorageChangeEventName));
+  }
+
+  function handleDemoScriptAction(action: DemoScriptDraftAction) {
+    const currentState = loadRequirementsReviewState(
+      window.localStorage,
+      fallbackReviewState,
+    );
+    const nextState = updateRequirementsDemoScriptDraft(currentState, action);
 
     saveRequirementsReviewState(window.localStorage, nextState);
     window.dispatchEvent(new Event(reviewStorageChangeEventName));
@@ -376,142 +400,189 @@ export default function RequirementsReviewWorkspace({
         selectedCount={selectedRequirements.length}
       />
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(360px,0.8fr)]">
-        <div className="overflow-hidden rounded-lg border border-[#d0d7de] bg-white">
-          <div className="flex flex-wrap items-end justify-between gap-3 border-b border-[#d0d7de] p-5">
-            <div>
-              <h2 className="text-xl font-semibold text-[#111827]">
-                Requirements
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-[#59636e]">
-                {filteredRequirements.length} rows in{" "}
-                {filterLabels[activeFilter].toLowerCase()}. Select one
-                requirement to inspect the original Excel data and record local
-                review decisions.
-              </p>
-            </div>
-            <p className="rounded-md border border-[#d0d7de] px-3 py-2 text-sm font-semibold text-[#30363d]">
-              Local browser state
-            </p>
+      <section className="rounded-lg border border-[#d0d7de] bg-white p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-2 rounded-full border border-[#d0d7de] bg-[#f8fbfb] p-1">
+            <WorkspaceTabButton
+              active={activeWorkspaceTab === "review"}
+              label="Review"
+              onClick={() => setActiveWorkspaceTab("review")}
+            />
+            <WorkspaceTabButton
+              active={activeWorkspaceTab === "script"}
+              label="Demo Script"
+              onClick={() => setActiveWorkspaceTab("script")}
+            />
           </div>
-
-          {filteredRequirements.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[980px] border-collapse text-left text-sm">
-                <thead className="bg-[#f0f3f3] text-xs uppercase text-[#4b5563]">
-                  <tr>
-                    <th className="px-4 py-3 font-semibold">
-                      <span className="sr-only">Select rows</span>
-                      <input
-                        type="checkbox"
-                        checked={allFilteredRequirementsSelected}
-                        onChange={handleToggleAllFilteredRequirements}
-                        aria-label={
-                          allFilteredRequirementsSelected
-                            ? "Clear selected filtered rows"
-                            : "Select all filtered rows"
-                        }
-                        className="h-4 w-4 accent-[#0f766e]"
-                      />
-                    </th>
-                    <th className="px-4 py-3 font-semibold">ID</th>
-                    <th className="px-4 py-3 font-semibold">Excel row</th>
-                    <th className="px-4 py-3 font-semibold">Requirement</th>
-                    <th className="px-4 py-3 font-semibold">L2 process</th>
-                    <th className="px-4 py-3 font-semibold">L3 or operation</th>
-                    <th className="px-4 py-3 font-semibold">Demo</th>
-                    <th className="px-4 py-3 font-semibold">MVP</th>
-                    <th className="px-4 py-3 font-semibold">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredRequirements.map((requirement) => {
-                    const isSelected =
-                      requirement.sourceRowNumber === selectedRowNumber;
-                    const isChecked = selectedRequirementKeys.has(
-                      requirement.requirementKey,
-                    );
-
-                    return (
-                      <tr
-                        key={requirement.requirementKey}
-                        className={`border-t border-[#e5e7eb] ${
-                          isSelected ? "bg-[#e8f4f1]" : "bg-white"
-                        }`}
-                      >
-                        <td className="px-4 py-3 align-top">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() =>
-                              handleToggleRequirementSelection(
-                                requirement.requirementKey,
-                              )
-                            }
-                            aria-label={`Select requirement ${
-                              requirement.requirementId ||
-                              requirement.sourceRowNumber
-                            } for mock generation`}
-                            className="h-4 w-4 accent-[#0f766e]"
-                          />
-                        </td>
-                        <td className="px-4 py-3 align-top font-semibold text-[#0f766e]">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setSelectedRowNumber(requirement.sourceRowNumber)
-                            }
-                            className="rounded-md text-left font-semibold underline-offset-4 hover:underline"
-                          >
-                            {requirement.requirementId || "No ID"}
-                          </button>
-                        </td>
-                        <td className="px-4 py-3 align-top text-[#30363d]">
-                          {requirement.sourceRowNumber}
-                        </td>
-                        <td className="max-w-lg px-4 py-3 align-top leading-6 text-[#1f2937]">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setSelectedRowNumber(requirement.sourceRowNumber)
-                            }
-                            className="rounded-md text-left underline-offset-4 hover:underline"
-                          >
-                            {emptyValue(requirement.requirementDescription)}
-                          </button>
-                        </td>
-                        <td className="px-4 py-3 align-top text-[#30363d]">
-                          {emptyValue(requirement.l2Process)}
-                        </td>
-                        <td className="px-4 py-3 align-top text-[#30363d]">
-                          {emptyValue(
-                            requirement.l3Process || requirement.operation,
-                          )}
-                        </td>
-                        <td className="px-4 py-3 align-top">
-                          <FlagBadge active={requirement.demo} />
-                        </td>
-                        <td className="px-4 py-3 align-top">
-                          <FlagBadge active={requirement.mvp} />
-                        </td>
-                        <td className="px-4 py-3 align-top">
-                          <StatusBadge status={requirement.reviewStatus} />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <EmptyFilterState filter={activeFilter} />
-          )}
+          <p className="rounded-md border border-[#d0d7de] bg-[#f8fbfb] px-3 py-2 text-sm font-semibold text-[#59636e]">
+            Phase 2 is optional. Epic 7 export comes next.
+          </p>
         </div>
 
-        <RequirementDetail
-          onReviewAction={handleReviewAction}
-          requirement={selectedRequirement}
-        />
+        <div className="mt-5">
+          {activeWorkspaceTab === "review" ? (
+            <section className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(360px,0.8fr)]">
+              <div className="overflow-hidden rounded-lg border border-[#d0d7de] bg-white">
+                <div className="flex flex-wrap items-end justify-between gap-3 border-b border-[#d0d7de] p-5">
+                  <div>
+                    <h2 className="text-xl font-semibold text-[#111827]">
+                      Requirements
+                    </h2>
+                    <p className="mt-2 text-sm leading-6 text-[#59636e]">
+                      {filteredRequirements.length} rows in{" "}
+                      {filterLabels[activeFilter].toLowerCase()}. Select one
+                      requirement to inspect the original Excel data and record
+                      local review decisions.
+                    </p>
+                  </div>
+                  <p className="rounded-md border border-[#d0d7de] px-3 py-2 text-sm font-semibold text-[#30363d]">
+                    Local browser state
+                  </p>
+                </div>
+
+                {filteredRequirements.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[980px] border-collapse text-left text-sm">
+                      <thead className="bg-[#f0f3f3] text-xs uppercase text-[#4b5563]">
+                        <tr>
+                          <th className="px-4 py-3 font-semibold">
+                            <span className="sr-only">Select rows</span>
+                            <input
+                              type="checkbox"
+                              checked={allFilteredRequirementsSelected}
+                              onChange={handleToggleAllFilteredRequirements}
+                              aria-label={
+                                allFilteredRequirementsSelected
+                                  ? "Clear selected filtered rows"
+                                  : "Select all filtered rows"
+                              }
+                              className="h-4 w-4 accent-[#0f766e]"
+                            />
+                          </th>
+                          <th className="px-4 py-3 font-semibold">ID</th>
+                          <th className="px-4 py-3 font-semibold">Excel row</th>
+                          <th className="px-4 py-3 font-semibold">
+                            Requirement
+                          </th>
+                          <th className="px-4 py-3 font-semibold">
+                            L2 process
+                          </th>
+                          <th className="px-4 py-3 font-semibold">
+                            L3 or operation
+                          </th>
+                          <th className="px-4 py-3 font-semibold">Demo</th>
+                          <th className="px-4 py-3 font-semibold">MVP</th>
+                          <th className="px-4 py-3 font-semibold">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredRequirements.map((requirement) => {
+                          const isSelected =
+                            requirement.sourceRowNumber === selectedRowNumber;
+                          const isChecked = selectedRequirementKeys.has(
+                            requirement.requirementKey,
+                          );
+
+                          return (
+                            <tr
+                              key={requirement.requirementKey}
+                              className={`border-t border-[#e5e7eb] ${
+                                isSelected ? "bg-[#e8f4f1]" : "bg-white"
+                              }`}
+                            >
+                              <td className="px-4 py-3 align-top">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() =>
+                                    handleToggleRequirementSelection(
+                                      requirement.requirementKey,
+                                    )
+                                  }
+                                  aria-label={`Select requirement ${
+                                    requirement.requirementId ||
+                                    requirement.sourceRowNumber
+                                  } for mock generation`}
+                                  className="h-4 w-4 accent-[#0f766e]"
+                                />
+                              </td>
+                              <td className="px-4 py-3 align-top font-semibold text-[#0f766e]">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setSelectedRowNumber(
+                                      requirement.sourceRowNumber,
+                                    )
+                                  }
+                                  className="rounded-md text-left font-semibold underline-offset-4 hover:underline"
+                                >
+                                  {requirement.requirementId || "No ID"}
+                                </button>
+                              </td>
+                              <td className="px-4 py-3 align-top text-[#30363d]">
+                                {requirement.sourceRowNumber}
+                              </td>
+                              <td className="max-w-lg px-4 py-3 align-top leading-6 text-[#1f2937]">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setSelectedRowNumber(
+                                      requirement.sourceRowNumber,
+                                    )
+                                  }
+                                  className="rounded-md text-left underline-offset-4 hover:underline"
+                                >
+                                  {emptyValue(
+                                    requirement.requirementDescription,
+                                  )}
+                                </button>
+                              </td>
+                              <td className="px-4 py-3 align-top text-[#30363d]">
+                                {emptyValue(requirement.l2Process)}
+                              </td>
+                              <td className="px-4 py-3 align-top text-[#30363d]">
+                                {emptyValue(
+                                  requirement.l3Process ||
+                                    requirement.operation,
+                                )}
+                              </td>
+                              <td className="px-4 py-3 align-top">
+                                <FlagBadge active={requirement.demo} />
+                              </td>
+                              <td className="px-4 py-3 align-top">
+                                <FlagBadge active={requirement.mvp} />
+                              </td>
+                              <td className="px-4 py-3 align-top">
+                                <StatusBadge
+                                  status={requirement.reviewStatus}
+                                />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <EmptyFilterState filter={activeFilter} />
+                )}
+              </div>
+
+              <RequirementDetail
+                onReviewAction={handleReviewAction}
+                requirement={selectedRequirement}
+              />
+            </section>
+          ) : (
+            <DemoScriptPanel
+              assembly={demoScriptAssembly}
+              draft={reviewState.demoScriptDraft}
+              onDraftAction={handleDemoScriptAction}
+              onSwitchToReview={() => setActiveWorkspaceTab("review")}
+              projectMetadata={projectMetadata}
+            />
+          )}
+        </div>
       </section>
     </div>
   );
@@ -620,6 +691,31 @@ function MockGenerationPanel({
         </div>
       ) : null}
     </section>
+  );
+}
+
+function WorkspaceTabButton({
+  active,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+        active
+          ? "bg-[#0f766e] text-white"
+          : "bg-transparent text-[#59636e] hover:bg-[#e8f4f1] hover:text-[#0f766e]"
+      }`}
+    >
+      {label}
+    </button>
   );
 }
 
