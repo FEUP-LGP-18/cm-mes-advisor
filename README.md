@@ -109,6 +109,18 @@ MES services, document export, uploads, authentication, or Phase 2 Master Data
 generation. Resetting a generated row restores the latest mock draft; resetting a
 non-generated row clears manual local edits.
 
+## Epic 5A Server-Side Generation Foundation
+
+Epic 5A moves generation behind a server route at
+`/api/requirements/generate` while keeping the Epic 4 mock draft contract.
+Mock mode remains the default so every teammate can run the app without
+credentials. Real Bedrock/MCP generation is guarded behind server-only config
+and currently returns a safe unavailable response until the protocol is
+finalized.
+
+Use `GENERATION_MODE=mock` for normal development. The `.env.example` file only
+contains placeholder names and values for the server-side integration boundary.
+
 ## Secret Safety
 
 Do not commit `.env` files, MES passwords, ZIP passwords, Bedrock keys, AWS credentials, MCP credentials, or partner secrets. Keep AI credentials server-side only. Use `.env.example` for placeholder names and safe example values.

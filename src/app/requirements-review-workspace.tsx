@@ -2,7 +2,6 @@
 
 import { useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import {
-  createMockGeneratedRequirementDraft,
   mockGenerationStageLabels,
   type GeneratedRequirementDraft,
   type MockGenerationStage,
@@ -27,6 +26,7 @@ import {
   parseRequirementsReviewState,
   saveRequirementsReviewState,
 } from "@/lib/requirements/review-storage";
+import type { RequirementGenerationRouteBody } from "@/lib/requirements/generation-api";
 
 const filterLabels: Record<RequirementReviewFilter, string> = {
   all: "All rows",
@@ -70,6 +70,11 @@ interface MockGenerationRunState {
   stages: MockGenerationStageState[];
 }
 
+interface GenerationFeedback {
+  tone: "neutral" | "success" | "error";
+  message: string;
+}
+
 interface RequirementsReviewWorkspaceProps {
   projectMetadata: ReviewProjectMetadata;
   requirements: ParsedRequirement[];
@@ -103,6 +108,9 @@ export default function RequirementsReviewWorkspace({
   >(() => new Set());
   const [mockGenerationRun, setMockGenerationRun] =
     useState<MockGenerationRunState>(() => createIdleGenerationRun());
+  const [generationFeedback, setGenerationFeedback] =
+    useState<GenerationFeedback | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const reviewRequirements = useMemo(
     () => buildReviewRequirements(requirements, reviewState.requirements),
@@ -184,40 +192,146 @@ export default function RequirementsReviewWorkspace({
     });
   }
 
-  function handleGenerateSelectedRows() {
-    const generatedDrafts = selectedRequirements.map((requirement) => ({
-      requirement,
-      draft: createMockGeneratedRequirementDraft(requirement),
-    }));
-
-    if (generatedDrafts.length === 0) {
+  async function handleGenerateSelectedRows() {
+    if (selectedRequirements.length === 0 || isGenerating) {
       setMockGenerationRun(createIdleGenerationRun());
       return;
     }
 
-    const currentState = loadRequirementsReviewState(
-      window.localStorage,
-      fallbackReviewState,
-    );
-    const nextState = generatedDrafts.reduce(
-      (state, { requirement, draft }) =>
-        updateRequirementsReviewState(state, requirement, {
-          type: "storeMockGeneratedDraft",
-          generatedOutput: draft,
-        }),
-      currentState,
-    );
-
-    saveRequirementsReviewState(window.localStorage, nextState);
+    setIsGenerating(true);
+    setGenerationFeedback(null);
     setMockGenerationRun({
       selectedCount: selectedRequirements.length,
-      generatedCount: generatedDrafts.length,
-      stages: mockGenerationStageLabels.map((label) => ({
+      generatedCount: 0,
+      stages: mockGenerationStageLabels.map((label, index) => ({
         label,
-        status: "complete",
+        status: index === 0 ? "running" : "waiting",
       })),
     });
-    window.dispatchEvent(new Event(reviewStorageChangeEventName));
+
+    try {
+      const response = await fetch("/api/requirements/generate", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          requirements: selectedRequirements.map(
+            toGenerationRequestRequirement,
+          ),
+        }),
+      });
+
+      const responseBody = (await response
+        .json()
+        .catch(() => null)) as RequirementGenerationRouteBody | null;
+
+      if (!response.ok || !responseBody || !responseBody.ok) {
+        const message =
+          responseBody && !responseBody.ok
+            ? responseBody.error.message
+            : `Server generation failed with status ${response.status}.`;
+        setGenerationFeedback({
+          tone: "error",
+          message:
+            message ||
+            "Server generation failed. Your local review state was not changed.",
+        });
+        setMockGenerationRun({
+          selectedCount: selectedRequirements.length,
+          generatedCount: 0,
+          stages: mockGenerationStageLabels.map((label) => ({
+            label,
+            status: "waiting",
+          })),
+        });
+        return;
+      }
+
+      const draftsByRequirementKey = new Map(
+        responseBody.drafts.map((draft) => [
+          draft.requirement.requirementKey,
+          draft,
+        ]),
+      );
+      const selectedRequirementKeys = selectedRequirements.map(
+        (requirement) => requirement.requirementKey,
+      );
+      const responseRequirementKeys = responseBody.drafts.map(
+        (draft) => draft.requirement.requirementKey,
+      );
+      const responseMatchesSelection =
+        responseBody.drafts.length === selectedRequirements.length &&
+        selectedRequirementKeys.every((requirementKey, index) => {
+          const draftKey = responseRequirementKeys[index];
+          return requirementKey === draftKey;
+        });
+
+      if (!responseMatchesSelection) {
+        setGenerationFeedback({
+          tone: "error",
+          message:
+            "Server generation returned drafts that did not match the selected rows. No local review state was changed.",
+        });
+        setMockGenerationRun({
+          selectedCount: selectedRequirements.length,
+          generatedCount: 0,
+          stages: mockGenerationStageLabels.map((label) => ({
+            label,
+            status: "waiting",
+          })),
+        });
+        return;
+      }
+
+      const currentState = loadRequirementsReviewState(
+        window.localStorage,
+        fallbackReviewState,
+      );
+      const nextState = selectedRequirements.reduce((state, requirement) => {
+        const draft = draftsByRequirementKey.get(requirement.requirementKey);
+
+        if (!draft) {
+          return state;
+        }
+
+        return updateRequirementsReviewState(state, requirement, {
+          type: "storeMockGeneratedDraft",
+          generatedOutput: draft,
+        });
+      }, currentState);
+
+      saveRequirementsReviewState(window.localStorage, nextState);
+      setMockGenerationRun({
+        selectedCount: selectedRequirements.length,
+        generatedCount: responseBody.drafts.length,
+        stages: mockGenerationStageLabels.map((label) => ({
+          label,
+          status: "complete",
+        })),
+      });
+      setGenerationFeedback({
+        tone: "success",
+        message: `Generated ${responseBody.drafts.length} server-side draft(s) in mock mode.`,
+      });
+      window.dispatchEvent(new Event(reviewStorageChangeEventName));
+    } catch {
+      setGenerationFeedback({
+        tone: "error",
+        message:
+          "Server generation could not be reached. No local review state was changed.",
+      });
+      setMockGenerationRun({
+        selectedCount: selectedRequirements.length,
+        generatedCount: 0,
+        stages: mockGenerationStageLabels.map((label) => ({
+          label,
+          status: "waiting",
+        })),
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   }
 
   return (
@@ -256,6 +370,8 @@ export default function RequirementsReviewWorkspace({
 
       <MockGenerationPanel
         onGenerateSelectedRows={handleGenerateSelectedRows}
+        feedback={generationFeedback}
+        isGenerating={isGenerating}
         runState={mockGenerationRun}
         selectedCount={selectedRequirements.length}
       />
@@ -425,10 +541,14 @@ function getFilterCount(
 
 function MockGenerationPanel({
   onGenerateSelectedRows,
+  feedback,
+  isGenerating,
   runState,
   selectedCount,
 }: {
-  onGenerateSelectedRows: () => void;
+  onGenerateSelectedRows: () => void | Promise<void>;
+  feedback: GenerationFeedback | null;
+  isGenerating: boolean;
   runState: MockGenerationRunState;
   selectedCount: number;
 }) {
@@ -446,18 +566,20 @@ function MockGenerationPanel({
             Generation contract preview
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[#59636e]">
-            Selected rows receive deterministic mock drafts with placeholder MCP
-            traceability. No Bedrock, MCP, LibreChat, export, upload, auth, or
-            Master Data behavior runs in this slice.
+            Selected rows request drafts from the server route. Mock remains the
+            default provider, and real Bedrock or MCP integration stays
+            server-only until the future protocol is finalized.
           </p>
         </div>
         <button
           type="button"
           onClick={onGenerateSelectedRows}
-          disabled={selectedCount === 0}
+          disabled={selectedCount === 0 || isGenerating}
           className="rounded-md border border-[#0f766e] bg-[#0f766e] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0c5f59] disabled:cursor-not-allowed disabled:border-[#a8b3bd] disabled:bg-[#e5e7eb] disabled:text-[#59636e]"
         >
-          Generate mock drafts for selected rows
+          {isGenerating
+            ? "Generating drafts through server route..."
+            : "Generate drafts for selected rows"}
         </button>
       </div>
 
@@ -481,6 +603,22 @@ function MockGenerationPanel({
         {selectedCount} rows selected. Latest run generated{" "}
         {runState.generatedCount} of {runState.selectedCount} selected rows.
       </p>
+
+      {feedback ? (
+        <div
+          className={`mt-4 rounded-md border px-4 py-3 text-sm leading-6 ${
+            feedback.tone === "success"
+              ? "border-[#0f766e] bg-[#e8f4f1] text-[#0f5132]"
+              : feedback.tone === "error"
+                ? "border-[#f59e0b] bg-[#fff7ed] text-[#92400e]"
+                : "border-[#d0d7de] bg-[#f7f9fa] text-[#30363d]"
+          }`}
+          role="status"
+          aria-live="polite"
+        >
+          {feedback.message}
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -897,6 +1035,31 @@ function createIdleGenerationRun(): MockGenerationRunState {
       label,
       status: "waiting",
     })),
+  };
+}
+
+function toGenerationRequestRequirement(
+  requirement: ParsedRequirement,
+): ParsedRequirement {
+  return {
+    sourceRowNumber: requirement.sourceRowNumber,
+    requirementId: requirement.requirementId,
+    requirementDescription: requirement.requirementDescription,
+    l2Process: requirement.l2Process,
+    l3Process: requirement.l3Process,
+    operation: requirement.operation,
+    demo: requirement.demo,
+    demoRaw: requirement.demoRaw,
+    detailDescriptionAndMotivation: requirement.detailDescriptionAndMotivation,
+    prioEms: requirement.prioEms,
+    prioCws: requirement.prioCws,
+    mvp: requirement.mvp,
+    mvpRaw: requirement.mvpRaw,
+    availability: requirement.availability,
+    availabilityCm: requirement.availabilityCm,
+    descriptionAvailability: requirement.descriptionAvailability,
+    supportedPercent: requirement.supportedPercent,
+    sourceComment: requirement.sourceComment,
   };
 }
 

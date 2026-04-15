@@ -240,7 +240,39 @@ Acceptance checks:
 - Generation state appears in the UI.
 - Review actions work on mocked generated output.
 
-## Epic 5 - Real Phase 1 AI Integration
+## Epic 5A - Server-Side Generation Foundation
+
+Goal:
+
+- Move the generation entrypoint behind a server-only route while keeping the
+  Epic 4 mock contract intact.
+
+Implementation:
+
+- Add server-side config parsing for generation mode and integration endpoints.
+- Add a server-only generation provider boundary that keeps mock as the default
+  and reports unavailable when real mode is selected without complete safe
+  configuration.
+- Add a Next.js App Router route for selected parsed requirements that returns
+  the existing generated draft contract.
+- Keep the browser UI on a fetch-based path so local review state only updates
+  after a successful server response.
+- Preserve the workaround-first, consultant-review fallback guidance from Rui.
+
+Reviewable output:
+
+- The app requests requirement drafts through a server route instead of calling
+  the generator directly in the browser.
+
+Acceptance checks:
+
+- Mock stays the default development mode.
+- Real mode is server-only and unavailable without the required config or
+  protocol details.
+- The UI shows a safe error if generation is unavailable and does not corrupt
+  review state.
+
+## Epic 5B - Real Phase 1 AI Integration
 
 Goal:
 
