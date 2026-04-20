@@ -52,7 +52,10 @@ import {
   type RequirementsSourceMetadata,
 } from "@/lib/requirements/source";
 import { createFixtureWorkspaceState } from "@/lib/requirements/workspace-state";
-import type { RequirementGenerationRouteBody } from "@/lib/requirements/generation-api";
+import type {
+  RequirementGenerationRouteBody,
+  RequirementGenerationRouteMode,
+} from "@/lib/requirements/generation-api";
 import DemoScriptEditingPanel, {
   DemoScriptExportPanel,
 } from "./demo-script-panel";
@@ -150,6 +153,8 @@ export default function RequirementsReviewWorkspace({
     useState<MockGenerationRunState>(() => createIdleGenerationRun());
   const [generationFeedback, setGenerationFeedback] =
     useState<GenerationFeedback | null>(null);
+  const [lastGenerationMode, setLastGenerationMode] =
+    useState<RequirementGenerationRouteMode | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeWorkflowStep, setActiveWorkflowStep] =
     useState<GuidedWorkflowStep>("source");
@@ -182,6 +187,7 @@ export default function RequirementsReviewWorkspace({
     setSelectedRequirementKeys(new Set());
     setMockGenerationRun(createIdleGenerationRun());
     setGenerationFeedback(null);
+    setLastGenerationMode(null);
     setReviewedScriptStageKey(null);
   }, [workspaceState.source.sourceId]);
 
@@ -478,6 +484,7 @@ export default function RequirementsReviewWorkspace({
         .catch(() => null)) as RequirementGenerationRouteBody | null;
 
       if (!response.ok || !responseBody || !responseBody.ok) {
+        setLastGenerationMode(null);
         const message =
           responseBody && !responseBody.ok
             ? responseBody.error.message
@@ -559,6 +566,7 @@ export default function RequirementsReviewWorkspace({
         ...currentState,
         reviewState: nextReviewState,
       });
+      setLastGenerationMode(responseBody.mode);
       setSelectedRequirementKeys(new Set(targetRequirementKeys));
       setSelectedRowNumber(targetRequirements[0]?.sourceRowNumber ?? null);
       goToWorkflowStep("review");
@@ -572,10 +580,14 @@ export default function RequirementsReviewWorkspace({
       });
       setGenerationFeedback({
         tone: "success",
-        message: `Generated ${responseBody.drafts.length} safe draft(s) for ${targetLabel}.`,
+        message:
+          responseBody.mode === "real"
+            ? `Generated ${responseBody.drafts.length} grounded draft(s) for ${targetLabel}.`
+            : `Generated ${responseBody.drafts.length} prototype draft(s) for ${targetLabel}.`,
       });
       window.dispatchEvent(new Event(reviewStorageChangeEventName));
     } catch {
+      setLastGenerationMode(null);
       setGenerationFeedback({
         tone: "error",
         message:
@@ -656,6 +668,7 @@ export default function RequirementsReviewWorkspace({
     <div id="workspace" className="animate-enter-slow grid min-w-0 gap-6">
       <GuidedActionHeader
         activeStep={activeWorkflowStep}
+        generationMode={lastGenerationMode}
         nextAction={nextAction}
         onPrimaryAction={() => goToWorkflowStep(nextAction.step)}
         onStepChange={goToWorkflowStep}
@@ -678,6 +691,7 @@ export default function RequirementsReviewWorkspace({
             >
               <WorkspaceSourcePanel
                 feedback={sourceFeedback}
+                generationMode={lastGenerationMode}
                 onRestoreFixtureSource={handleRestoreFixtureSource}
                 onUploadWorkbook={handleUploadWorkbook}
                 sourceMetadata={sourceMetadata}
@@ -781,12 +795,14 @@ export default function RequirementsReviewWorkspace({
 
 function GuidedActionHeader({
   activeStep,
+  generationMode,
   nextAction,
   onPrimaryAction,
   onStepChange,
   progress,
 }: {
   activeStep: GuidedWorkflowStep;
+  generationMode: RequirementGenerationRouteMode | null;
   nextAction: ReturnType<typeof getNextAction>;
   onPrimaryAction: () => void;
   onStepChange: (step: GuidedWorkflowStep) => void;
@@ -804,7 +820,9 @@ function GuidedActionHeader({
               Next best action
             </span>
             <span className="rounded-full border border-[#c8953f]/28 bg-[#c8953f]/10 px-3 py-1 text-xs font-bold text-[#ead19a]">
-              Prototype generation mode
+              {generationMode === "real"
+                ? "Grounded generation mode"
+                : "Prototype generation mode"}
             </span>
           </div>
           <h2 className="mt-4 text-3xl font-bold tracking-[-0.05em] text-white sm:text-5xl">
@@ -1415,14 +1433,45 @@ function GuidedReviewCard({
                 items={draft.warnings}
                 label="Warnings"
               />
-              <GeneratedDraftList
-                emptyText="No source references recorded for this draft."
-                items={draft.sourceReferences.map(
-                  (sourceReference) =>
-                    `${sourceReference.kind}: ${sourceReference.label}. ${sourceReference.note}`,
+              <div>
+                <p className="text-sm font-semibold text-white">
+                  Source references
+                </p>
+                {draft.sourceReferences.length > 0 ? (
+                  <ul className="mt-2 space-y-2 text-sm leading-6 text-[#bdd7d0]">
+                    {draft.sourceReferences.map((sourceReference) => (
+                      <li
+                        key={sourceReference.id}
+                        className="rounded-2xl border border-white/10 bg-white/[0.04] p-3"
+                      >
+                        <span className="font-semibold text-white">
+                          {sourceReference.kind}
+                        </span>
+                        :{" "}
+                        {sourceReference.url ? (
+                          <a
+                            className="font-semibold text-[#8fcac0] underline decoration-[#8fcac0]/35 underline-offset-4"
+                            href={sourceReference.url}
+                            rel="noreferrer"
+                            target="_blank"
+                          >
+                            {sourceReference.label}
+                          </a>
+                        ) : (
+                          <span className="font-semibold text-white">
+                            {sourceReference.label}
+                          </span>
+                        )}{" "}
+                        {sourceReference.note}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm leading-6 text-[#8ea7a0]">
+                    No source references recorded for this draft.
+                  </p>
                 )}
-                label="Source references"
-              />
+              </div>
             </div>
           </details>
         </section>
@@ -1832,12 +1881,14 @@ function searchRequirements(
 
 function WorkspaceSourcePanel({
   feedback,
+  generationMode,
   onRestoreFixtureSource,
   onUploadWorkbook,
   sourceMetadata,
   sourceRowCount,
 }: {
   feedback: SourceFeedback | null;
+  generationMode: RequirementGenerationRouteMode | null;
   onRestoreFixtureSource: () => void;
   onUploadWorkbook: (event: ChangeEvent<HTMLInputElement>) => void;
   sourceMetadata: RequirementsSourceMetadata;
@@ -1876,7 +1927,9 @@ function WorkspaceSourcePanel({
         </div>
         <div className="grid gap-3 sm:min-w-64">
           <span className="rounded-2xl border border-[#c8953f]/35 bg-[#c8953f]/10 px-4 py-3 text-sm font-bold text-[#ead19a]">
-            Prototype draft mode
+            {generationMode === "real"
+              ? "Grounded generation mode"
+              : "Prototype draft mode"}
           </span>
           <label className="focus-premium cursor-pointer rounded-2xl bg-[#2f8f8a] px-4 py-3 text-center text-sm font-bold text-white shadow-[0_12px_28px_rgba(0,0,0,0.22)] transition hover:-translate-y-0.5 hover:bg-[#3b9d98]">
             Upload workbook
@@ -1899,9 +1952,9 @@ function WorkspaceSourcePanel({
       </div>
 
       <p className="mt-5 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm leading-6 text-[#acc7c0]">
-        Prototype drafts are consultant-friendly heuristics, not final MES
-        documentation. Real generation remains server-only and unavailable until
-        the callable protocol is confirmed.
+        {generationMode === "real"
+          ? "The latest generation run used grounded MES documentation through the MCP and Bedrock server path. Keep consultant review in the loop for uncertain rows."
+          : "Prototype drafts are consultant-friendly heuristics. When the server is configured for real generation, grounded documentation references will appear here."}
       </p>
 
       {feedback ? (

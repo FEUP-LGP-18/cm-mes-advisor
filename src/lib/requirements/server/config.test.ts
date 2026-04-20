@@ -13,20 +13,52 @@ describe("requirement generation server config", () => {
     expect(config.mesBaseUrl).toBeNull();
   });
 
-  it("parses explicit real mode and reports missing protocol details", () => {
+  it("accepts Bedrock bearer token auth without AWS access key pairs", () => {
+    const config = readRequirementGenerationServerConfig({
+      GENERATION_MODE: "real",
+      MCP_SERVER_URL: "https://example.invalid/mcp",
+      BEDROCK_MODEL_ID: "example-bedrock-model-id",
+      AWS_REGION: "eu-south-2",
+      AWS_BEARER_TOKEN_BEDROCK: "ABSKexample-token",
+    });
+
+    expect(config.awsBearerTokenBedrock).toBe("ABSKexample-token");
+    expect(getMissingRealGenerationConfigKeys(config)).toEqual([]);
+  });
+
+  it("parses explicit real mode with standard AWS variables", () => {
     const config = readRequirementGenerationServerConfig({
       GENERATION_MODE: "real",
       MCP_SERVER_URL: "https://example.invalid/mcp",
       MES_BASE_URL: "https://example.invalid/mes",
-      BEDROCK_API_KEY: "example-bedrock-api-key",
       BEDROCK_MODEL_ID: "example-bedrock-model-id",
+      AWS_ACCESS_KEY_ID: "example-access-key-id",
+      AWS_SECRET_ACCESS_KEY: "example-secret-access-key",
       AWS_REGION: "eu-west-1",
     });
 
     expect(config.mode).toBe("real");
-    expect(getMissingRealGenerationConfigKeys(config)).toEqual([
-      "MCP_PROTOCOL_DETAILS",
-    ]);
+    expect(config.awsAccessKeyId).toBe("example-access-key-id");
+    expect(config.awsSecretAccessKey).toBe("example-secret-access-key");
+    expect(getMissingRealGenerationConfigKeys(config)).toEqual([]);
+  });
+
+  it("falls back to the partner Bedrock aliases when standard AWS variables are absent", () => {
+    const config = readRequirementGenerationServerConfig({
+      GENERATION_MODE: "real",
+      MCP_SERVER_URL: "https://example.invalid/mcp",
+      BEDROCK_MODEL_ID: "example-bedrock-model-id",
+      BEDROCK_AWS_ACCESS_KEY_ID: "alias-access-key-id",
+      BEDROCK_AWS_SECRET_ACCESS_KEY: "alias-secret-access-key",
+      BEDROCK_AWS_DEFAULT_REGION: "eu-south-2",
+      MCP_USER_ACCOUNT: "consultant@example.com",
+    });
+
+    expect(config.awsAccessKeyId).toBe("alias-access-key-id");
+    expect(config.awsSecretAccessKey).toBe("alias-secret-access-key");
+    expect(config.awsRegion).toBe("eu-south-2");
+    expect(config.mcpUserAccount).toBe("consultant@example.com");
+    expect(getMissingRealGenerationConfigKeys(config)).toEqual([]);
   });
 
   it("treats blank configuration values as missing", () => {
@@ -34,17 +66,17 @@ describe("requirement generation server config", () => {
       GENERATION_MODE: "real",
       MCP_SERVER_URL: "  ",
       MES_BASE_URL: "",
-      BEDROCK_API_KEY: "  ",
       BEDROCK_MODEL_ID: "model-id",
-      AWS_REGION: "eu-west-1",
-      MCP_PROTOCOL_DETAILS: "  ",
+      AWS_REGION: "  ",
+      AWS_ACCESS_KEY_ID: "",
+      AWS_SECRET_ACCESS_KEY: "  ",
+      AWS_BEARER_TOKEN_BEDROCK: "   ",
     });
 
     expect(getMissingRealGenerationConfigKeys(config)).toEqual([
       "MCP_SERVER_URL",
-      "MES_BASE_URL",
-      "BEDROCK_API_KEY",
-      "MCP_PROTOCOL_DETAILS",
+      "AWS_REGION",
+      "AWS_BEARER_TOKEN_BEDROCK",
     ]);
   });
 });

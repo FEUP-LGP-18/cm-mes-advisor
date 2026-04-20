@@ -25,6 +25,8 @@ export {
   assessRequirementSupport,
   createMockGeneratedRequirementDraft,
   createRequirementGenerationIdentity,
+  formatProcessPath,
+  inferMesScreen,
   isGeneratedRequirementDraft,
   mockGenerationStageLabels,
   type GeneratedDemoStep,
@@ -35,6 +37,7 @@ export {
   type RequirementGenerationConfidenceLevel,
   type RequirementGenerationIdentity,
   type RequirementGenerationReferenceKind,
+  type RequirementGenerationSource,
   type RequirementGenerationSourceReference,
   type RequirementSupportAssessment,
 } from "./generation";

@@ -80,14 +80,12 @@ describe("POST /api/requirements/generate", () => {
     });
   });
 
-  it("returns a safe 503 when real mode is selected without protocol details", async () => {
+  it("returns a safe 503 when real mode is selected without Bedrock auth", async () => {
     vi.stubEnv("GENERATION_MODE", "real");
     vi.stubEnv("MCP_SERVER_URL", "https://example.invalid/mcp");
-    vi.stubEnv("MES_BASE_URL", "https://example.invalid/mes");
-    vi.stubEnv("BEDROCK_API_KEY", "super-secret-key");
     vi.stubEnv("BEDROCK_MODEL_ID", "example-bedrock-model-id");
     vi.stubEnv("AWS_REGION", "eu-west-1");
-    vi.stubEnv("MCP_PROTOCOL_DETAILS", "");
+    vi.stubEnv("AWS_BEARER_TOKEN_BEDROCK", "");
 
     const response = await POST(
       new Request("http://localhost/api/requirements/generate", {
@@ -104,8 +102,7 @@ describe("POST /api/requirements/generate", () => {
     const text = await response.text();
     expect(text).toContain("real-generation-unavailable");
     expect(text).toContain("not configured yet");
-    expect(text).toContain("LibreChat/RAG");
-    expect(text).toContain("callable MCP or HTTP protocol contract");
-    expect(text).not.toContain("super-secret-key");
+    expect(text).toContain("AWS_BEARER_TOKEN_BEDROCK");
+    expect(text).not.toContain("example-bedrock-model-id");
   });
 });
