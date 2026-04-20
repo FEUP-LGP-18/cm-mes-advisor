@@ -150,10 +150,9 @@ local prototype state, keeps requirement IDs and Excel row numbers visible, and
 shows generated comments, demo steps, assumptions, warnings, confidence, and
 source references where available.
 
-What is still next:
-
-- Epic 7 will add the separate demo document export.
-- Phase 2 Master Data remains optional and out of the Phase 1 completion path.
+This is no longer the final stop in the workflow: Epic 7 adds the separate
+Markdown export, and Phase 2 Master Data remains optional and out of the Phase 1
+completion path.
 
 ## Epic 7 Separate Demo Document Export
 
@@ -207,6 +206,24 @@ Still blocked for Phase 1:
 Manual smoke checklist:
 
 - see [docs/discovery/phase-1-hardening-smoke-checklist.md](docs/discovery/phase-1-hardening-smoke-checklist.md)
+
+## Guided Premium UI/UX Pass
+
+The Phase 1 workspace is now a guided consultant journey instead of a dashboard
+full of competing panels. The default path is Source -> Generate -> Review ->
+Script -> Export, with a persistent next-best-action header, a workflow rail,
+generation presets, a queue-first review screen, and expert tables hidden behind
+disclosures for power users.
+
+This pass keeps the product feeling premium, but the visual direction should stay
+mature and enterprise-ready: graphite surfaces, restrained Critical
+Manufacturing teal accents, steel-blue support states, amber review cues, and
+minimal glow. Avoid the saturated neon "AI dashboard" look. The main product
+change is UX architecture: a new user should always know what to do next without
+reading paragraphs or hunting across unrelated cards. Phase 2 is still outside
+the completion path, real Bedrock/MCP generation is still blocked until the
+callable protocol is confirmed, and every UI review should include desktop and
+mobile screenshots of the guided steps.
 
 ## Secret Safety
 
