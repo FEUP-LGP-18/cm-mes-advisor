@@ -2,7 +2,12 @@ import type { ParsedRequirement } from "./parser";
 
 export type RequirementGenerationConfidenceLevel = "high" | "medium" | "low";
 
-export type RequirementGenerationReferenceKind = "mock-ai" | "mcp-placeholder";
+export type RequirementGenerationReferenceKind =
+  | "mock-ai"
+  | "mcp-placeholder"
+  | "mcp-documentation";
+
+export type RequirementGenerationSource = "mock-ai" | "bedrock-mcp";
 
 export type GeneratedDemoStepReviewStatus = "draft" | "consultant-review";
 
@@ -17,6 +22,7 @@ export interface RequirementGenerationSourceReference {
   kind: RequirementGenerationReferenceKind;
   label: string;
   note: string;
+  url?: string;
 }
 
 export interface RequirementGenerationConfidence {
@@ -37,8 +43,8 @@ export interface GeneratedDemoStep {
 
 export interface GeneratedRequirementDraft {
   schemaVersion: 1;
-  generator: "mock-ai";
-  generatedAt: "deterministic-mock";
+  generator: RequirementGenerationSource;
+  generatedAt: string;
   requirement: RequirementGenerationIdentity;
   generatedComment: string;
   demoSteps: GeneratedDemoStep[];
@@ -120,8 +126,8 @@ export function isGeneratedRequirementDraft(
 
   return (
     value.schemaVersion === 1 &&
-    value.generator === "mock-ai" &&
-    value.generatedAt === "deterministic-mock" &&
+    isRequirementGenerationSource(value.generator) &&
+    typeof value.generatedAt === "string" &&
     isRecord(value.requirement) &&
     typeof value.requirement.requirementKey === "string" &&
     typeof value.requirement.requirementId === "string" &&
@@ -163,6 +169,7 @@ export function assessRequirementSupport(
     includesAny(searchableText, [
       "partial",
       "custom",
+      "extension",
       "customization",
       "not supported",
       "not available",
@@ -363,7 +370,7 @@ function createMockSourceReferences(
   ];
 }
 
-function inferMesScreen(requirement: ParsedRequirement): string {
+export function inferMesScreen(requirement: ParsedRequirement): string {
   const text = [
     requirement.l2Process,
     requirement.l3Process,
@@ -396,7 +403,7 @@ function inferMesScreen(requirement: ParsedRequirement): string {
   return "MES configuration";
 }
 
-function formatProcessPath(requirement: ParsedRequirement): string {
+export function formatProcessPath(requirement: ParsedRequirement): string {
   return (
     [
       requirement.l2Process.trim(),
@@ -431,7 +438,8 @@ function isRequirementGenerationSourceReference(
     typeof value.id === "string" &&
     isRequirementGenerationReferenceKind(value.kind) &&
     typeof value.label === "string" &&
-    typeof value.note === "string"
+    typeof value.note === "string" &&
+    (value.url === undefined || typeof value.url === "string")
   );
 }
 
@@ -470,7 +478,17 @@ function isRequirementGenerationConfidenceLevel(
 function isRequirementGenerationReferenceKind(
   value: unknown,
 ): value is RequirementGenerationReferenceKind {
-  return value === "mock-ai" || value === "mcp-placeholder";
+  return (
+    value === "mock-ai" ||
+    value === "mcp-placeholder" ||
+    value === "mcp-documentation"
+  );
+}
+
+function isRequirementGenerationSource(
+  value: unknown,
+): value is RequirementGenerationSource {
+  return value === "mock-ai" || value === "bedrock-mcp";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

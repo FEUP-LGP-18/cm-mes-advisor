@@ -28,10 +28,9 @@ export async function POST(request: Request) {
   const result = await provider.generate(parsedBody.requirements);
 
   if (!result.ok) {
-    return unavailableResponse(
-      result.error.message,
-      result.error.missingConfig,
-    );
+    return result.error.code === "real-generation-unavailable"
+      ? unavailableResponse(result.error.message, result.error.missingConfig)
+      : generationFailedResponse(result.error.message);
   }
 
   const responseBody: RequirementGenerationRouteSuccessBody = {
@@ -66,4 +65,16 @@ function unavailableResponse(message: string, missingConfig: string[]) {
   };
 
   return NextResponse.json(body, { status: 503 });
+}
+
+function generationFailedResponse(message: string) {
+  const body: RequirementGenerationRouteErrorBody = {
+    ok: false,
+    error: {
+      code: "generation-failed",
+      message,
+    },
+  };
+
+  return NextResponse.json(body, { status: 502 });
 }

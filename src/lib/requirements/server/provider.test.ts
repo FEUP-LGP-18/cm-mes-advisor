@@ -27,7 +27,7 @@ const parsedRequirement = {
 } as const;
 
 describe("requirement generation provider", () => {
-  it("chooses mock generation by default and returns Epic 4 drafts", async () => {
+  it("chooses mock generation by default and returns deterministic drafts", async () => {
     const provider = createRequirementGenerationProvider(
       readRequirementGenerationServerConfig({}),
     );
@@ -52,13 +52,11 @@ describe("requirement generation provider", () => {
     }
   });
 
-  it("reports unavailable real generation when protocol details are missing", async () => {
+  it("reports unavailable real generation when Bedrock auth is missing", async () => {
     const provider = createRequirementGenerationProvider(
       readRequirementGenerationServerConfig({
         GENERATION_MODE: "real",
         MCP_SERVER_URL: "https://example.invalid/mcp",
-        MES_BASE_URL: "https://example.invalid/mes",
-        BEDROCK_API_KEY: "example-bedrock-api-key",
         BEDROCK_MODEL_ID: "example-bedrock-model-id",
         AWS_REGION: "eu-west-1",
       }),
@@ -76,55 +74,102 @@ describe("requirement generation provider", () => {
         reason: "missing-config",
       },
     });
-    if (!result.ok) {
-      expect(result.error.missingConfig).toContain("MCP_PROTOCOL_DETAILS");
+    if (!result.ok && result.error.code === "real-generation-unavailable") {
+      expect(result.error.missingConfig).toEqual(["AWS_BEARER_TOKEN_BEDROCK"]);
       expect(result.error.message).toContain("not configured yet");
-      expect(result.error.message).toContain("LibreChat/RAG");
-      expect(result.error.message).toContain(
-        "callable MCP or HTTP protocol contract",
-      );
-      expect(result.error.message).not.toContain("example-bedrock-api-key");
+      expect(result.error.message).not.toContain("example-bedrock-model-id");
     }
   });
 
-  it("surfaces a safe availability summary for real mode with complete config", () => {
+  it("reports real generation as available when config is complete", () => {
     const config = readRequirementGenerationServerConfig({
       GENERATION_MODE: "real",
       MCP_SERVER_URL: "https://example.invalid/mcp",
-      MES_BASE_URL: "https://example.invalid/mes",
-      BEDROCK_API_KEY: "example-bedrock-api-key",
       BEDROCK_MODEL_ID: "example-bedrock-model-id",
-      AWS_REGION: "eu-west-1",
-      MCP_PROTOCOL_DETAILS: "example-protocol-details",
+      AWS_REGION: "eu-south-2",
+      AWS_BEARER_TOKEN_BEDROCK: "ABSKexample-token",
     });
 
-    expect(getRequirementGenerationAvailability(config)).toMatchObject({
-      code: "real-generation-unavailable",
-      reason: "not-implemented",
-    });
+    expect(getRequirementGenerationAvailability(config)).toBeNull();
   });
 
-  it("describes the documented support package without leaking secret values", () => {
-    const availability = getRequirementGenerationAvailability(
+  it("uses the real orchestration path when complete config is provided", async () => {
+    const provider = createRequirementGenerationProvider(
       readRequirementGenerationServerConfig({
         GENERATION_MODE: "real",
         MCP_SERVER_URL: "https://example.invalid/mcp",
-        MES_BASE_URL: "https://example.invalid/mes",
-        BEDROCK_API_KEY: "example-bedrock-api-key",
         BEDROCK_MODEL_ID: "example-bedrock-model-id",
-        AWS_REGION: "eu-west-1",
-        MCP_PROTOCOL_DETAILS: "example-protocol-details",
+        AWS_REGION: "eu-south-2",
+        AWS_BEARER_TOKEN_BEDROCK: "ABSKexample-token",
       }),
+      {
+        async createDocumentationClient() {
+          return {
+            async lookupRequirementDocumentation() {
+              return {
+                primaryChunks: [],
+                adjacentChunks: [],
+                allChunks: [
+                  {
+                    id: "chunk-1",
+                    title: "Electronic batch review",
+                    text: "Review by exception is configured from the batch review screen.",
+                    sourceUrl: "https://example.invalid/docs/review",
+                    docSource: "Documentation Portal",
+                    docVersion: "9.0",
+                    previousChunkId: null,
+                    nextChunkId: null,
+                  },
+                ],
+              };
+            },
+            async close() {},
+          };
+        },
+        createModelClient() {
+          return {
+            async generateDraft() {
+              return {
+                generatedComment:
+                  "CM MES supports electronic batch review through the batch review screen.",
+                confidenceLevel: "high" as const,
+                confidenceRationale:
+                  "The retrieved documentation explicitly covers review by exception.",
+                assumptions: ["The batch review configuration is present."],
+                warnings: [],
+                demoSteps: [
+                  {
+                    title: "Open Batch Review",
+                    mesModuleOrScreen: "Batch Review",
+                    reviewStatus: "draft" as const,
+                    instructions: [
+                      "Open the batch review module.",
+                      "Select the batch under review by exception.",
+                    ],
+                  },
+                ],
+              };
+            },
+          };
+        },
+      },
     );
 
-    expect(availability).toMatchObject({
-      code: "real-generation-unavailable",
-      reason: "not-implemented",
+    const result = await provider.generate([parsedRequirement]);
+
+    expect(result).toMatchObject({
+      ok: true,
+      providerMode: "real",
     });
-    expect(availability?.message).toContain("LibreChat/RAG");
-    expect(availability?.message).toContain(
-      "callable MCP or HTTP protocol contract",
-    );
-    expect(availability?.message).not.toContain("example-bedrock-api-key");
+    if (result.ok) {
+      expect(result.drafts[0]).toMatchObject({
+        generator: "bedrock-mcp",
+        sourceReferences: [
+          {
+            kind: "mcp-documentation",
+          },
+        ],
+      });
+    }
   });
 });

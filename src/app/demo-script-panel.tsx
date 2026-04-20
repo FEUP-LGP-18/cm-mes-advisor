@@ -820,7 +820,22 @@ function DemoScriptStepCard({
                   <span className="font-bold text-[#17211f]">
                     {reference.kind}
                   </span>
-                  : {reference.label}. {reference.note}
+                  :{" "}
+                  {reference.url ? (
+                    <a
+                      href={reference.url}
+                      rel="noreferrer"
+                      target="_blank"
+                      className="font-bold text-[#0f6f62] underline decoration-[#0f6f62]/25 underline-offset-4"
+                    >
+                      {reference.label}
+                    </a>
+                  ) : (
+                    <span className="font-bold text-[#17211f]">
+                      {reference.label}
+                    </span>
+                  )}
+                  . {reference.note}
                 </li>
               ))}
             </ul>

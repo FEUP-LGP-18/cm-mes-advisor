@@ -8,12 +8,22 @@ import {
   type RequirementGenerationMode,
   type RequirementGenerationServerConfig,
 } from "./config";
+import {
+  generateRealRequirementDrafts,
+  RequirementGenerationInfrastructureError,
+  type RealRequirementGenerationDependencies,
+} from "./real-generation";
 
 export interface RequirementGenerationUnavailableError {
   code: "real-generation-unavailable";
-  reason: "missing-config" | "not-implemented";
+  reason: "missing-config";
   message: string;
   missingConfig: string[];
+}
+
+export interface RequirementGenerationFailedError {
+  code: "generation-failed";
+  message: string;
 }
 
 export interface RequirementGenerationSuccessResult {
@@ -28,9 +38,16 @@ export interface RequirementGenerationUnavailableResult {
   error: RequirementGenerationUnavailableError;
 }
 
+export interface RequirementGenerationFailedResult {
+  ok: false;
+  providerMode: RequirementGenerationMode;
+  error: RequirementGenerationFailedError;
+}
+
 export type RequirementGenerationResult =
   | RequirementGenerationSuccessResult
-  | RequirementGenerationUnavailableResult;
+  | RequirementGenerationUnavailableResult
+  | RequirementGenerationFailedResult;
 
 export interface RequirementGenerationProvider {
   mode: RequirementGenerationMode;
@@ -41,9 +58,10 @@ export interface RequirementGenerationProvider {
 
 export function createRequirementGenerationProvider(
   config: RequirementGenerationServerConfig,
+  dependencies: RealRequirementGenerationDependencies = {},
 ): RequirementGenerationProvider {
   return config.mode === "real"
-    ? createRealRequirementGenerationProvider(config)
+    ? createRealRequirementGenerationProvider(config, dependencies)
     : createMockRequirementGenerationProvider();
 }
 
@@ -55,24 +73,18 @@ export function getRequirementGenerationAvailability(
   }
 
   const missingConfig = getMissingRealGenerationConfigKeys(config);
-  const supportPackageNote =
-    "The local LibreChat/RAG support package is documented, but this app has not verified a callable MCP or HTTP protocol contract yet.";
 
   if (missingConfig.length > 0) {
     return {
       code: "real-generation-unavailable",
       reason: "missing-config",
-      message: `Real requirement generation is not configured yet. Server-side mock mode remains the safe default. ${supportPackageNote}`,
+      message:
+        "Real requirement generation is not configured yet. Provide the MCP server URL, Bedrock model, region, and either AWS credentials or a Bedrock bearer token before switching out of prototype mode.",
       missingConfig,
     };
   }
 
-  return {
-    code: "real-generation-unavailable",
-    reason: "not-implemented",
-    message: `Real requirement generation is still unavailable. Server-side mock mode remains the safe default. ${supportPackageNote}`,
-    missingConfig: [],
-  };
+  return null;
 }
 
 function createMockRequirementGenerationProvider(): RequirementGenerationProvider {
@@ -92,23 +104,43 @@ function createMockRequirementGenerationProvider(): RequirementGenerationProvide
 
 function createRealRequirementGenerationProvider(
   config: RequirementGenerationServerConfig,
+  dependencies: RealRequirementGenerationDependencies,
 ): RequirementGenerationProvider {
   return {
     mode: "real",
-    async generate() {
-      return {
-        ok: false,
-        providerMode: "real",
-        error:
-          getRequirementGenerationAvailability(config) ??
-          ({
-            code: "real-generation-unavailable",
-            reason: "not-implemented",
+    async generate(requirements) {
+      const unavailable = getRequirementGenerationAvailability(config);
+      if (unavailable) {
+        return {
+          ok: false,
+          providerMode: "real",
+          error: unavailable,
+        };
+      }
+
+      try {
+        return {
+          ok: true,
+          providerMode: "real",
+          drafts: await generateRealRequirementDrafts(
+            requirements,
+            config,
+            dependencies,
+          ),
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          providerMode: "real",
+          error: {
+            code: "generation-failed",
             message:
-              "Real requirement generation remains server-only and unavailable in this slice.",
-            missingConfig: [],
-          } satisfies RequirementGenerationUnavailableError),
-      };
+              error instanceof RequirementGenerationInfrastructureError
+                ? error.message
+                : "Real requirement generation failed before a safe draft response could be created.",
+          },
+        };
+      }
     },
   };
 }

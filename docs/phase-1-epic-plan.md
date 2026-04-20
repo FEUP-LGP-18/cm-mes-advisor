@@ -267,8 +267,8 @@ Reviewable output:
 Acceptance checks:
 
 - Mock stays the default development mode.
-- Real mode is server-only and unavailable without the required config or
-  protocol details.
+- Real mode is server-only and only runs when the required MCP and AWS config
+  is present.
 - The UI shows a safe error if generation is unavailable and does not corrupt
   review state.
 
@@ -276,7 +276,7 @@ Acceptance checks:
 
 Goal:
 
-- Replace the mock generator with real Phase 1 AI generation for a small validation set.
+- Replace the mock generator with real Phase 1 AI generation for broad workbook use.
 
 Implementation:
 
@@ -430,7 +430,7 @@ Acceptance checks:
 - source-specific review and demo-script state remains isolated
 - the UI makes mock mode explicit and consultant-friendly
 - the manual smoke checklist is captured in discovery notes
-- real MCP / Bedrock generation, exact MES lookup paths, optional PDF / Word export, and Phase 2 Master Data all remain blocked or future-facing
+- click-by-click MES specificity, optional PDF / Word export, and Phase 2 Master Data remain future-facing
 
 ## Suggested First Validation Slice
 

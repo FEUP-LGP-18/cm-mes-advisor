@@ -32,13 +32,16 @@ Open `http://localhost:3000`.
 
 ## Project Docs
 
-- `docs/discovery/project-context.md`: curated discovery context
+- `docs/discovery/phase-1-demo-readiness.md`: canonical 7-row shortlist, walkthrough, and output-quality rubric
+- `docs/discovery/phase-1-librechat-fallback.md`: fallback runbook if direct credentials remain blocked
+- `docs/discovery/phase-1-pr-shipping-note.md`: draft PR body for the current Phase 1 branch
 - `docs/discovery/ui-ux-decisions.md`: review meeting UI/UX decisions
 - `docs/discovery/rui-answers-2026-04-14.md`: latest partner answers for Phase 1/2 implementation assumptions
 - `docs/discovery/rui-scope-message.md`: partner scope message
 - `docs/discovery/teams-client-thread-summary.md`: partner conversation summary
 - `docs/discovery/librechat-mcp-notes.md`: safe LibreChat/MCP package notes
 - `docs/discovery/epic-8-validation-slice.md`: small Phase 1 validation slice
+- `docs/discovery/phase-1-real-mode-validation-2026-04-20.md`: live real-mode validation result and current blocker
 - `docs/phase-1-epic-plan.md`: Phase 1 epic plan
 
 ## Fixture
@@ -115,9 +118,8 @@ non-generated row clears manual local edits.
 Epic 5A moves generation behind a server route at
 `/api/requirements/generate` while keeping the Epic 4 mock draft contract.
 Mock mode remains the default so every teammate can run the app without
-credentials. Real Bedrock/MCP generation is guarded behind server-only config
-and currently returns a safe unavailable response until the protocol is
-finalized.
+credentials. Real generation now uses server-only MCP and Bedrock adapters when
+the required environment is present.
 
 Use `GENERATION_MODE=mock` for normal development. The `.env.example` file only
 contains placeholder names and values for the server-side integration boundary.
@@ -129,18 +131,28 @@ LibreChat at `http://localhost:3080`, the RAG container on port `8080`, and the
 ClickHouse containers on `8123` and `9000`. The package instructions also point
 to the `rag` MCP server for MES documentation lookup.
 
-What is still blocked:
+What the repo now supports:
 
-- The exact callable MCP or HTTP protocol contract is not yet verified in this
-  repo, so real generation remains unavailable.
-- Mock mode stays the safe default and preserves the existing
-  `GeneratedRequirementDraft` contract for the UI.
+- real server-side MCP lookup through the documented streamable HTTP endpoint
+- real Bedrock-backed draft generation through the existing provider boundary
+- bounded per-row orchestration with safe fallback drafts when evidence or model
+  output is weak
+- mock mode as the safe default for teammates without credentials
 
-Next step:
+Real mode expects:
 
-- Once the safe instruction/config files are directly inspectable or a trusted
-  protocol contract is shared, wire a server-only real adapter behind the
-  existing provider boundary.
+- `GENERATION_MODE=real`
+- `MCP_SERVER_URL`
+- `BEDROCK_MODEL_ID`
+- `AWS_REGION`
+- either standard AWS credentials or `AWS_BEARER_TOKEN_BEDROCK`
+- optional `MCP_USER_ACCOUNT`
+
+Still future-facing:
+
+- richer click-by-click MES specificity where documentation allows
+- optional PDF or Word export
+- Phase 2 Master Data generation
 
 ## Epic 6 Demo Script Assembly
 
@@ -176,9 +188,8 @@ The mock Phase 1 output now leans harder into Rui's guidance:
   spot rows that look safe to approve versus rows that still need human
   judgment
 
-The validation pass is still Phase 1 only. Real MCP or Bedrock generation stays
-blocked until the callable protocol is confirmed, and Phase 2 Master Data
-remains optional and future-facing.
+The validation pass is still Phase 1 only. Phase 2 Master Data remains optional
+and future-facing.
 
 ## Phase 1 Hardening And MVP Completion
 
@@ -189,6 +200,7 @@ committed Customer X fixture or an uploaded `.xlsx` workbook:
   validation
 - source-aware local storage so fixture and upload state stay separate
 - explicit mock / heuristic mode labeling near generation controls
+- real grounded generation when MCP and Bedrock auth are configured
 - review, generation, demo script assembly, validation cues, and Markdown
   export all working from the same workspace flow
 
@@ -196,10 +208,36 @@ The workbook-copy Excel export is intentionally deferred for now. Markdown is
 the separate document export shipped in this repo, and a workbook round-trip can
 be revisited later if the team wants it.
 
-Still blocked for Phase 1:
+Remaining validation before we call Phase 1 fully done:
 
-- real MCP / Bedrock generation until the callable protocol is confirmed
-- exact click-by-click MES documentation lookup from a verified MCP / RAG path
+- run a live real-mode smoke pass against the partner MCP + Bedrock stack
+- tune prompt specificity if real demo steps are still too generic
+- verify Markdown export preserves grounded references from real generation
+
+Current validation status:
+
+- the live 2026-04-20 run confirmed the local MCP stack and direct Bedrock
+  wiring are reachable from the app
+- the partner-provided direct Bedrock credentials are still blocking successful
+  generation, so Phase 1 should not be marked complete yet
+- the remaining blocker is partner credential intent and permission setup, not
+  missing app architecture
+- see [docs/discovery/phase-1-real-mode-validation-2026-04-20.md](docs/discovery/phase-1-real-mode-validation-2026-04-20.md)
+  for the exact blocker summary
+
+Recommended operator docs while waiting for Rui:
+
+- use [docs/discovery/phase-1-demo-readiness.md](docs/discovery/phase-1-demo-readiness.md)
+  to validate the 7-row shortlist first
+- use [docs/discovery/phase-1-librechat-fallback.md](docs/discovery/phase-1-librechat-fallback.md)
+  if the approved short-term path is LibreChat-assisted
+- use [docs/discovery/phase-1-pr-shipping-note.md](docs/discovery/phase-1-pr-shipping-note.md)
+  as the draft Phase 1 PR body once the external blocker is resolved
+
+Still future-facing:
+
+- exact click-by-click MES documentation lookup depends on documentation quality
+  and may require prompt tuning
 - optional PDF or Word export
 - Phase 2 Master Data generation
 
@@ -221,9 +259,8 @@ Manufacturing teal accents, steel-blue support states, amber review cues, and
 minimal glow. Avoid the saturated neon "AI dashboard" look. The main product
 change is UX architecture: a new user should always know what to do next without
 reading paragraphs or hunting across unrelated cards. Phase 2 is still outside
-the completion path, real Bedrock/MCP generation is still blocked until the
-callable protocol is confirmed, and every UI review should include desktop and
-mobile screenshots of the guided steps.
+the completion path, and every UI review should include desktop and mobile
+screenshots of the guided steps.
 
 ## Secret Safety
 

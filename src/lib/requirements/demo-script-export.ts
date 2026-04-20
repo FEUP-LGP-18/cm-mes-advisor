@@ -176,10 +176,11 @@ function appendSourceReferences(
   appendHeading(lines, 4, "Source references");
   sourceReferences.forEach((reference) => {
     const note = normalizeInlineText(reference.note);
+    const label = reference.url
+      ? `[${normalizeInlineText(reference.label)}](${reference.url})`
+      : normalizeInlineText(reference.label);
     const suffix = note.length > 0 ? ` — ${note}` : "";
-    lines.push(
-      `- [${reference.kind}] ${normalizeInlineText(reference.label)}${suffix}`,
-    );
+    lines.push(`- [${reference.kind}] ${label}${suffix}`);
   });
 }
 

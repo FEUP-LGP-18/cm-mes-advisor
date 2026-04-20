@@ -39,6 +39,17 @@ const partialRequirement: ParsedRequirement = {
   supportedPercent: "60%",
 };
 
+const extensionRequirement: ParsedRequirement = {
+  ...standardRequirement,
+  sourceRowNumber: 6,
+  requirementId: "12.03",
+  requirementDescription: "Customer reporting product content",
+  availability: "Custom development needed",
+  availabilityCm: "Extension package - Effort <10MD",
+  descriptionAvailability: "Requires extension package validation.",
+  supportedPercent: "100%",
+};
+
 const missingDescriptionRequirement: ParsedRequirement = {
   ...standardRequirement,
   sourceRowNumber: 5,
@@ -106,6 +117,7 @@ describe("mock requirement generation", () => {
   it("uses different confidence and warnings for standard and partial/custom rows", () => {
     const standardAssessment = assessRequirementSupport(standardRequirement);
     const partialAssessment = assessRequirementSupport(partialRequirement);
+    const extensionAssessment = assessRequirementSupport(extensionRequirement);
 
     expect(standardAssessment.supportType).toBe("standard");
     expect(standardAssessment.confidence.level).toBe("high");
@@ -119,9 +131,15 @@ describe("mock requirement generation", () => {
     expect(partialAssessment.warnings.join(" ")).toContain(
       "Consultant review recommended",
     );
+    expect(extensionAssessment.supportType).toBe("partial-or-custom");
+    expect(extensionAssessment.warnings.join(" ")).toContain(
+      "Consultant review recommended",
+    );
 
     const partialDraft =
       createMockGeneratedRequirementDraft(partialRequirement);
+    const extensionDraft =
+      createMockGeneratedRequirementDraft(extensionRequirement);
 
     expect(partialDraft.generatedComment).toContain("workaround");
     expect(partialDraft.generatedComment).not.toMatch(/not supported/i);
@@ -132,6 +150,8 @@ describe("mock requirement generation", () => {
       "Click the screen or record",
     );
     expect(partialDraft.demoSteps[1]?.reviewStatus).toBe("consultant-review");
+    expect(extensionDraft.generatedComment).toContain("workaround");
+    expect(extensionDraft.demoSteps[1]?.reviewStatus).toBe("consultant-review");
   });
 
   it("keeps missing description rows in consultant review without blunt unsupported wording", () => {
