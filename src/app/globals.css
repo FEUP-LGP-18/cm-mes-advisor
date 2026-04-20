@@ -1,15 +1,25 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f6f8fa;
-  --foreground: #191919;
+  --background: #0c1318;
+  --foreground: #f3f7f5;
+  --panel: rgba(18, 27, 33, 0.84);
+  --panel-strong: rgba(12, 21, 27, 0.94);
+  --document: #f4efe5;
+  --document-ink: #1b2426;
+  --line: rgba(168, 188, 187, 0.16);
+  --line-strong: rgba(168, 188, 187, 0.26);
+  --teal: #2f8f8a;
+  --cyan: #6fa8b8;
+  --amber: #c8953f;
+  --danger: #ff776d;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-display);
+  --font-mono: var(--font-mono);
 }
 
 * {
@@ -18,11 +28,200 @@
 
 html {
   background: var(--background);
+  scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-display), sans-serif;
+  overflow-x: hidden;
+  text-rendering: geometricPrecision;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button,
+label,
+input,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: rgba(47, 143, 138, 0.32);
+  color: #ffffff;
+}
+
+::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(111, 168, 184, 0.24);
+  border: 2px solid rgba(7, 17, 17, 0.9);
+  border-radius: 999px;
+}
+
+.mesh-background {
+  background:
+    radial-gradient(
+      circle at 12% 8%,
+      rgba(47, 143, 138, 0.12),
+      transparent 28rem
+    ),
+    radial-gradient(
+      circle at 88% 10%,
+      rgba(111, 168, 184, 0.1),
+      transparent 24rem
+    ),
+    radial-gradient(
+      circle at 55% 62%,
+      rgba(200, 149, 63, 0.05),
+      transparent 30rem
+    ),
+    linear-gradient(135deg, #0c1318 0%, #101b22 48%, #091116 100%);
+}
+
+.mesh-background::before {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  content: "";
+  background-image:
+    linear-gradient(rgba(184, 202, 200, 0.032) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(184, 202, 200, 0.032) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: linear-gradient(to bottom, black, transparent 68%);
+  pointer-events: none;
+}
+
+.mesh-background::after {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  content: "";
+  background-image: radial-gradient(
+    rgba(255, 255, 255, 0.12) 0.7px,
+    transparent 0.7px
+  );
+  background-size: 4px 4px;
+  opacity: 0.08;
+  pointer-events: none;
+}
+
+.premium-panel {
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.035), transparent 42%),
+    var(--panel);
+  box-shadow:
+    0 14px 36px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(10px);
+}
+
+.premium-panel-strong {
+  border: 1px solid var(--line-strong);
+  background:
+    linear-gradient(155deg, rgba(47, 143, 138, 0.045), transparent 34%),
+    var(--panel-strong);
+  box-shadow:
+    0 16px 42px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+}
+
+.document-panel {
+  border: 1px solid rgba(45, 42, 34, 0.12);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.76),
+      rgba(255, 255, 255, 0.34)
+    ),
+    var(--document);
+  color: var(--document-ink);
+  box-shadow: 0 22px 56px rgba(0, 0, 0, 0.24);
+}
+
+.focus-premium {
+  outline: none;
+}
+
+.focus-premium:focus-visible {
+  outline: 2px solid rgba(111, 168, 184, 0.78);
+  outline-offset: 3px;
+}
+
+.mono-label {
+  font-family: var(--font-mono), monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.animate-enter {
+  animation: rise-in 720ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+
+.animate-enter-slow {
+  animation: rise-in 920ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+
+.animate-delay-1 {
+  animation-delay: 90ms;
+}
+
+.animate-delay-2 {
+  animation-delay: 180ms;
+}
+
+.animate-delay-3 {
+  animation-delay: 270ms;
+}
+
+.pulse-glow {
+  animation: pulse-glow 2.8s ease-in-out infinite;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgba(47, 143, 138, 0);
+  }
+  50% {
+    box-shadow: 0 0 18px rgba(47, 143, 138, 0.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
