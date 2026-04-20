@@ -245,22 +245,7 @@ Manual smoke checklist:
 
 - see [docs/discovery/phase-1-hardening-smoke-checklist.md](docs/discovery/phase-1-hardening-smoke-checklist.md)
 
-## Guided Premium UI/UX Pass
 
-The Phase 1 workspace is now a guided consultant journey instead of a dashboard
-full of competing panels. The default path is Source -> Generate -> Review ->
-Script -> Export, with a persistent next-best-action header, a workflow rail,
-generation presets, a queue-first review screen, and expert tables hidden behind
-disclosures for power users.
-
-This pass keeps the product feeling premium, but the visual direction should stay
-mature and enterprise-ready: graphite surfaces, restrained Critical
-Manufacturing teal accents, steel-blue support states, amber review cues, and
-minimal glow. Avoid the saturated neon "AI dashboard" look. The main product
-change is UX architecture: a new user should always know what to do next without
-reading paragraphs or hunting across unrelated cards. Phase 2 is still outside
-the completion path, and every UI review should include desktop and mobile
-screenshots of the guided steps.
 
 ## Secret Safety
 
