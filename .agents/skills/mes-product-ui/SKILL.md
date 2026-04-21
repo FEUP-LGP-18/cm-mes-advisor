@@ -45,4 +45,6 @@ Use this skill for the product surfaces in this repository.
 
 ## Completion Rule
 
-For material UI changes, combine this skill with browser-based verification before signoff.
+For material UI changes, default to `NEEDS WORK` until desktop, mobile, and the key interaction for that surface are verified.
+
+Before signoff, compare the requested UX outcome to the rendered result and combine this skill with browser-based verification.

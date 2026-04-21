@@ -79,7 +79,7 @@ Reference:
 ## Repo Truths Before Coding
 
 - Read `README.md` for setup and doc map.
-- Use the root `start.sh` script as the preferred local startup path; it auto-detects app-only vs `real` startup from `.env.local` and safely restarts the known local stack.
+- Use the root `start.sh` script as the preferred local startup path; it always starts the full local stack and safely restarts the known local services before launching the app.
 - Read `AGENTS.md` for coding and scope guardrails.
 - Use `.nvmrc` and `package.json` as the source of truth for local runtime and commands.
 - Use `.env.example` only for placeholder names and safe example values.

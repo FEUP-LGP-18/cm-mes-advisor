@@ -34,11 +34,8 @@ import {
   requirementValidationSignalLabels,
   type RequirementValidationSummary,
 } from "@/lib/requirements/validation";
-import {
-  assertRequirementsWorkbookFilename,
-  parseRequirementsWorkbook,
-  type ParsedRequirement,
-} from "@/lib/requirements/parser";
+import type { ParsedRequirement } from "@/lib/requirements/types";
+import { assertRequirementsWorkbookFilename } from "@/lib/requirements/workbook-file";
 import {
   createRequirementsWorkspaceState,
   loadRequirementsWorkspaceState,
@@ -377,6 +374,9 @@ export default function RequirementsReviewWorkspace({
     try {
       assertRequirementsWorkbookFilename(file.name);
       const workbookBuffer = await file.arrayBuffer();
+      const { parseRequirementsWorkbook } = await import(
+        "@/lib/requirements/parser"
+      );
       const parsedRequirements =
         await parseRequirementsWorkbook(workbookBuffer);
       const sourceMetadata = createUploadSourceMetadata(

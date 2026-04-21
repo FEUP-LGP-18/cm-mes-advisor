@@ -3,7 +3,6 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
-  assertRequirementsWorkbookFilename,
   parseRequirementsWorkbook,
   parseRequirementsWorkbookFile,
   REQUIREMENTS_DATA_START_ROW_NUMBER,
@@ -11,6 +10,7 @@ import {
   summarizeRequirements,
   type ParsedRequirement,
 } from ".";
+import { assertRequirementsWorkbookFilename } from "./workbook-file";
 
 const fixturePath = path.join(
   process.cwd(),

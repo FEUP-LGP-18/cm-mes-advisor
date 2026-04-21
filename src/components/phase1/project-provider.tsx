@@ -22,10 +22,7 @@ import type {
   RequirementGenerationRouteBody,
   RequirementGenerationRouteMode,
 } from "@/lib/requirements/generation-api";
-import {
-  parseRequirementsWorkbook,
-  type ParsedRequirement,
-} from "@/lib/requirements/parser";
+import type { ParsedRequirement } from "@/lib/requirements/types";
 import {
   createFixtureWorkspaceStateForProject,
   createUploadedWorkspaceStateForProject,
@@ -382,6 +379,9 @@ export function Phase1ProjectProvider({
 
       try {
         const workbookBuffer = await file.arrayBuffer();
+        const { parseRequirementsWorkbook } = await import(
+          "@/lib/requirements/parser"
+        );
         const parsedRequirements =
           await parseRequirementsWorkbook(workbookBuffer);
         const sourceMetadata = createUploadSourceMetadata(

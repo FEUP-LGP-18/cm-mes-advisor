@@ -2,15 +2,14 @@ export {
   REQUIREMENTS_DATA_START_ROW_NUMBER,
   REQUIREMENTS_HEADER_ROW_NUMBER,
   REQUIREMENTS_SHEET_NAME,
-  assertRequirementsWorkbookFilename,
   normalizeRequirementFlag,
   parseRequirementsWorkbook,
   summarizeRequirements,
-  type ParsedRequirement,
-  type RequirementsSummary,
 } from "./parser";
 
 export { parseRequirementsWorkbookFile } from "./parser-node";
+export type { ParsedRequirement, RequirementsSummary } from "./types";
+export { assertRequirementsWorkbookFilename } from "./workbook-file";
 
 export {
   createDisplayNameFromFilename,

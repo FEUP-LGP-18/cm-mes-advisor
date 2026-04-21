@@ -14,6 +14,7 @@ This document is the product-UI canon for Codex and other agents working on the 
 - Default to neutral surfaces with one brand-led accent family.
 - Use emphasis to guide work, not to decorate every region.
 - Prefer layout structure, type scale, spacing rhythm, and state clarity over ornamental chrome.
+- Delight is acceptable only when it clarifies state, reduces anxiety, or reinforces progress; never as generic decoration.
 
 ## Surface Archetypes
 

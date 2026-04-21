@@ -1,10 +1,5 @@
-import {
-  Workbook,
-  type Cell,
-  type CellValue,
-  type Row,
-  type Worksheet,
-} from "exceljs";
+import type { Cell, CellValue, Row, Worksheet } from "exceljs";
+import type { ParsedRequirement, RequirementsSummary } from "./types";
 
 export const REQUIREMENTS_SHEET_NAME = "Requirements";
 export const REQUIREMENTS_HEADER_ROW_NUMBER = 2;
@@ -34,37 +29,12 @@ const requirementColumnHeaders = {
 type RequirementColumnKey = keyof typeof requirementColumnHeaders;
 type RequirementColumnMap = Record<RequirementColumnKey, number>;
 
-export interface ParsedRequirement {
-  sourceRowNumber: number;
-  requirementId: string;
-  requirementDescription: string;
-  l2Process: string;
-  l3Process: string;
-  operation: string;
-  demo: boolean;
-  demoRaw: string;
-  detailDescriptionAndMotivation: string;
-  prioEms: string;
-  prioCws: string;
-  mvp: boolean;
-  mvpRaw: string;
-  availability: string;
-  availabilityCm: string;
-  descriptionAvailability: string;
-  supportedPercent: string;
-  sourceComment: string;
-}
-
-export interface RequirementsSummary {
-  rowCount: number;
-  demoCount: number;
-  mvpCount: number;
-  demoAndMvpCount: number;
-}
+export type { ParsedRequirement, RequirementsSummary } from "./types";
 
 export async function parseRequirementsWorkbook(
   workbookData: ArrayBuffer | Uint8Array,
 ): Promise<ParsedRequirement[]> {
+  const { Workbook } = await import("exceljs");
   const workbook = new Workbook();
   await workbook.xlsx.load(
     workbookData as unknown as Parameters<typeof workbook.xlsx.load>[0],
@@ -137,14 +107,6 @@ export function summarizeRequirements(
 
 export function normalizeRequirementFlag(rawValue: string): boolean {
   return TRUE_FLAG_VALUES.has(rawValue.trim().toLowerCase());
-}
-
-export function assertRequirementsWorkbookFilename(fileName: string): void {
-  if (!/\.xlsx$/i.test(fileName.trim())) {
-    throw new Error(
-      "Only .xlsx workbooks are supported for requirements upload.",
-    );
-  }
 }
 
 function readHeaderColumns(worksheet: Worksheet): RequirementColumnMap {

@@ -1,5 +1,5 @@
 import { assembleDemoScript } from "@/lib/requirements/demo-script";
-import type { ParsedRequirement } from "@/lib/requirements/parser";
+import type { ParsedRequirement } from "@/lib/requirements/types";
 import {
   buildReviewRequirements,
   summarizeReviewRequirements,

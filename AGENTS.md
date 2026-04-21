@@ -57,17 +57,21 @@ If you change product behavior, workflow, setup, scope boundaries, or teammate o
 - `docs/discovery/project-context.md`
 - `docs/phase-1-epic-plan.md`
 
-For local startup, prefer the root `../start.sh` entrypoint before falling back to manual `pnpm` or Docker commands. It is the canonical teammate and agent startup path for this workspace.
+For local startup, prefer the root `../start.sh` entrypoint before falling back to manual `pnpm` or Docker commands. It is the canonical teammate and agent startup path for this workspace and always starts the full local stack.
 
 ## Frontend Done Criteria
 
 - Treat this as a consultant-facing product UI, not a marketing site or fake executive dashboard.
 - For UI changes, classify the surface first: `product workspace`, `wizard/form`, `settings/admin`, `landing/marketing`, or `empty/onboarding`.
+- For major UI work, choose the layout pattern before local styling decisions.
 - Product surfaces must use utility copy, clear status/action hierarchy, and restrained visual treatment.
 - Prefer table-detail, queue-detail, editor-detail, or progress-rail layouts over dashboard-card mosaics.
 - Phase 1 must feel complete without forcing Phase 2 as the next required step.
 - Do not imply broader document ingestion or Phase 2 capability beyond the confirmed MVP scope.
-- Before calling material UI work done, verify desktop and mobile states and check relevant empty, loading, error, and overflow states.
+- Before calling material UI work done, compare the requested outcome to the rendered result.
+- Material UI work is `NEEDS WORK` until desktop, mobile, and the key interaction for that surface are verified.
+- Check relevant empty, loading, error, and overflow states before signoff.
+- Do not describe material UI work as polished, ready, or production-ready without browser evidence.
 
 Before finalizing changes, run:
 

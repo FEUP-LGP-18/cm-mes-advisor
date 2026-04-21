@@ -1,5 +1,5 @@
 import type { GeneratedRequirementDraft } from "./generation";
-import type { ParsedRequirement } from "./parser";
+import type { ParsedRequirement } from "./types";
 
 export type RequirementGenerationRouteMode = "mock" | "real";
 

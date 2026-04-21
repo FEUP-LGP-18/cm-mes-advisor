@@ -31,7 +31,7 @@ The next meaningful work should stay aligned with this product shape:
 
 - harden the routed project workflow instead of re-expanding into one oversized page
 - keep the review workspace as the core Phase 1 artifact surface
-- keep setup and onboarding docs aligned with the current project-first model, with the root `start.sh` script as the preferred local startup entrypoint
+- keep setup and onboarding docs aligned with the current project-first model, with the root `start.sh` script as the preferred full-stack local startup entrypoint
 - improve real-mode confidence only after the partner access blocker is resolved
 - preserve honest scope language so Phase 1 feels complete without forcing Phase 2
 

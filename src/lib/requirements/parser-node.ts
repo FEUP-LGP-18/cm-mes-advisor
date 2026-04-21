@@ -1,9 +1,7 @@
 import { readFile } from "node:fs/promises";
-import {
-  assertRequirementsWorkbookFilename,
-  parseRequirementsWorkbook,
-  type ParsedRequirement,
-} from "./parser";
+import { parseRequirementsWorkbook } from "./parser";
+import type { ParsedRequirement } from "./types";
+import { assertRequirementsWorkbookFilename } from "./workbook-file";
 
 export async function parseRequirementsWorkbookFile(
   filePath: string,

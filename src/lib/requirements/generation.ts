@@ -1,4 +1,4 @@
-import type { ParsedRequirement } from "./parser";
+import type { ParsedRequirement } from "./types";
 
 export type RequirementGenerationConfidenceLevel = "high" | "medium" | "low";
 

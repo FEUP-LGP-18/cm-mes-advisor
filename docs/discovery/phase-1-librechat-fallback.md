@@ -19,7 +19,7 @@ behind the scenes for a small curated set of rows.
 
 ## Workflow
 
-1. Set `.env.local` to `GENERATION_MODE=real`, run `./start.sh` from the workspace root, and open LibreChat at `http://localhost:3080`.
+1. Run `./start.sh` from the workspace root and open LibreChat at `http://localhost:3080`.
 2. Select the `rag` MCP server in LibreChat.
 3. In the app, load the committed Customer X sample and stay focused on the 7-row shortlist from `phase-1-demo-readiness.md`.
 4. For each shortlisted row, ask LibreChat a targeted documentation-grounded question using the template below.

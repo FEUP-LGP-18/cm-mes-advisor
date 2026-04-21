@@ -1,4 +1,4 @@
-import type { ParsedRequirement } from "./parser";
+import type { ParsedRequirement } from "./types";
 import type { RequirementSupportAssessment } from "./generation";
 
 export type RequirementValidationSignal =

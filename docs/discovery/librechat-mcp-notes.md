@@ -39,7 +39,7 @@ The `INSTRUCTIONS.txt` file says to:
 - Pick the `rag` MCP Server in the MCP Servers dropdown.
 - Start asking MES documentation questions, for example asking what a Material is.
 
-For this repo, those are the archive's original package instructions. The preferred teammate and agent entrypoint is now the root `./start.sh` script, which restarts the app and, when `GENERATION_MODE=real`, the same support stack automatically.
+For this repo, those are the archive's original package instructions. The preferred teammate and agent entrypoint is now the root `./start.sh` script, which always restarts the app and the same support stack automatically.
 
 ## Verified Safe Shape
 

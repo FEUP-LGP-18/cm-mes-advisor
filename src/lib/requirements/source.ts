@@ -1,5 +1,5 @@
 import type { ReviewProjectMetadata } from "./review";
-import { assertRequirementsWorkbookFilename } from "./parser";
+import { assertRequirementsWorkbookFilename } from "./workbook-file";
 
 export type RequirementsSourceKind = "fixture" | "upload";
 

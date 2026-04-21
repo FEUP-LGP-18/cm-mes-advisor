@@ -71,15 +71,15 @@ The root `start.sh` script is the preferred local entrypoint for teammates and a
 
 - validates the expected Node version from `.nvmrc`
 - enables Corepack and installs dependencies only when needed
-- reads `.env.local` to detect whether startup should stay app-only or include the archived partner support stack
+- always restarts the archived partner support stack before launching the app
 - safely stops the existing CM MES Advisor app on `3000` when it owns the port
 - refuses to kill unrelated processes on required ports
-- in `real` mode, restarts `clickhouse`, `rag`, `LibreChat`, `ferretdb`, and `postgres` from `../98_archive/large-artifacts/LGP2026`
+- restarts `clickhouse`, `rag`, `LibreChat`, `ferretdb`, and `postgres` from `../98_archive/large-artifacts/LGP2026`
 
 After startup:
 
 - app: [http://localhost:3000](http://localhost:3000)
-- LibreChat in `real` mode: [http://localhost:3080](http://localhost:3080)
+- LibreChat: [http://localhost:3080](http://localhost:3080)
 
 ## Manual App-Only Fallback
 
@@ -99,8 +99,8 @@ Default local mode:
 
 Startup behavior:
 
-- if `.env.local` is missing or `GENERATION_MODE` is not `real`, `./start.sh` starts only the app
-- if `GENERATION_MODE=real`, `./start.sh` also restarts the archived local partner support stack before launching the app
+- `./start.sh` always restarts the archived local partner support stack before launching the app
+- `GENERATION_MODE` still controls app generation behavior, but it no longer changes what `./start.sh` starts
 
 Real mode requires the server-side values shown in [`.env.example`](.env.example), including:
 
@@ -132,7 +132,7 @@ Canonical docs:
 - [AGENTS.md](AGENTS.md): agent instructions and coding guardrails
 - [docs/discovery/project-context.md](docs/discovery/project-context.md): current-state product and repo context
 - [docs/phase-1-epic-plan.md](docs/phase-1-epic-plan.md): current roadmap and status
-- [`../start.sh`](../start.sh): root local startup orchestrator for app-only and real-mode runs
+- [`../start.sh`](../start.sh): root local startup orchestrator for the full local stack
 
 Supporting project notes:
 

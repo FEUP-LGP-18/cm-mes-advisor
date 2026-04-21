@@ -16,7 +16,7 @@ docs/current-state-reset
 - Include a short summary and the checks you ran.
 - Add screenshots for UI changes.
 - Link the relevant discovery or planning document when the change is based on project context.
-- Treat the root `../start.sh` script as the default teammate and agent startup path when documenting or reviewing local setup changes.
+- Treat the root `../start.sh` script as the default teammate and agent startup path when documenting or reviewing local setup changes. It now always starts the full local stack.
 - If the change affects setup, scope, workflow, or onboarding, update the canonical docs in the same PR:
   - `README.md`
   - `AGENTS.md`
