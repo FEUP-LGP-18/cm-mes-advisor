@@ -1,0 +1,4 @@
+interface:
+  display_name: MES Product UI
+  short_description: Keep MES Demo Advisor surfaces calm, credible, and review-first
+  default_prompt: Use $mes-product-ui to keep this repo's consultant-facing UI calm, review-first, and free of fake dashboard chrome.

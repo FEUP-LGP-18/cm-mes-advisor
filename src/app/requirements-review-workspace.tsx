@@ -87,10 +87,10 @@ const filterDescriptions: Record<RequirementReviewFilter, string> = {
 };
 
 const statusStyles: Record<RequirementReviewStatus, string> = {
-  pending: "border-white/15 bg-white/[0.06] text-[#d7e9e4]",
-  review: "border-[#c8953f]/45 bg-[#c8953f]/12 text-[#ead19a]",
-  approved: "border-[#2f8f8a]/45 bg-[#2f8f8a]/12 text-[#d2eee7]",
-  skipped: "border-white/10 bg-black/20 text-[#8ea7a0]",
+  pending: "tone-neutral",
+  review: "tone-warning",
+  approved: "tone-positive",
+  skipped: "tone-neutral-subtle",
 };
 
 const reviewStorageChangeEventName = "cm-mes-advisor:review-state-change";
@@ -161,6 +161,12 @@ export default function RequirementsReviewWorkspace({
   const [reviewedScriptStageKey, setReviewedScriptStageKey] = useState<
     string | null
   >(null);
+  const [sourcePreviewExpanded, setSourcePreviewExpanded] = useState(
+    fallbackWorkspaceState.source.sourceKind !== "fixture",
+  );
+  const [sourceDetailsExpanded, setSourceDetailsExpanded] = useState(
+    fallbackWorkspaceState.source.sourceKind !== "fixture",
+  );
 
   useEffect(() => {
     const syncWorkspaceState = () => {
@@ -189,7 +195,9 @@ export default function RequirementsReviewWorkspace({
     setGenerationFeedback(null);
     setLastGenerationMode(null);
     setReviewedScriptStageKey(null);
-  }, [workspaceState.source.sourceId]);
+    setSourcePreviewExpanded(workspaceState.source.sourceKind !== "fixture");
+    setSourceDetailsExpanded(workspaceState.source.sourceKind !== "fixture");
+  }, [workspaceState.source.sourceId, workspaceState.source.sourceKind]);
 
   const reviewRequirements = useMemo(
     () =>
@@ -256,11 +264,19 @@ export default function RequirementsReviewWorkspace({
       ),
     [generatedRequirements],
   );
+  const reviewQueue = generatedReviewableRequirements;
   const currentReviewRequirement =
     selectedRequirement?.generatedOutput.state === "mock-generated-draft" &&
     selectedRequirement.reviewStatus === "pending"
       ? selectedRequirement
       : (generatedReviewableRequirements[0] ?? null);
+  const activeReviewQueueIndex = currentReviewRequirement
+    ? reviewQueue.findIndex(
+        (requirement) =>
+          requirement.requirementKey ===
+          currentReviewRequirement.requirementKey,
+      )
+    : -1;
   const allFilteredRequirementsSelected =
     visibleRequirements.length > 0 &&
     visibleRequirements.every((requirement) =>
@@ -268,6 +284,7 @@ export default function RequirementsReviewWorkspace({
     );
   const sourceMetadata = workspaceState.source;
   const currentProjectMetadata = workspaceState.reviewState.project;
+  const sourcePreviewRows = reviewRequirements.slice(0, 8);
   const scriptStageKey = `${summary.approvedCount}:${demoScriptAssembly.approvedStepCount}:${demoScriptAssembly.emptyState ?? "ready"}`;
 
   useEffect(() => {
@@ -382,9 +399,10 @@ export default function RequirementsReviewWorkspace({
       saveRequirementsWorkspaceState(window.localStorage, hydratedState);
       setSourceFeedback({
         tone: "success",
-        message: `Loaded ${file.name}. Prototype drafts stay consultant-review oriented unless real mode is configured later.`,
+        message: `Loaded ${file.name}. The preview below shows the parsed workbook rows so you can confirm the upload before continuing.`,
       });
-      goToWorkflowStep("generate");
+      setSourcePreviewExpanded(true);
+      setSourceDetailsExpanded(true);
       window.dispatchEvent(new Event(reviewStorageChangeEventName));
     } catch (error) {
       setSourceFeedback({
@@ -411,7 +429,8 @@ export default function RequirementsReviewWorkspace({
         "Restored the committed Customer X fixture and its saved review state.",
     });
     saveRequirementsWorkspaceState(window.localStorage, fixtureWorkspaceState);
-    goToWorkflowStep("generate");
+    setSourcePreviewExpanded(false);
+    setSourceDetailsExpanded(false);
     window.dispatchEvent(new Event(reviewStorageChangeEventName));
   }
 
@@ -649,6 +668,38 @@ export default function RequirementsReviewWorkspace({
     setSelectedRowNumber(nextRequirement?.sourceRowNumber ?? null);
   }
 
+  function handleSelectPreviousReviewRequirement(
+    currentRequirement: ReviewRequirement | null,
+  ) {
+    if (reviewQueue.length === 0) {
+      setSelectedRowNumber(null);
+      return;
+    }
+
+    if (!currentRequirement) {
+      setSelectedRowNumber(reviewQueue[0]?.sourceRowNumber ?? null);
+      return;
+    }
+
+    const currentIndex = reviewQueue.findIndex(
+      (requirement) =>
+        requirement.requirementKey === currentRequirement.requirementKey,
+    );
+
+    if (currentIndex <= 0) {
+      setSelectedRowNumber(reviewQueue[0]?.sourceRowNumber ?? null);
+      return;
+    }
+
+    setSelectedRowNumber(
+      reviewQueue[currentIndex - 1]?.sourceRowNumber ?? null,
+    );
+  }
+
+  function handleSelectReviewQueueRequirement(requirement: ReviewRequirement) {
+    setSelectedRowNumber(requirement.sourceRowNumber);
+  }
+
   function handleGuidedReviewAction(
     requirement: ReviewRequirement,
     action: RequirementReviewAction,
@@ -665,273 +716,267 @@ export default function RequirementsReviewWorkspace({
   }
 
   return (
-    <div id="workspace" className="animate-enter-slow grid min-w-0 gap-6">
-      <GuidedActionHeader
+    <div id="workspace" className="animate-enter-slow grid min-w-0 gap-4">
+      <WorkspaceShellHeader
         activeStep={activeWorkflowStep}
         generationMode={lastGenerationMode}
         nextAction={nextAction}
-        onPrimaryAction={() => goToWorkflowStep(nextAction.step)}
         onStepChange={goToWorkflowStep}
         progress={workflowProgress}
+        sourceLabel={sourceMetadata.sourceLabel}
+        sourceRowCount={currentProjectMetadata.sourceRowCount}
+        demoCount={summary.demoCount}
+        approvedCount={summary.approvedCount}
       />
 
-      <section className="grid min-w-0 gap-5 xl:grid-cols-[280px_minmax(0,1fr)]">
-        <WorkflowRail
-          activeStep={activeWorkflowStep}
-          onStepChange={goToWorkflowStep}
-          progress={workflowProgress}
-        />
-
-        <div className="min-w-0">
-          {activeWorkflowStep === "source" ? (
-            <GuidedStepFrame
-              eyebrow="Step 1"
-              title="Confirm the Excel source"
-              summary="Start from one trusted workbook. Everything else in Phase 1 depends on this source being clear."
-            >
-              <WorkspaceSourcePanel
-                feedback={sourceFeedback}
-                generationMode={lastGenerationMode}
-                onRestoreFixtureSource={handleRestoreFixtureSource}
-                onUploadWorkbook={handleUploadWorkbook}
-                sourceMetadata={sourceMetadata}
-                sourceRowCount={currentProjectMetadata.sourceRowCount}
-              />
-              <GuidedStepFooter
-                helper={`${summary.demoCount} demo rows and ${summary.mvpCount} MVP rows are available from this workbook.`}
-                label="Continue to generation"
-                onClick={() => goToWorkflowStep("generate")}
-              />
-            </GuidedStepFrame>
-          ) : null}
-
-          {activeWorkflowStep === "generate" ? (
-            <GenerateWorkflowStep
-              allFilteredRequirementsSelected={allFilteredRequirementsSelected}
-              allRequirements={reviewRequirements}
+      <div className="min-w-0">
+        {activeWorkflowStep === "source" ? (
+          <GuidedStepFrame
+            eyebrow="Step 1"
+            title="Confirm the source"
+            summary="Check the active workbook, replace it only if needed, and validate the parsed rows before continuing."
+          >
+            <WorkspaceSourcePanel
               demoCount={summary.demoCount}
-              feedback={generationFeedback}
-              filter={activeFilter}
-              isGenerating={isGenerating}
+              feedback={sourceFeedback}
               mvpCount={summary.mvpCount}
-              onFilterChange={(filter) => {
-                setActiveFilter(filter);
-                setSelectedRowNumber(null);
-              }}
-              onGenerateDemoRows={handleGenerateDemoRows}
-              onGenerateMvpRows={handleGenerateMvpRows}
-              onGenerateSelectedRows={handleGenerateSelectedRows}
-              onSearchChange={setSearchQuery}
-              onSelectRequirement={(requirement) =>
-                setSelectedRowNumber(requirement.sourceRowNumber)
+              onContinue={() => goToWorkflowStep("generate")}
+              onRestoreFixtureSource={handleRestoreFixtureSource}
+              onToggleDetails={() =>
+                setSourceDetailsExpanded((current) => !current)
               }
-              onToggleAllFilteredRequirements={
-                handleToggleAllFilteredRequirements
+              onTogglePreview={() =>
+                setSourcePreviewExpanded((current) => !current)
               }
-              onToggleRequirementSelection={handleToggleRequirementSelection}
-              runState={mockGenerationRun}
-              searchQuery={searchQuery}
-              selectedRequirementKeys={selectedRequirementKeys}
-              selectedRowNumber={selectedRowNumber}
-              selectedRowsCount={selectedRequirements.length}
-              visibleRequirements={visibleRequirements}
+              onUploadWorkbook={handleUploadWorkbook}
+              previewRows={sourcePreviewRows}
+              sourceMetadata={sourceMetadata}
+              sourceDetailsExpanded={sourceDetailsExpanded}
+              sourcePreviewExpanded={sourcePreviewExpanded}
+              sourceRowCount={currentProjectMetadata.sourceRowCount}
             />
-          ) : null}
+          </GuidedStepFrame>
+        ) : null}
 
-          {activeWorkflowStep === "review" ? (
-            <ReviewWorkflowStep
-              currentRequirement={currentReviewRequirement}
-              approvedCount={summary.approvedCount}
-              generatedCount={generatedRequirements.length}
-              generatedReviewableCount={generatedReviewableRequirements.length}
-              onGenerateDemoRows={handleGenerateDemoRows}
-              onGoToGenerate={() => goToWorkflowStep("generate")}
-              onOpenScript={() => goToWorkflowStep("script")}
-              onReviewAction={handleGuidedReviewAction}
-              onSelectNext={handleSelectNextReviewRequirement}
-              selectedRequirementKeys={selectedRequirementKeys}
-            />
-          ) : null}
+        {activeWorkflowStep === "generate" ? (
+          <GenerateWorkflowStep
+            allFilteredRequirementsSelected={allFilteredRequirementsSelected}
+            allRequirements={reviewRequirements}
+            demoCount={summary.demoCount}
+            feedback={generationFeedback}
+            filter={activeFilter}
+            generatedCount={generatedRequirements.length}
+            isGenerating={isGenerating}
+            mvpCount={summary.mvpCount}
+            onFilterChange={(filter) => {
+              setActiveFilter(filter);
+              setSelectedRowNumber(null);
+            }}
+            onGenerateDemoRows={handleGenerateDemoRows}
+            onGenerateMvpRows={handleGenerateMvpRows}
+            onGenerateSelectedRows={handleGenerateSelectedRows}
+            onGoToReview={() => goToWorkflowStep("review")}
+            onSearchChange={setSearchQuery}
+            onSelectRequirement={(requirement) =>
+              setSelectedRowNumber(requirement.sourceRowNumber)
+            }
+            onToggleAllFilteredRequirements={
+              handleToggleAllFilteredRequirements
+            }
+            onToggleRequirementSelection={handleToggleRequirementSelection}
+            runState={mockGenerationRun}
+            searchQuery={searchQuery}
+            selectedRequirementKeys={selectedRequirementKeys}
+            selectedRowNumber={selectedRowNumber}
+            selectedRowsCount={selectedRequirements.length}
+            visibleRequirements={visibleRequirements}
+          />
+        ) : null}
 
-          {activeWorkflowStep === "script" ? (
-            <GuidedStepFrame
-              eyebrow="Step 4"
-              title="Shape the demo script"
-              summary="Approved requirement drafts become the in-app demo narrative. Edit the script before exporting."
-            >
-              <DemoScriptEditingPanel
-                assembly={demoScriptAssembly}
-                draft={workspaceState.reviewState.demoScriptDraft}
-                onDraftAction={handleDemoScriptAction}
-                onSwitchToReview={() => goToWorkflowStep("review")}
-                projectMetadata={currentProjectMetadata}
-              />
-              <GuidedStepFooter
-                disabled={Boolean(demoScriptAssembly.emptyState)}
-                helper={
-                  demoScriptAssembly.emptyState
-                    ? "Approve at least one generated row to unlock the export step."
-                    : `${demoScriptAssembly.approvedRequirementCount} approved requirements are ready for export.`
-                }
-                label="Continue to export"
-                onClick={() => goToWorkflowStep("export")}
-              />
-            </GuidedStepFrame>
-          ) : null}
+        {activeWorkflowStep === "review" ? (
+          <ReviewWorkflowStep
+            activeQueueIndex={activeReviewQueueIndex}
+            approvedCount={summary.approvedCount}
+            currentRequirement={currentReviewRequirement}
+            generatedCount={generatedRequirements.length}
+            generatedReviewableCount={generatedReviewableRequirements.length}
+            onGenerateDemoRows={handleGenerateDemoRows}
+            onGoToGenerate={() => goToWorkflowStep("generate")}
+            onOpenScript={() => goToWorkflowStep("script")}
+            onReviewAction={handleGuidedReviewAction}
+            onSelectPrevious={handleSelectPreviousReviewRequirement}
+            onSelectQueueRequirement={handleSelectReviewQueueRequirement}
+            onSelectNext={handleSelectNextReviewRequirement}
+            reviewQueue={reviewQueue}
+            selectedRequirementKeys={selectedRequirementKeys}
+          />
+        ) : null}
 
-          {activeWorkflowStep === "export" ? (
-            <ExportWorkflowStep
+        {activeWorkflowStep === "script" ? (
+          <GuidedStepFrame
+            eyebrow="Step 4"
+            title="Shape the demo script"
+            summary="Refine the narrative, tune the section flow, and keep only the editing detail that helps the consultant handoff."
+          >
+            <DemoScriptEditingPanel
               assembly={demoScriptAssembly}
-              onGoToReview={() => goToWorkflowStep("review")}
-              onGoToScript={() => goToWorkflowStep("script")}
+              draft={workspaceState.reviewState.demoScriptDraft}
+              onDraftAction={handleDemoScriptAction}
+              onSwitchToReview={() => goToWorkflowStep("review")}
               projectMetadata={currentProjectMetadata}
             />
-          ) : null}
-        </div>
-      </section>
+            <GuidedStepFooter
+              disabled={Boolean(demoScriptAssembly.emptyState)}
+              helper={
+                demoScriptAssembly.emptyState
+                  ? "Approve at least one generated row to unlock the export step."
+                  : `${demoScriptAssembly.approvedRequirementCount} approved requirements are ready for export.`
+              }
+              label="Continue to export"
+              onClick={() => goToWorkflowStep("export")}
+            />
+          </GuidedStepFrame>
+        ) : null}
+
+        {activeWorkflowStep === "export" ? (
+          <ExportWorkflowStep
+            assembly={demoScriptAssembly}
+            onGoToReview={() => goToWorkflowStep("review")}
+            onGoToScript={() => goToWorkflowStep("script")}
+            projectMetadata={currentProjectMetadata}
+          />
+        ) : null}
+      </div>
     </div>
   );
 }
 
-function GuidedActionHeader({
+function WorkspaceShellHeader({
   activeStep,
+  approvedCount,
+  demoCount,
   generationMode,
   nextAction,
-  onPrimaryAction,
   onStepChange,
   progress,
+  sourceLabel,
+  sourceRowCount,
 }: {
   activeStep: GuidedWorkflowStep;
+  approvedCount: number;
+  demoCount: number;
   generationMode: RequirementGenerationRouteMode | null;
   nextAction: ReturnType<typeof getNextAction>;
-  onPrimaryAction: () => void;
   onStepChange: (step: GuidedWorkflowStep) => void;
   progress: ReturnType<typeof getWorkflowProgress>;
+  sourceLabel: string;
+  sourceRowCount: number;
 }) {
+  const activeStepLabel =
+    progress.find((stepState) => stepState.step === activeStep)?.label ??
+    activeStep;
+
   return (
     <section
       id="guided-workflow-top"
-      className="premium-panel-strong overflow-hidden rounded-2xl p-4 sm:p-5"
+      className="premium-panel overflow-hidden rounded-[1.75rem] p-4 sm:p-5"
     >
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-[#2f8f8a]/35 bg-[#2f8f8a]/12 px-3 py-1 text-xs font-bold text-[#d2eee7]">
-              Next best action
+            <span className="theme-shell-card-soft rounded-full px-3 py-1.5 text-xs font-bold">
+              Active source: {sourceLabel}
             </span>
-            <span className="rounded-full border border-[#c8953f]/28 bg-[#c8953f]/10 px-3 py-1 text-xs font-bold text-[#ead19a]">
+            <span className="theme-shell-card-soft rounded-full px-3 py-1.5 text-xs font-bold theme-shell-subtle">
               {generationMode === "real"
                 ? "Grounded generation mode"
-                : "Prototype generation mode"}
+                : "Prototype draft mode"}
             </span>
           </div>
-          <h2 className="mt-4 text-3xl font-bold tracking-[-0.05em] text-white sm:text-5xl">
-            {nextAction.label}
+          <h2 className="theme-shell-title mt-3 text-2xl font-bold tracking-[-0.04em] sm:text-3xl">
+            Phase 1 workflow
           </h2>
-          <p className="mt-3 max-w-3xl text-base leading-7 text-[#bdd7d0]">
-            {nextAction.helper}
+          <p className="theme-shell-body mt-2 max-w-3xl text-sm leading-7">
+            The active step below is{" "}
+            <span className="theme-shell-title font-semibold">
+              {activeStepLabel}
+            </span>
+            Next up:{" "}
+            <span className="theme-shell-title font-semibold">
+              {nextAction.label}
+            </span>
+            .
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={onPrimaryAction}
-          className="focus-premium rounded-2xl bg-[#2f8f8a] px-6 py-4 text-sm font-black text-white shadow-[0_12px_28px_rgba(0,0,0,0.26)] transition hover:-translate-y-0.5 hover:bg-[#3b9d98]"
-        >
-          Open {nextAction.step}
-        </button>
+        <div className="grid grid-cols-3 gap-2 sm:min-w-[320px]">
+          <ShellMetric
+            label="Rows"
+            value={sourceRowCount.toLocaleString("en-US")}
+          />
+          <ShellMetric label="Demo" value={demoCount.toLocaleString("en-US")} />
+          <ShellMetric
+            label="Approved"
+            value={approvedCount.toLocaleString("en-US")}
+          />
+        </div>
       </div>
 
       <div
         aria-label="Guided workflow progress"
-        className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-5"
+        className="mt-4 overflow-x-auto pb-1"
       >
-        {progress.map((stepState, index) => (
-          <button
-            key={stepState.step}
-            type="button"
-            onClick={() => onStepChange(stepState.step)}
-            aria-current={activeStep === stepState.step ? "step" : undefined}
-            className={`focus-premium rounded-2xl border p-3 text-left transition ${
-              activeStep === stepState.step
-                ? "border-[#2f8f8a]/60 bg-[#2f8f8a]/14 shadow-[0_10px_24px_rgba(0,0,0,0.2)]"
-                : stepState.status === "blocked"
-                  ? "border-white/8 bg-white/[0.025] text-[#76908a]"
-                  : "border-white/10 bg-white/[0.055] hover:border-[#6fa8b8]/35 hover:bg-white/[0.08]"
-            }`}
-          >
-            <span className="mono-label text-[0.56rem] text-[#8ea7a0]">
-              {String(index + 1).padStart(2, "0")}
-            </span>
-            <span className="mt-2 block text-sm font-bold text-white">
-              {stepState.label}
-            </span>
-            <span className="mt-1 block text-xs capitalize text-[#9fb9b2]">
-              {stepState.status}
-            </span>
-          </button>
-        ))}
+        <div className="flex min-w-max gap-2">
+          {progress.map((stepState, index) => (
+            <button
+              key={stepState.step}
+              type="button"
+              onClick={() => onStepChange(stepState.step)}
+              aria-current={activeStep === stepState.step ? "step" : undefined}
+              className={`focus-premium min-w-[148px] rounded-2xl border px-4 py-3 text-left transition ${
+                activeStep === stepState.step
+                  ? "theme-shell-card-brand"
+                  : stepState.status === "blocked"
+                    ? "theme-shell-card-soft theme-shell-subtle"
+                    : "theme-shell-card-soft hover:bg-[color:var(--shell-soft-surface-hover)]"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="theme-shell-subtle mono-label text-[0.54rem]">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <span
+                  className={`h-2.5 w-2.5 rounded-full ${
+                    stepState.status === "complete"
+                      ? "bg-[#00558C]"
+                      : stepState.status === "blocked"
+                        ? "bg-[#64748B]/45"
+                        : "bg-[#64748B]"
+                  }`}
+                />
+              </div>
+              <span className="theme-shell-title mt-2 block text-sm font-bold">
+                {stepState.label}
+              </span>
+              <span className="theme-shell-subtle mt-1 block text-xs capitalize">
+                {stepState.status}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
     </section>
   );
 }
 
-function WorkflowRail({
-  activeStep,
-  onStepChange,
-  progress,
-}: {
-  activeStep: GuidedWorkflowStep;
-  onStepChange: (step: GuidedWorkflowStep) => void;
-  progress: ReturnType<typeof getWorkflowProgress>;
-}) {
+function ShellMetric({ label, value }: { label: string; value: string }) {
   return (
-    <aside className="premium-panel sticky top-4 hidden h-fit rounded-2xl p-4 xl:block">
-      <p className="mono-label text-[0.66rem] text-[#8fcac0]">
-        Phase 1 journey
+    <div className="theme-shell-card rounded-2xl px-3 py-3">
+      <p className="theme-shell-subtle mono-label text-[0.5rem]">{label}</p>
+      <p className="theme-shell-title mt-1 text-lg font-black tracking-[-0.03em]">
+        {value}
       </p>
-      <h2 className="mt-2 text-2xl font-bold tracking-[-0.04em] text-white">
-        One decision at a time
-      </h2>
-      <p className="mt-3 text-sm leading-6 text-[#9fb9b2]">
-        Finish the Excel-driven demo script without touching Phase 2.
-      </p>
-
-      <div className="mt-5 grid gap-2">
-        {progress.map((stepState, index) => (
-          <button
-            key={stepState.step}
-            type="button"
-            onClick={() => onStepChange(stepState.step)}
-            className={`focus-premium flex items-center gap-3 rounded-2xl border px-3 py-3 text-left transition ${
-              activeStep === stepState.step
-                ? "border-[#2f8f8a]/55 bg-[#2f8f8a]/12"
-                : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"
-            }`}
-          >
-            <span
-              className={`grid h-9 w-9 shrink-0 place-items-center rounded-full font-mono text-xs font-black ${
-                stepState.status === "complete"
-                  ? "bg-[#2f8f8a] text-white"
-                  : stepState.status === "blocked"
-                    ? "bg-white/[0.06] text-[#77928c]"
-                    : "bg-[#6fa8b8]/12 text-[#c9dde3]"
-              }`}
-            >
-              {index + 1}
-            </span>
-            <span className="min-w-0">
-              <span className="block text-sm font-bold text-white">
-                {stepState.label}
-              </span>
-              <span className="block text-xs capitalize text-[#9fb9b2]">
-                {stepState.status}
-              </span>
-            </span>
-          </button>
-        ))}
-      </div>
-    </aside>
+    </div>
   );
 }
 
@@ -947,20 +992,22 @@ function GuidedStepFrame({
   title: string;
 }) {
   return (
-    <section className="premium-panel-strong min-w-0 rounded-2xl p-4 sm:p-5">
-      <div className="mb-5 max-w-4xl">
-        <p className="mono-label text-[0.68rem] text-[#8fcac0]">{eyebrow}</p>
-        <h2 className="mt-2 text-3xl font-bold tracking-[-0.045em] text-white sm:text-4xl">
+    <section className="premium-panel-strong min-w-0 rounded-[1.75rem] p-4 sm:p-5">
+      <div className="mb-4 max-w-4xl">
+        <p className="theme-shell-kicker mono-label text-[0.68rem]">
+          {eyebrow}
+        </p>
+        <h2 className="theme-shell-title mt-2 text-2xl font-bold tracking-[-0.04em] sm:text-3xl">
           {title}
         </h2>
-        <p className="mt-3 text-sm leading-7 text-[#a9c5be]">{summary}</p>
+        <p className="theme-shell-body mt-2 text-sm leading-7">{summary}</p>
       </div>
       {children}
     </section>
   );
 }
 
-function GuidedStepFooter({
+export function GuidedStepFooter({
   disabled,
   helper,
   label,
@@ -972,13 +1019,13 @@ function GuidedStepFooter({
   onClick: () => void;
 }) {
   return (
-    <div className="mt-5 flex flex-col gap-3 rounded-xl border border-white/10 bg-black/22 p-4 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-sm leading-6 text-[#bdd7d0]">{helper}</p>
+    <div className="theme-shell-card mt-5 flex flex-col gap-3 rounded-xl p-4 sm:flex-row sm:items-center sm:justify-between">
+      <p className="theme-shell-body text-sm leading-6">{helper}</p>
       <button
         type="button"
         onClick={onClick}
         disabled={disabled}
-        className="focus-premium rounded-2xl bg-[#2f8f8a] px-5 py-3 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-[#3b9d98] disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-[#7f9992]"
+        className="focus-premium theme-button-primary rounded-2xl px-5 py-3 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-45"
       >
         {label}
       </button>
@@ -986,18 +1033,20 @@ function GuidedStepFooter({
   );
 }
 
-function GenerateWorkflowStep({
+export function GenerateWorkflowStep({
   allFilteredRequirementsSelected,
   allRequirements,
   demoCount,
   feedback,
   filter,
+  generatedCount,
   isGenerating,
   mvpCount,
   onFilterChange,
   onGenerateDemoRows,
   onGenerateMvpRows,
   onGenerateSelectedRows,
+  onGoToReview,
   onSearchChange,
   onSelectRequirement,
   onToggleAllFilteredRequirements,
@@ -1007,6 +1056,7 @@ function GenerateWorkflowStep({
   selectedRequirementKeys,
   selectedRowNumber,
   selectedRowsCount,
+  showFrame = true,
   visibleRequirements,
 }: {
   allFilteredRequirementsSelected: boolean;
@@ -1014,12 +1064,14 @@ function GenerateWorkflowStep({
   demoCount: number;
   feedback: GenerationFeedback | null;
   filter: RequirementReviewFilter;
+  generatedCount: number;
   isGenerating: boolean;
   mvpCount: number;
   onFilterChange: (filter: RequirementReviewFilter) => void;
   onGenerateDemoRows: () => void | Promise<void>;
   onGenerateMvpRows: () => void | Promise<void>;
   onGenerateSelectedRows: () => void | Promise<void>;
+  onGoToReview: () => void;
   onSearchChange: (query: string) => void;
   onSelectRequirement: (requirement: ReviewRequirement) => void;
   onToggleAllFilteredRequirements: () => void;
@@ -1029,14 +1081,11 @@ function GenerateWorkflowStep({
   selectedRequirementKeys: Set<string>;
   selectedRowNumber: number | null;
   selectedRowsCount: number;
+  showFrame?: boolean;
   visibleRequirements: ReviewRequirement[];
 }) {
-  return (
-    <GuidedStepFrame
-      eyebrow="Step 2"
-      title="Generate safe first drafts"
-      summary="Choose a preset and let the prototype create consultant-reviewable comments and demo steps. Demo rows are the recommended Phase 1 path."
-    >
+  const content = (
+    <>
       <div className="grid gap-4 lg:grid-cols-3">
         <GenerationPresetCard
           count={demoCount}
@@ -1073,10 +1122,10 @@ function GenerateWorkflowStep({
         <div
           className={`mt-4 rounded-2xl border px-4 py-3 text-sm leading-6 ${
             feedback.tone === "success"
-              ? "border-[#2f8f8a]/45 bg-[#2f8f8a]/12 text-[#d2eee7]"
+              ? "tone-positive"
               : feedback.tone === "error"
-                ? "border-[#c8953f]/45 bg-[#c8953f]/12 text-[#ead19a]"
-                : "border-white/12 bg-white/[0.06] text-[#d8eee8]"
+                ? "tone-warning"
+                : "tone-neutral"
           }`}
           role="status"
           aria-live="polite"
@@ -1085,9 +1134,37 @@ function GenerateWorkflowStep({
         </div>
       ) : null}
 
-      <details className="mt-4 rounded-xl border border-white/10 bg-black/18 p-4">
-        <summary className="cursor-pointer text-sm font-bold text-white">
-          Generation details
+      {generatedCount > 0 ? (
+        <section className="theme-shell-card-brand mt-4 rounded-[1.5rem] p-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-3xl">
+              <p className="theme-shell-kicker mono-label text-[0.6rem]">
+                Drafts ready
+              </p>
+              <h3 className="theme-shell-title mt-2 text-xl font-bold tracking-[-0.03em]">
+                {generatedCount} generated row
+                {generatedCount === 1 ? "" : "s"} are ready for consultant
+                review.
+              </h3>
+              <p className="theme-shell-body mt-2 text-sm leading-6">
+                You can keep refining the generation slice here, or move
+                straight into the review queue.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onGoToReview}
+              className="focus-premium theme-button-primary rounded-2xl px-5 py-3 text-sm font-bold transition"
+            >
+              Open review queue
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      <details className="theme-shell-card mt-4 rounded-xl p-4">
+        <summary className="theme-shell-title cursor-pointer text-sm font-bold">
+          See generation status
         </summary>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {runState.stages.map((stage) => (
@@ -1095,16 +1172,16 @@ function GenerateWorkflowStep({
               key={stage.label}
               className={`rounded-2xl border p-4 ${
                 stage.status === "complete"
-                  ? "border-[#2f8f8a]/40 bg-[#2f8f8a]/10"
+                  ? "theme-shell-card-brand"
                   : stage.status === "running"
-                    ? "pulse-glow border-[#6fa8b8]/45 bg-[#6fa8b8]/10"
-                    : "border-white/10 bg-white/[0.045]"
+                    ? "pulse-glow theme-shell-card-slate"
+                    : "theme-shell-card-soft"
               }`}
             >
-              <p className="mono-label text-[0.58rem] text-[#8ea7a0]">
+              <p className="theme-shell-subtle mono-label text-[0.58rem]">
                 {stage.status}
               </p>
-              <p className="mt-2 text-sm font-bold text-[#effffb]">
+              <p className="theme-shell-title mt-2 text-sm font-bold">
                 {stage.label}
               </p>
             </div>
@@ -1115,6 +1192,7 @@ function GenerateWorkflowStep({
       <RequirementsExplorer
         allFilteredRequirementsSelected={allFilteredRequirementsSelected}
         allRequirements={allRequirements}
+        disclosureLabel="Open expert row selection"
         filter={filter}
         onFilterChange={onFilterChange}
         onSearchChange={onSearchChange}
@@ -1126,6 +1204,20 @@ function GenerateWorkflowStep({
         selectedRowNumber={selectedRowNumber}
         visibleRequirements={visibleRequirements}
       />
+    </>
+  );
+
+  if (!showFrame) {
+    return content;
+  }
+
+  return (
+    <GuidedStepFrame
+      eyebrow="Step 2"
+      title="Generate safe first drafts"
+      summary="Choose the slice to generate, keep the recommended demo rows front and center, and only open the expert table when you need custom selection."
+    >
+      {content}
     </GuidedStepFrame>
   );
 }
@@ -1150,23 +1242,23 @@ function GenerationPresetCard({
   return (
     <article
       className={`rounded-2xl border p-5 ${
-        recommended
-          ? "border-[#2f8f8a]/55 bg-[#2f8f8a]/12 shadow-[0_14px_34px_rgba(0,0,0,0.2)]"
-          : "border-white/10 bg-white/[0.045]"
+        recommended ? "theme-shell-card-brand" : "theme-shell-card-soft"
       }`}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-lg font-black text-white">{title}</p>
+          <p className="theme-shell-title text-lg font-black">{title}</p>
           {recommended ? (
-            <p className="mt-1 text-xs font-bold text-[#d2eee7]">Recommended</p>
+            <p className="theme-shell-kicker mt-1 text-xs font-bold">
+              Recommended
+            </p>
           ) : null}
         </div>
-        <span className="font-mono text-4xl font-black tracking-[-0.06em] text-white">
+        <span className="theme-shell-title font-mono text-4xl font-black tracking-[-0.06em]">
           {count}
         </span>
       </div>
-      <p className="mt-4 min-h-14 text-sm leading-6 text-[#a9c5be]">
+      <p className="theme-shell-body mt-4 min-h-14 text-sm leading-6">
         {description}
       </p>
       <button
@@ -1175,9 +1267,9 @@ function GenerationPresetCard({
         disabled={disabled}
         className={`focus-premium mt-5 w-full rounded-2xl px-4 py-3 text-sm font-black transition ${
           recommended
-            ? "bg-[#2f8f8a] text-white hover:bg-[#3b9d98]"
-            : "border border-white/12 bg-white/[0.06] text-[#e9fbf6] hover:bg-white/[0.1]"
-        } disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-[#7f9992]`}
+            ? "theme-button-primary"
+            : "theme-shell-button-secondary border"
+        } disabled:cursor-not-allowed disabled:opacity-45`}
       >
         {label}
       </button>
@@ -1185,7 +1277,8 @@ function GenerationPresetCard({
   );
 }
 
-function ReviewWorkflowStep({
+export function ReviewWorkflowStep({
+  activeQueueIndex,
   approvedCount,
   currentRequirement,
   generatedCount,
@@ -1194,9 +1287,14 @@ function ReviewWorkflowStep({
   onGoToGenerate,
   onOpenScript,
   onReviewAction,
+  onSelectPrevious,
+  onSelectQueueRequirement,
   onSelectNext,
+  reviewQueue,
   selectedRequirementKeys,
+  showFrame = true,
 }: {
+  activeQueueIndex: number;
   approvedCount: number;
   currentRequirement: ReviewRequirement | null;
   generatedCount: number;
@@ -1208,102 +1306,341 @@ function ReviewWorkflowStep({
     requirement: ReviewRequirement,
     action: RequirementReviewAction,
   ) => void;
+  onSelectPrevious: (requirement: ReviewRequirement | null) => void;
+  onSelectQueueRequirement: (requirement: ReviewRequirement) => void;
   onSelectNext: (requirement: ReviewRequirement | null) => void;
+  reviewQueue: ReviewRequirement[];
   selectedRequirementKeys: Set<string>;
+  showFrame?: boolean;
 }) {
   if (generatedCount === 0) {
-    return (
+    const blocker = (
+      <GuidedBlockerCard
+        actionLabel="Generate demo rows now"
+        body="The review queue is intentionally empty until the prototype has produced draft comments and demo steps."
+        onAction={onGenerateDemoRows}
+        title="Generation is the blocker"
+      />
+    );
+
+    return showFrame ? (
       <GuidedStepFrame
         eyebrow="Step 3"
         title="Review drafts"
         summary="There are no generated drafts yet. Generate the recommended demo rows first, then come back here to approve or flag outputs."
       >
-        <GuidedBlockerCard
-          actionLabel="Generate demo rows now"
-          body="The review queue is intentionally empty until the prototype has produced draft comments and demo steps."
-          onAction={onGenerateDemoRows}
-          title="Generation is the blocker"
-        />
+        {blocker}
       </GuidedStepFrame>
+    ) : (
+      blocker
     );
   }
 
   if (!currentRequirement && approvedCount > 0) {
-    return (
+    const blocker = (
+      <GuidedBlockerCard
+        actionLabel="Open demo script"
+        body="Great. Phase 1 now has enough approved material to assemble the consultant-facing demo document."
+        onAction={onOpenScript}
+        title="Queue cleared"
+      />
+    );
+
+    return showFrame ? (
       <GuidedStepFrame
         eyebrow="Step 3"
         title="Review complete"
         summary="Every generated row has a local decision. Open the demo script to see what the approved rows produce."
       >
-        <GuidedBlockerCard
-          actionLabel="Open demo script"
-          body="Great. Phase 1 now has enough approved material to assemble the consultant-facing demo document."
-          onAction={onOpenScript}
-          title="Queue cleared"
-        />
+        {blocker}
       </GuidedStepFrame>
+    ) : (
+      blocker
     );
   }
 
   if (!currentRequirement) {
-    return (
+    const blocker = (
+      <GuidedBlockerCard
+        actionLabel="Back to generation"
+        body="Rows marked as skipped or needs-review stay out of the script. Use the expert table to select another slice, or reset a row if you want to approve it."
+        onAction={onGoToGenerate}
+        title="Approval is the blocker"
+      />
+    );
+
+    return showFrame ? (
       <GuidedStepFrame
         eyebrow="Step 3"
         title="No exportable rows yet"
         summary="Generated rows exist, but none are approved for the demo script. Approve at least one draft to finish Phase 1."
       >
-        <GuidedBlockerCard
-          actionLabel="Back to generation"
-          body="Rows marked as skipped or needs-review stay out of the script. Use the expert table to select another slice, or reset a row if you want to approve it."
-          onAction={onGoToGenerate}
-          title="Approval is the blocker"
-        />
+        {blocker}
       </GuidedStepFrame>
+    ) : (
+      blocker
     );
+  }
+
+  const content = (
+    <>
+      <section className="theme-shell-card mb-4 rounded-[1.35rem] p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="max-w-3xl">
+            <p className="theme-shell-kicker mono-label text-[0.58rem]">
+              Review focus
+            </p>
+            <p className="theme-shell-title mt-2 text-base font-bold">
+              Keep the queue visible, act above the fold, and only open extra
+              evidence when you need it.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <QueueMetricChip label="Pending" value={generatedReviewableCount} />
+            <QueueMetricChip label="Approved" value={approvedCount} />
+            <QueueMetricChip
+              label="Selected"
+              value={selectedRequirementKeys.size}
+            />
+          </div>
+        </div>
+      </section>
+
+      <div className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
+        <ReviewQueueNavigator
+          activeQueueIndex={activeQueueIndex}
+          approvedCount={approvedCount}
+          currentRequirement={currentRequirement}
+          onOpenScript={onOpenScript}
+          onSelectNext={onSelectNext}
+          onSelectPrevious={onSelectPrevious}
+          onSelectQueueRequirement={onSelectQueueRequirement}
+          reviewQueue={reviewQueue}
+        />
+        <GuidedReviewCard
+          onReviewAction={onReviewAction}
+          onSelectNext={onSelectNext}
+          requirement={currentRequirement}
+        />
+      </div>
+    </>
+  );
+
+  if (!showFrame) {
+    return content;
   }
 
   return (
     <GuidedStepFrame
       eyebrow="Step 3"
       title="Review one generated draft"
-      summary="Make a consultant decision, then move to the next draft. The full Excel table is no longer the main path."
+      summary="Focus on one requirement at a time, make the consultant decision, and let the queue move you forward."
     >
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
-        <GuidedReviewCard
-          onReviewAction={onReviewAction}
-          onSelectNext={onSelectNext}
-          requirement={currentRequirement}
-        />
-        <aside className="rounded-2xl border border-white/10 bg-black/18 p-5">
-          <p className="mono-label text-[0.64rem] text-[#8fcac0]">
-            Review queue
-          </p>
-          <p className="mt-3 font-mono text-5xl font-black tracking-[-0.06em] text-white">
-            {generatedReviewableCount}
-          </p>
-          <p className="mt-2 text-sm leading-6 text-[#a9c5be]">
-            generated rows still need a decision. {selectedRequirementKeys.size}{" "}
-            rows are selected from the expert table.
-          </p>
-          <div className="mt-5 grid gap-2">
-            <button
-              type="button"
-              onClick={() => onSelectNext(currentRequirement)}
-              className="focus-premium rounded-2xl border border-white/12 bg-white/[0.06] px-4 py-3 text-sm font-bold text-[#e9fbf6] transition hover:bg-white/[0.1]"
-            >
-              Skip to next draft
-            </button>
-            <button
-              type="button"
-              onClick={onGoToGenerate}
-              className="focus-premium rounded-2xl border border-[#6fa8b8]/24 bg-[#6fa8b8]/10 px-4 py-3 text-sm font-bold text-[#c9dde3] transition hover:bg-[#6fa8b8]/16"
-            >
-              Generate more rows
-            </button>
-          </div>
-        </aside>
-      </div>
+      {content}
     </GuidedStepFrame>
+  );
+}
+
+function ReviewQueueNavigator({
+  activeQueueIndex,
+  approvedCount,
+  currentRequirement,
+  onOpenScript,
+  onSelectNext,
+  onSelectPrevious,
+  onSelectQueueRequirement,
+  reviewQueue,
+}: {
+  activeQueueIndex: number;
+  approvedCount: number;
+  currentRequirement: ReviewRequirement | null;
+  onOpenScript: () => void;
+  onSelectNext: (requirement: ReviewRequirement | null) => void;
+  onSelectPrevious: (requirement: ReviewRequirement | null) => void;
+  onSelectQueueRequirement: (requirement: ReviewRequirement) => void;
+  reviewQueue: ReviewRequirement[];
+}) {
+  return (
+    <aside className="premium-panel rounded-[1.5rem] p-5 xl:sticky xl:top-4 xl:flex xl:max-h-[calc(100vh-8rem)] xl:flex-col">
+      <p className="theme-shell-kicker mono-label text-[0.64rem]">
+        Review queue
+      </p>
+      <h3 className="theme-shell-title mt-3 text-2xl font-bold tracking-[-0.035em]">
+        Browse what is next
+      </h3>
+      <p className="theme-shell-body mt-3 text-sm leading-6">
+        Pick any pending row, or move through the queue in order while you make
+        consultant decisions.
+      </p>
+
+      <div className="theme-shell-card mt-5 rounded-[1.25rem] p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="theme-shell-subtle mono-label text-[0.52rem]">
+              Pending
+            </p>
+            <p className="theme-shell-title mt-2 text-3xl font-black tracking-[-0.04em]">
+              {reviewQueue.length}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="theme-shell-subtle mono-label text-[0.52rem]">
+              Position
+            </p>
+            <p className="theme-shell-title mt-2 text-sm font-bold">
+              {activeQueueIndex >= 0
+                ? `${activeQueueIndex + 1} of ${reviewQueue.length}`
+                : "Select a row"}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => onSelectPrevious(currentRequirement)}
+          disabled={reviewQueue.length === 0 || activeQueueIndex <= 0}
+          className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Previous
+        </button>
+        <button
+          type="button"
+          onClick={() => onSelectNext(currentRequirement)}
+          disabled={
+            reviewQueue.length === 0 ||
+            activeQueueIndex === -1 ||
+            activeQueueIndex >= reviewQueue.length - 1
+          }
+          className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Next
+        </button>
+      </div>
+
+      <div className="mt-4 min-h-[18rem] xl:min-h-0 xl:flex-1 xl:overflow-hidden">
+        <div className="h-full overflow-y-auto pr-1">
+          <div className="grid gap-2">
+            {reviewQueue.map((requirement, index) => (
+              <ReviewQueueItem
+                key={requirement.requirementKey}
+                active={
+                  currentRequirement?.requirementKey ===
+                  requirement.requirementKey
+                }
+                index={index}
+                onClick={() => onSelectQueueRequirement(requirement)}
+                requirement={requirement}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {approvedCount > 0 ? (
+        <button
+          type="button"
+          onClick={onOpenScript}
+          className="focus-premium theme-shell-button-secondary mt-4 w-full rounded-2xl px-4 py-3 text-sm font-bold transition"
+        >
+          Open demo script
+        </button>
+      ) : null}
+    </aside>
+  );
+}
+
+function QueueMetricChip({ label, value }: { label: string; value: number }) {
+  return (
+    <span className="theme-shell-card-soft inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-bold">
+      <span className="theme-shell-subtle mono-label text-[0.48rem]">
+        {label}
+      </span>
+      <span className="theme-shell-title text-sm">{value}</span>
+    </span>
+  );
+}
+
+function ReviewQueueItem({
+  active,
+  index,
+  onClick,
+  requirement,
+}: {
+  active: boolean;
+  index: number;
+  onClick: () => void;
+  requirement: ReviewRequirement;
+}) {
+  const assessment = assessRequirementSupport(requirement);
+  const validation = evaluateRequirementValidation(requirement, assessment);
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`focus-premium rounded-[1.2rem] border p-3 text-left transition ${
+        active
+          ? "theme-shell-card-active"
+          : "theme-shell-card-soft hover:bg-[color:var(--shell-soft-surface-hover)]"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="theme-shell-subtle mono-label text-[0.5rem]">
+            Queue {index + 1}
+          </p>
+          <p className="theme-shell-title mt-1 text-sm font-bold">
+            {requirement.requirementId || `Row ${requirement.sourceRowNumber}`}
+          </p>
+        </div>
+        <span className="theme-shell-body text-xs font-semibold">
+          Row {requirement.sourceRowNumber}
+        </span>
+      </div>
+
+      <p className="theme-shell-body mt-2 max-h-[3.25rem] overflow-hidden text-xs leading-5">
+        {emptyValue(requirement.requirementDescription)}
+      </p>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {requirement.demo ? <MiniQueueChip label="Demo" /> : null}
+        {requirement.mvp ? <MiniQueueChip label="MVP" /> : null}
+        <MiniQueueChip
+          label={
+            validation.severity === "review"
+              ? "Review needed"
+              : validation.severity === "attention"
+                ? "Workaround"
+                : "Ready"
+          }
+          tone={validation.severity}
+        />
+      </div>
+    </button>
+  );
+}
+
+function MiniQueueChip({
+  label,
+  tone = "safe",
+}: {
+  label: string;
+  tone?: RequirementValidationSummary["severity"];
+}) {
+  return (
+    <span
+      className={`rounded-full border px-2.5 py-1 text-[0.68rem] font-bold ${
+        tone === "review"
+          ? "tone-warning"
+          : tone === "attention"
+            ? "theme-shell-card-slate"
+            : "tone-positive"
+      }`}
+    >
+      {label}
+    </span>
   );
 }
 
@@ -1327,25 +1664,24 @@ function GuidedReviewCard({
       : null;
 
   return (
-    <article className="rounded-2xl border border-white/10 bg-[#071214]/90 p-5 shadow-2xl shadow-black/25">
+    <article className="premium-panel rounded-[1.5rem] p-5 pb-24 sm:p-6 sm:pb-28">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="mono-label text-[0.64rem] text-[#8fcac0]">
+          <p className="theme-shell-kicker mono-label text-[0.64rem]">
             Row {requirement.sourceRowNumber}
           </p>
-          <h3 className="mt-2 break-words text-3xl font-black tracking-[-0.045em] text-white">
+          <h3 className="theme-shell-title mt-2 break-words text-3xl font-black tracking-[-0.045em]">
             {requirement.requirementId || "No requirement ID"}
           </h3>
         </div>
         <StatusBadge status={requirement.reviewStatus} />
       </div>
 
-      <div className="mt-5 rounded-xl border border-white/10 bg-white/[0.045] p-4">
-        <p className="mono-label text-[0.58rem] text-[#8ea7a0]">Requirement</p>
-        <p className="mt-2 text-base leading-7 text-[#f3fffb]">
-          {emptyValue(requirement.requirementDescription)}
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2">
+      <div className="theme-shell-card mt-5 rounded-[1.25rem] p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="theme-shell-subtle mono-label text-[0.58rem]">
+            Requirement
+          </span>
           <TinyInfoPill label="L2" value={emptyValue(requirement.l2Process)} />
           <TinyInfoPill
             label="L3"
@@ -1354,61 +1690,41 @@ function GuidedReviewCard({
           <TinyInfoPill label="Demo" value={formatBoolean(requirement.demo)} />
           <TinyInfoPill label="MVP" value={formatBoolean(requirement.mvp)} />
         </div>
-      </div>
-
-      <div className="mt-4 grid gap-2 rounded-xl border border-[#2f8f8a]/20 bg-[#2f8f8a]/7 p-3 sm:grid-cols-2 lg:grid-cols-4">
-        <ReviewActionButton
-          label="Approve and next"
-          onClick={() => onReviewAction(requirement, { type: "approve" })}
-          tone="approve"
-        />
-        <ReviewActionButton
-          label="Needs review"
-          onClick={() => onReviewAction(requirement, { type: "flag" })}
-          tone="review"
-        />
-        <ReviewActionButton
-          label="Skip row"
-          onClick={() => onReviewAction(requirement, { type: "skip" })}
-          tone="neutral"
-        />
-        <ReviewActionButton
-          label="Reset draft"
-          onClick={() => onReviewAction(requirement, { type: "resetToDraft" })}
-          tone="neutral"
-        />
+        <p className="theme-shell-title mt-2 text-base leading-7">
+          {emptyValue(requirement.requirementDescription)}
+        </p>
       </div>
 
       <RequirementValidationStrip validation={validation} />
 
       {draft ? (
         <section className="mt-5 grid gap-4">
-          <div className="rounded-xl border border-[#2f8f8a]/24 bg-[#2f8f8a]/8 p-4">
-            <p className="mono-label text-[0.58rem] text-[#8ea7a0]">
+          <div className="theme-shell-card-brand rounded-[1.25rem] p-4">
+            <p className="theme-shell-subtle mono-label text-[0.58rem]">
               Draft comment
             </p>
-            <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[#eefcf8]">
+            <p className="theme-shell-title mt-2 whitespace-pre-wrap text-sm leading-7">
               {draft.generatedComment}
             </p>
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-            <p className="mono-label text-[0.58rem] text-[#8ea7a0]">
+          <div className="theme-shell-card rounded-[1.25rem] p-4">
+            <p className="theme-shell-subtle mono-label text-[0.58rem]">
               Demo steps
             </p>
             <ol className="mt-3 grid gap-3">
               {draft.demoSteps.map((step, index) => (
                 <li
                   key={step.id}
-                  className="rounded-2xl border border-white/10 bg-white/[0.04] p-3"
+                  className="theme-shell-card-soft rounded-2xl p-3"
                 >
-                  <p className="text-sm font-bold text-white">
+                  <p className="theme-shell-title text-sm font-bold">
                     {index + 1}. {step.title}
                   </p>
-                  <p className="mt-1 text-xs font-semibold text-[#8fcac0]">
+                  <p className="theme-shell-kicker mt-1 text-xs font-semibold">
                     {step.mesModuleOrScreen}
                   </p>
-                  <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm leading-6 text-[#bdd7d0]">
+                  <ol className="theme-shell-body mt-2 list-decimal space-y-1 pl-5 text-sm leading-6">
                     {step.instructions.map((instruction) => (
                       <li key={instruction}>{instruction}</li>
                     ))}
@@ -1418,11 +1734,103 @@ function GuidedReviewCard({
             </ol>
           </div>
 
-          <details className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
-            <summary className="cursor-pointer text-sm font-bold text-white">
-              Assumptions, warnings, and traceability
-            </summary>
-            <div className="mt-4 grid gap-4">
+          <div className="theme-shell-card sticky bottom-3 z-20 rounded-[1.25rem] border-[color:var(--shell-border-strong)] p-3 shadow-[var(--shadow-soft)] backdrop-blur sm:p-4">
+            <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="theme-shell-kicker mono-label text-[0.58rem]">
+                  Consultant decision
+                </p>
+                <p className="theme-shell-body mt-1 text-sm leading-6">
+                  Make the row decision now, then add notes or evidence only if
+                  you need them.
+                </p>
+              </div>
+              <StatusBadge status={requirement.reviewStatus} />
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              <ReviewActionButton
+                label="Approve and next"
+                onClick={() => onReviewAction(requirement, { type: "approve" })}
+                tone="approve"
+              />
+              <ReviewActionButton
+                label="Needs review"
+                onClick={() => onReviewAction(requirement, { type: "flag" })}
+                tone="review"
+              />
+              <ReviewActionButton
+                label="Skip row"
+                onClick={() => onReviewAction(requirement, { type: "skip" })}
+                tone="neutral"
+              />
+              <ReviewActionButton
+                label="Reset draft"
+                onClick={() =>
+                  onReviewAction(requirement, { type: "resetToDraft" })
+                }
+                tone="neutral"
+              />
+            </div>
+          </div>
+        </section>
+      ) : (
+        <GuidedBlockerCard
+          actionLabel="Back to generation"
+          body="This requirement is selected but does not have a draft yet."
+          onAction={() => onSelectNext(null)}
+          title="No generated draft"
+        />
+      )}
+
+      <details className="theme-shell-card mt-5 rounded-[1.25rem] p-4">
+        <summary className="theme-shell-title cursor-pointer text-sm font-bold">
+          Consultant edits and decision notes
+        </summary>
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <label className="block">
+            <span className="theme-shell-subtle mono-label text-[0.62rem]">
+              Consultant comment
+            </span>
+            <textarea
+              value={requirement.consultantComment}
+              onChange={(event) =>
+                onReviewAction(requirement, {
+                  type: "edit",
+                  consultantComment: event.currentTarget.value,
+                })
+              }
+              placeholder="Edit the customer-facing wording before approval."
+              className="focus-premium theme-shell-input mt-2 min-h-28 w-full rounded-2xl p-3 text-sm leading-6"
+            />
+          </label>
+
+          <label className="block">
+            <span className="theme-shell-subtle mono-label text-[0.62rem]">
+              Review note
+            </span>
+            <textarea
+              value={requirement.reviewNote}
+              onChange={(event) =>
+                onReviewAction(requirement, {
+                  type: "edit",
+                  reviewNote: event.currentTarget.value,
+                })
+              }
+              placeholder="Why approve, flag, or skip this row?"
+              className="focus-premium theme-shell-input mt-2 min-h-28 w-full rounded-2xl p-3 text-sm leading-6"
+            />
+          </label>
+        </div>
+      </details>
+
+      <details className="theme-shell-card-soft mt-5 rounded-[1.25rem] p-4">
+        <summary className="theme-shell-title cursor-pointer text-sm font-bold">
+          Evidence and source context
+        </summary>
+        <div className="mt-4 grid gap-4">
+          {draft ? (
+            <>
               <GeneratedDraftList
                 emptyText="No assumptions recorded for this draft."
                 items={draft.assumptions}
@@ -1434,23 +1842,23 @@ function GuidedReviewCard({
                 label="Warnings"
               />
               <div>
-                <p className="text-sm font-semibold text-white">
+                <p className="theme-shell-title text-sm font-semibold">
                   Source references
                 </p>
                 {draft.sourceReferences.length > 0 ? (
-                  <ul className="mt-2 space-y-2 text-sm leading-6 text-[#bdd7d0]">
+                  <ul className="theme-shell-body mt-2 space-y-2 text-sm leading-6">
                     {draft.sourceReferences.map((sourceReference) => (
                       <li
                         key={sourceReference.id}
-                        className="rounded-2xl border border-white/10 bg-white/[0.04] p-3"
+                        className="theme-shell-card-soft rounded-2xl p-3"
                       >
-                        <span className="font-semibold text-white">
+                        <span className="theme-shell-title font-semibold">
                           {sourceReference.kind}
                         </span>
                         :{" "}
                         {sourceReference.url ? (
                           <a
-                            className="font-semibold text-[#8fcac0] underline decoration-[#8fcac0]/35 underline-offset-4"
+                            className="theme-shell-kicker font-semibold underline underline-offset-4"
                             href={sourceReference.url}
                             rel="noreferrer"
                             target="_blank"
@@ -1458,7 +1866,7 @@ function GuidedReviewCard({
                             {sourceReference.label}
                           </a>
                         ) : (
-                          <span className="font-semibold text-white">
+                          <span className="theme-shell-title font-semibold">
                             {sourceReference.label}
                           </span>
                         )}{" "}
@@ -1467,85 +1875,37 @@ function GuidedReviewCard({
                     ))}
                   </ul>
                 ) : (
-                  <p className="mt-2 text-sm leading-6 text-[#8ea7a0]">
+                  <p className="theme-shell-subtle mt-2 text-sm leading-6">
                     No source references recorded for this draft.
                   </p>
                 )}
               </div>
-            </div>
-          </details>
-        </section>
-      ) : (
-        <GuidedBlockerCard
-          actionLabel="Back to generation"
-          body="This requirement is selected but does not have a draft yet."
-          onAction={() => onSelectNext(null)}
-          title="No generated draft"
-        />
-      )}
+            </>
+          ) : null}
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-2">
-        <label className="block">
-          <span className="mono-label text-[0.62rem] text-[#8ea7a0]">
-            Consultant comment
-          </span>
-          <textarea
-            value={requirement.consultantComment}
-            onChange={(event) =>
-              onReviewAction(requirement, {
-                type: "edit",
-                consultantComment: event.currentTarget.value,
-              })
-            }
-            placeholder="Edit the customer-facing wording before approval."
-            className="focus-premium mt-2 min-h-28 w-full rounded-2xl border border-white/12 bg-black/22 p-3 text-sm leading-6 text-[#eefcf8] placeholder:text-[#78928b]"
-          />
-        </label>
-
-        <label className="block">
-          <span className="mono-label text-[0.62rem] text-[#8ea7a0]">
-            Review note
-          </span>
-          <textarea
-            value={requirement.reviewNote}
-            onChange={(event) =>
-              onReviewAction(requirement, {
-                type: "edit",
-                reviewNote: event.currentTarget.value,
-              })
-            }
-            placeholder="Why approve, flag, or skip this row?"
-            className="focus-premium mt-2 min-h-28 w-full rounded-2xl border border-white/12 bg-black/22 p-3 text-sm leading-6 text-[#eefcf8] placeholder:text-[#78928b]"
-          />
-        </label>
-      </div>
-
-      <details className="mt-5 rounded-xl border border-white/10 bg-white/[0.035] p-4">
-        <summary className="cursor-pointer text-sm font-bold text-white">
-          Full Excel context
-        </summary>
-        <dl className="mt-4 grid gap-3 md:grid-cols-2">
-          <DetailField label="Source Excel row">
-            {requirement.sourceRowNumber}
-          </DetailField>
-          <DetailField label="Operation">
-            {emptyValue(requirement.operation)}
-          </DetailField>
-          <DetailField label="Priority fields">
-            EMS: {emptyValue(requirement.prioEms)}; CWS:{" "}
-            {emptyValue(requirement.prioCws)}
-          </DetailField>
-          <DetailField label="Availability fields">
-            Availability: {emptyValue(requirement.availability)}; CM:{" "}
-            {emptyValue(requirement.availabilityCm)}
-          </DetailField>
-          <DetailField label="Supported percentage">
-            {emptyValue(requirement.supportedPercent)}
-          </DetailField>
-          <DetailField label="Source comment from Excel">
-            {emptyValue(requirement.sourceComment)}
-          </DetailField>
-        </dl>
+          <dl className="grid gap-3 md:grid-cols-2">
+            <DetailField label="Source Excel row">
+              {requirement.sourceRowNumber}
+            </DetailField>
+            <DetailField label="Operation">
+              {emptyValue(requirement.operation)}
+            </DetailField>
+            <DetailField label="Priority fields">
+              EMS: {emptyValue(requirement.prioEms)}; CWS:{" "}
+              {emptyValue(requirement.prioCws)}
+            </DetailField>
+            <DetailField label="Availability fields">
+              Availability: {emptyValue(requirement.availability)}; CM:{" "}
+              {emptyValue(requirement.availabilityCm)}
+            </DetailField>
+            <DetailField label="Supported percentage">
+              {emptyValue(requirement.supportedPercent)}
+            </DetailField>
+            <DetailField label="Source comment from Excel">
+              {emptyValue(requirement.sourceComment)}
+            </DetailField>
+          </dl>
+        </div>
       </details>
     </article>
   );
@@ -1553,35 +1913,45 @@ function GuidedReviewCard({
 
 function TinyInfoPill({ label, value }: { label: string; value: string }) {
   return (
-    <span className="rounded-full border border-white/10 bg-black/24 px-3 py-1.5 text-xs font-bold text-[#dff8f0]">
-      <span className="text-[#8ea7a0]">{label}</span> {value}
+    <span className="theme-shell-card rounded-full px-3 py-1.5 text-xs font-bold">
+      <span className="theme-shell-subtle">{label}</span> {value}
     </span>
   );
 }
 
-function ExportWorkflowStep({
+export function ExportWorkflowStep({
   assembly,
   onGoToReview,
   onGoToScript,
   projectMetadata,
+  showFrame = true,
 }: {
   assembly: ReturnType<typeof assembleDemoScript>;
   onGoToReview: () => void;
   onGoToScript: () => void;
   projectMetadata: ReviewProjectMetadata;
+  showFrame?: boolean;
 }) {
+  const content = (
+    <DemoScriptExportPanel
+      assembly={assembly}
+      onSwitchToReview={onGoToReview}
+      onSwitchToScript={onGoToScript}
+      projectMetadata={projectMetadata}
+    />
+  );
+
+  if (!showFrame) {
+    return content;
+  }
+
   return (
     <GuidedStepFrame
       eyebrow="Step 5"
       title="Export the Phase 1 demo document"
       summary="This is the completion moment: a separate Markdown document with approved comments, demo steps, assumptions, warnings, and traceability."
     >
-      <DemoScriptExportPanel
-        assembly={assembly}
-        onSwitchToReview={onGoToReview}
-        onSwitchToScript={onGoToScript}
-        projectMetadata={projectMetadata}
-      />
+      {content}
     </GuidedStepFrame>
   );
 }
@@ -1598,16 +1968,20 @@ function GuidedBlockerCard({
   title: string;
 }) {
   return (
-    <section className="rounded-2xl border border-dashed border-[#6fa8b8]/28 bg-[#6fa8b8]/8 p-6">
-      <p className="mono-label text-[0.68rem] text-[#8fcac0]">Blocked state</p>
-      <h3 className="mt-2 text-3xl font-black tracking-[-0.04em] text-white">
+    <section className="theme-shell-card-slate rounded-2xl border border-dashed p-6">
+      <p className="theme-shell-kicker mono-label text-[0.68rem]">
+        Blocked state
+      </p>
+      <h3 className="theme-shell-title mt-2 text-3xl font-black tracking-[-0.04em]">
         {title}
       </h3>
-      <p className="mt-3 max-w-2xl text-sm leading-7 text-[#bdd7d0]">{body}</p>
+      <p className="theme-shell-body mt-3 max-w-2xl text-sm leading-7">
+        {body}
+      </p>
       <button
         type="button"
         onClick={onAction}
-        className="focus-premium mt-5 rounded-2xl bg-[#2f8f8a] px-5 py-3 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-[#3b9d98]"
+        className="focus-premium theme-button-primary mt-5 rounded-2xl px-5 py-3 text-sm font-black transition"
       >
         {actionLabel}
       </button>
@@ -1618,6 +1992,7 @@ function GuidedBlockerCard({
 function RequirementsExplorer({
   allFilteredRequirementsSelected,
   allRequirements,
+  disclosureLabel,
   filter,
   onFilterChange,
   onSearchChange,
@@ -1631,6 +2006,7 @@ function RequirementsExplorer({
 }: {
   allFilteredRequirementsSelected: boolean;
   allRequirements: ReviewRequirement[];
+  disclosureLabel?: string;
   filter: RequirementReviewFilter;
   onFilterChange: (filter: RequirementReviewFilter) => void;
   onSearchChange: (query: string) => void;
@@ -1645,9 +2021,10 @@ function RequirementsExplorer({
   const summary = summarizeReviewRequirements(allRequirements);
 
   return (
-    <details className="mt-5 rounded-xl border border-white/10 bg-black/18 p-4">
-      <summary className="cursor-pointer text-sm font-bold text-white">
-        Open all requirements for search, filtering, and custom selection
+    <details className="theme-shell-card mt-5 rounded-[1.25rem] p-4">
+      <summary className="theme-shell-title cursor-pointer text-sm font-bold">
+        {disclosureLabel ??
+          "Open all requirements for search, filtering, and custom selection"}
       </summary>
       <div className="mt-4 grid gap-4">
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
@@ -1659,17 +2036,17 @@ function RequirementsExplorer({
               onClick={() => onFilterChange(nextFilter)}
               className={`focus-premium rounded-2xl border p-3 text-left transition ${
                 filter === nextFilter
-                  ? "border-[#2f8f8a]/55 bg-[#2f8f8a]/12"
-                  : "border-white/10 bg-white/[0.045] hover:bg-white/[0.075]"
+                  ? "theme-shell-card-brand"
+                  : "theme-shell-card-soft hover:bg-[color:var(--shell-soft-surface-hover)]"
               }`}
             >
-              <span className="block text-xs font-bold text-[#effffb]">
+              <span className="theme-shell-title block text-xs font-bold">
                 {filterLabels[nextFilter]}
               </span>
-              <span className="mt-2 block font-mono text-2xl font-black text-white">
+              <span className="theme-shell-title mt-2 block font-mono text-2xl font-black">
                 {getFilterCount(summary, nextFilter)}
               </span>
-              <span className="mt-1 block text-[0.68rem] leading-4 text-[#8ea7a0]">
+              <span className="theme-shell-subtle mt-1 block text-[0.68rem] leading-4">
                 {filterDescriptions[nextFilter]}
               </span>
             </button>
@@ -1682,7 +2059,7 @@ function RequirementsExplorer({
             value={searchQuery}
             onChange={(event) => onSearchChange(event.currentTarget.value)}
             placeholder="Search ID, process, text, or status..."
-            className="focus-premium w-full rounded-2xl border border-white/12 bg-white/[0.06] px-4 py-3 text-sm text-white placeholder:text-[#78928b]"
+            className="focus-premium theme-shell-input w-full rounded-2xl px-4 py-3 text-sm"
           />
         </label>
 
@@ -1728,9 +2105,9 @@ function RequirementsTable({
   }
 
   return (
-    <div className="max-w-full overflow-x-auto rounded-[1.25rem] border border-white/10 bg-[#0a1518]/88">
+    <div className="theme-shell-table max-w-full overflow-x-auto rounded-[1.25rem]">
       <table className="w-full min-w-[980px] border-collapse text-left text-sm">
-        <thead className="bg-white/[0.045] font-mono text-[0.68rem] uppercase tracking-[0.12em] text-[#8ea7a0]">
+        <thead className="theme-shell-table-head font-mono text-[0.68rem] uppercase tracking-[0.12em]">
           <tr>
             <th className="px-4 py-4 font-semibold">
               <span className="sr-only">Select rows</span>
@@ -1743,7 +2120,7 @@ function RequirementsTable({
                     ? "Clear selected visible rows"
                     : "Select all visible rows"
                 }
-                className="h-4 w-4 accent-[#2f8f8a]"
+                className="h-4 w-4 accent-[#00558C]"
               />
             </th>
             <th className="px-4 py-4 font-semibold">ID</th>
@@ -1767,10 +2144,10 @@ function RequirementsTable({
             return (
               <tr
                 key={requirement.requirementKey}
-                className={`border-t border-white/8 transition ${
+                className={`transition ${
                   isSelected
-                    ? "bg-[#2f8f8a]/11 shadow-[inset_4px_0_0_#2f8f8a]"
-                    : "bg-transparent hover:bg-white/[0.04]"
+                    ? "theme-shell-table-row-active"
+                    : "theme-shell-table-row"
                 }`}
               >
                 <td className="px-4 py-4 align-top">
@@ -1783,10 +2160,10 @@ function RequirementsTable({
                     aria-label={`Select requirement ${
                       requirement.requirementId || requirement.sourceRowNumber
                     } for prototype draft generation`}
-                    className="h-4 w-4 accent-[#2f8f8a]"
+                    className="h-4 w-4 accent-[#00558C]"
                   />
                 </td>
-                <td className="px-4 py-4 align-top font-mono text-[#d2eee7]">
+                <td className="theme-shell-title px-4 py-4 align-top font-mono">
                   <button
                     type="button"
                     onClick={() => onSelectRequirement(requirement)}
@@ -1795,22 +2172,22 @@ function RequirementsTable({
                     {requirement.requirementId || "No ID"}
                   </button>
                 </td>
-                <td className="px-4 py-4 align-top font-mono text-[#b6cbc5]">
+                <td className="theme-shell-body px-4 py-4 align-top font-mono">
                   {requirement.sourceRowNumber}
                 </td>
-                <td className="max-w-xl px-4 py-4 align-top leading-6 text-[#e4f4ef]">
+                <td className="theme-shell-title max-w-xl px-4 py-4 align-top leading-6">
                   <button
                     type="button"
                     onClick={() => onSelectRequirement(requirement)}
-                    className="focus-premium rounded-md text-left underline-offset-4 hover:text-white hover:underline"
+                    className="focus-premium rounded-md text-left underline-offset-4 hover:underline"
                   >
                     {emptyValue(requirement.requirementDescription)}
                   </button>
                 </td>
-                <td className="px-4 py-4 align-top text-[#b6cbc5]">
+                <td className="theme-shell-body px-4 py-4 align-top">
                   {emptyValue(requirement.l2Process)}
                 </td>
-                <td className="px-4 py-4 align-top text-[#b6cbc5]">
+                <td className="theme-shell-body px-4 py-4 align-top">
                   {emptyValue(requirement.l3Process || requirement.operation)}
                 </td>
                 <td className="px-4 py-4 align-top">
@@ -1879,99 +2256,244 @@ function searchRequirements(
   );
 }
 
-function WorkspaceSourcePanel({
+export function WorkspaceSourcePanel({
+  demoCount,
   feedback,
-  generationMode,
+  mvpCount,
+  onContinue,
   onRestoreFixtureSource,
+  onToggleDetails,
+  onTogglePreview,
   onUploadWorkbook,
+  previewRows,
   sourceMetadata,
+  sourceDetailsExpanded,
+  sourcePreviewExpanded,
   sourceRowCount,
 }: {
+  demoCount: number;
   feedback: SourceFeedback | null;
-  generationMode: RequirementGenerationRouteMode | null;
+  mvpCount: number;
+  onContinue: () => void;
   onRestoreFixtureSource: () => void;
+  onToggleDetails: () => void;
+  onTogglePreview: () => void;
   onUploadWorkbook: (event: ChangeEvent<HTMLInputElement>) => void;
+  previewRows: ReviewRequirement[];
   sourceMetadata: RequirementsSourceMetadata;
+  sourceDetailsExpanded: boolean;
+  sourcePreviewExpanded: boolean;
   sourceRowCount: number;
 }) {
   const isFixtureSource = sourceMetadata.sourceKind === "fixture";
+  const sourceKindLabel = isFixtureSource
+    ? "Sample workbook"
+    : "Uploaded workbook";
+  const previewCount = previewRows.length;
+  const sourceStatus = isFixtureSource
+    ? "Customer X sample workbook is active for the fastest Phase 1 walkthrough."
+    : "Uploaded workbook is active and its saved review state is loaded.";
+  const sourceHint = isFixtureSource
+    ? "Upload another workbook only when you want to replace the sample for this run."
+    : "Upload a new workbook to replace this source, or restore the sample workbook.";
 
   return (
-    <section className="premium-panel min-w-0 rounded-2xl p-5 sm:p-6">
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0 max-w-3xl">
-          <p className="mono-label text-[0.68rem] text-[#8fcac0]">
-            Source workbook
-          </p>
-          <h2 className="mt-2 text-3xl font-bold tracking-[-0.04em] text-white">
-            {sourceMetadata.sourceLabel}
-          </h2>
-          <p className="mt-3 text-sm leading-7 text-[#bdd7d0]">
-            Upload a `.xlsx` requirements workbook or return to the committed
-            Customer X fixture. The app keeps fixture and upload state separate
-            so review decisions stay source-aware.
-          </p>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <SourceMeta label="Project" value={sourceMetadata.projectName} />
-            <SourceMeta label="Customer" value={sourceMetadata.customerName} />
-            <SourceMeta
-              label="Rows"
-              value={sourceRowCount.toLocaleString("en-US")}
-            />
-            <SourceMeta
-              label="Source file"
-              value={sourceMetadata.sourceFilename}
-              breakWords
-            />
+    <section className="grid min-w-0 gap-4">
+      <article className="theme-shell-card rounded-[1.5rem] p-5 sm:p-6">
+        <div
+          className={`rounded-[1.35rem] border p-4 sm:p-5 ${
+            isFixtureSource
+              ? "theme-shell-card-brand"
+              : "theme-shell-card-slate"
+          }`}
+        >
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0 max-w-3xl">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="theme-shell-subtle mono-label text-[0.56rem]">
+                  Current source
+                </p>
+                <span className="tone-neutral-subtle rounded-full border px-3 py-1 text-[0.65rem] font-bold">
+                  {sourceKindLabel}
+                </span>
+              </div>
+              <h3 className="theme-shell-title mt-2 text-xl font-bold tracking-[-0.03em] sm:text-2xl">
+                {sourceMetadata.sourceLabel}
+              </h3>
+              <p className="theme-shell-body mt-2 text-sm leading-6">
+                {sourceStatus}
+              </p>
+              <p className="theme-shell-subtle mt-2 break-all text-xs leading-5">
+                {sourceMetadata.sourceFilename}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={onContinue}
+              className="focus-premium theme-button-primary rounded-2xl px-5 py-3 text-sm font-black transition lg:mt-1"
+            >
+              Continue to generation
+            </button>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <SourceMeta label="Rows" value={sourceRowCount.toLocaleString()} />
+            <SourceMeta label="Demo" value={demoCount.toLocaleString()} />
+            <SourceMeta label="MVP" value={mvpCount.toLocaleString()} />
           </div>
         </div>
-        <div className="grid gap-3 sm:min-w-64">
-          <span className="rounded-2xl border border-[#c8953f]/35 bg-[#c8953f]/10 px-4 py-3 text-sm font-bold text-[#ead19a]">
-            {generationMode === "real"
-              ? "Grounded generation mode"
-              : "Prototype draft mode"}
-          </span>
-          <label className="focus-premium cursor-pointer rounded-2xl bg-[#2f8f8a] px-4 py-3 text-center text-sm font-bold text-white shadow-[0_12px_28px_rgba(0,0,0,0.22)] transition hover:-translate-y-0.5 hover:bg-[#3b9d98]">
-            Upload workbook
-            <input
-              accept=".xlsx"
-              type="file"
-              onChange={onUploadWorkbook}
-              className="sr-only"
-            />
-          </label>
-          <button
-            type="button"
-            onClick={onRestoreFixtureSource}
-            disabled={isFixtureSource}
-            className="focus-premium rounded-2xl border border-white/12 bg-white/[0.06] px-4 py-3 text-sm font-bold text-[#e9fbf6] transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Restore sample
-          </button>
-        </div>
-      </div>
 
-      <p className="mt-5 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm leading-6 text-[#acc7c0]">
-        {generationMode === "real"
-          ? "The latest generation run used grounded MES documentation through the MCP and Bedrock server path. Keep consultant review in the loop for uncertain rows."
-          : "Prototype drafts are consultant-friendly heuristics. When the server is configured for real generation, grounded documentation references will appear here."}
-      </p>
+        <div className="theme-shell-card-soft mt-4 rounded-[1.35rem] p-4 sm:p-5">
+          <p className="theme-shell-subtle mono-label text-[0.56rem]">
+            Replace source
+          </p>
+          <h4 className="theme-shell-title mt-2 text-lg font-bold">
+            Upload another workbook only when you need to change the input
+          </h4>
+          <p className="theme-shell-body mt-2 text-sm leading-6">
+            {sourceHint}
+          </p>
 
-      {feedback ? (
-        <div
-          className={`mt-4 rounded-md border px-4 py-3 text-sm leading-6 ${
-            feedback.tone === "success"
-              ? "border-[#2f8f8a]/45 bg-[#2f8f8a]/12 text-[#d2eee7]"
-              : feedback.tone === "error"
-                ? "border-[#c8953f]/45 bg-[#c8953f]/12 text-[#ead19a]"
-                : "border-white/12 bg-white/[0.06] text-[#d8eee8]"
-          }`}
-          role="status"
-          aria-live="polite"
-        >
-          {feedback.message}
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+            <label className="focus-premium theme-shell-button-secondary inline-flex cursor-pointer justify-center rounded-2xl px-4 py-3 text-sm font-bold transition">
+              Upload .xlsx workbook
+              <input
+                accept=".xlsx"
+                type="file"
+                onChange={onUploadWorkbook}
+                className="sr-only"
+              />
+            </label>
+
+            {!isFixtureSource ? (
+              <button
+                type="button"
+                onClick={onRestoreFixtureSource}
+                className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-bold transition"
+              >
+                Restore sample workbook
+              </button>
+            ) : null}
+          </div>
+
+          {feedback ? (
+            <div
+              className={`mt-4 rounded-[1.1rem] border px-4 py-3 text-sm leading-6 ${
+                feedback.tone === "success"
+                  ? "tone-positive"
+                  : feedback.tone === "error"
+                    ? "tone-warning"
+                    : "tone-neutral"
+              }`}
+              role="status"
+              aria-live="polite"
+            >
+              {feedback.message}
+            </div>
+          ) : null}
         </div>
-      ) : null}
+      </article>
+
+      <section className="theme-shell-card rounded-[1.5rem] p-4 sm:p-5">
+        <p className="theme-shell-kicker mono-label text-[0.58rem]">
+          Validate parsed workbook
+        </p>
+        <h4 className="theme-shell-title mt-2 text-lg font-bold">
+          Open the checks only when you want to confirm the parser read the
+          workbook correctly
+        </h4>
+        <p className="theme-shell-body mt-2 text-sm leading-6">
+          The preview and workbook details stay secondary for the sample, then
+          open automatically after a new upload so you can verify the parsed
+          input immediately.
+        </p>
+
+        <div className="mt-4 grid gap-3">
+          <div className="theme-shell-card-soft rounded-[1.25rem] p-3 sm:p-4">
+            <button
+              type="button"
+              onClick={onTogglePreview}
+              className="focus-premium flex w-full items-center justify-between gap-3 rounded-2xl px-2 py-1 text-left transition"
+              aria-expanded={sourcePreviewExpanded}
+            >
+              <div>
+                <p className="theme-shell-title text-sm font-bold">
+                  Preview parsed rows
+                </p>
+                <p className="theme-shell-body mt-1 text-sm leading-6">
+                  Showing {previewCount} of {sourceRowCount} rows from the
+                  active workbook.
+                </p>
+              </div>
+              <span className="theme-shell-subtle text-xs font-bold">
+                {sourcePreviewExpanded ? "Hide" : "Show"}
+              </span>
+            </button>
+
+            {sourcePreviewExpanded ? (
+              <SourceWorkbookPreview
+                previewRows={previewRows}
+                sourceRowCount={sourceRowCount}
+              />
+            ) : null}
+          </div>
+
+          <div className="theme-shell-card-soft rounded-[1.25rem] p-3 sm:p-4">
+            <button
+              type="button"
+              onClick={onToggleDetails}
+              className="focus-premium flex w-full items-center justify-between gap-3 rounded-2xl px-2 py-1 text-left transition"
+              aria-expanded={sourceDetailsExpanded}
+            >
+              <div>
+                <p className="theme-shell-title text-sm font-bold">
+                  Workbook details
+                </p>
+                <p className="theme-shell-body mt-1 text-sm leading-6">
+                  Project, customer, filename, and row counts for the active
+                  source.
+                </p>
+              </div>
+              <span className="theme-shell-subtle text-xs font-bold">
+                {sourceDetailsExpanded ? "Hide" : "Show"}
+              </span>
+            </button>
+
+            {sourceDetailsExpanded ? (
+              <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
+                <dl className="grid gap-3">
+                  <SourceDetailRow
+                    label="Project"
+                    value={sourceMetadata.projectName}
+                  />
+                  <SourceDetailRow
+                    label="Customer"
+                    value={sourceMetadata.customerName}
+                  />
+                  <SourceDetailRow
+                    label="Source label"
+                    value={sourceMetadata.sourceLabel}
+                  />
+                  <SourceDetailRow
+                    label="Filename"
+                    value={sourceMetadata.sourceFilename}
+                  />
+                </dl>
+
+                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+                  <SourceMeta
+                    label="Rows"
+                    value={sourceRowCount.toLocaleString()}
+                  />
+                  <SourceMeta label="Demo" value={demoCount.toLocaleString()} />
+                  <SourceMeta label="MVP" value={mvpCount.toLocaleString()} />
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </section>
     </section>
   );
 }
@@ -1986,15 +2508,93 @@ function SourceMeta({
   value: string;
 }) {
   return (
-    <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.045] p-3">
-      <p className="mono-label text-[0.56rem] text-[#7fa49c]">{label}</p>
+    <div className="theme-shell-card-soft min-w-0 rounded-2xl p-3">
+      <p className="theme-shell-subtle mono-label text-[0.56rem]">{label}</p>
       <p
-        className={`mt-2 text-sm font-bold text-[#eefcf8] ${
+        className={`theme-shell-title mt-2 text-sm font-bold ${
           breakWords ? "break-all" : "truncate"
         }`}
       >
         {value}
       </p>
+    </div>
+  );
+}
+
+function SourceDetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <dt className="theme-shell-subtle text-xs font-semibold uppercase tracking-[0.16em]">
+        {label}
+      </dt>
+      <dd className="theme-shell-title break-all text-right text-sm font-bold">
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+function SourceWorkbookPreview({
+  previewRows,
+  sourceRowCount,
+}: {
+  previewRows: ReviewRequirement[];
+  sourceRowCount: number;
+}) {
+  return (
+    <div className="mt-5 grid gap-3">
+      <div className="theme-shell-card-soft rounded-[1.25rem] px-4 py-3 text-sm leading-6">
+        <span className="theme-shell-title font-bold">
+          Showing {previewRows.length} of {sourceRowCount}
+        </span>{" "}
+        parsed rows from the active workbook.
+      </div>
+
+      <div className="theme-shell-table max-w-full overflow-x-auto rounded-[1.25rem]">
+        <table className="w-full min-w-[920px] border-collapse text-left text-sm">
+          <thead className="theme-shell-table-head font-mono text-[0.68rem] uppercase tracking-[0.12em]">
+            <tr>
+              <th className="px-4 py-4 font-semibold">ID</th>
+              <th className="px-4 py-4 font-semibold">Row</th>
+              <th className="px-4 py-4 font-semibold">Requirement</th>
+              <th className="px-4 py-4 font-semibold">L2 process</th>
+              <th className="px-4 py-4 font-semibold">L3 or operation</th>
+              <th className="px-4 py-4 font-semibold">Demo</th>
+              <th className="px-4 py-4 font-semibold">MVP</th>
+            </tr>
+          </thead>
+          <tbody>
+            {previewRows.map((requirement) => (
+              <tr
+                key={`source-preview-${requirement.requirementKey}`}
+                className="theme-shell-table-row"
+              >
+                <td className="theme-shell-title px-4 py-4 align-top font-mono">
+                  {requirement.requirementId || "No ID"}
+                </td>
+                <td className="theme-shell-body px-4 py-4 align-top font-mono">
+                  {requirement.sourceRowNumber}
+                </td>
+                <td className="theme-shell-title max-w-xl px-4 py-4 align-top leading-6">
+                  {emptyValue(requirement.requirementDescription)}
+                </td>
+                <td className="theme-shell-body px-4 py-4 align-top">
+                  {emptyValue(requirement.l2Process)}
+                </td>
+                <td className="theme-shell-body px-4 py-4 align-top">
+                  {emptyValue(requirement.l3Process || requirement.operation)}
+                </td>
+                <td className="px-4 py-4 align-top">
+                  <FlagBadge active={requirement.demo} />
+                </td>
+                <td className="px-4 py-4 align-top">
+                  <FlagBadge active={requirement.mvp} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -2006,10 +2606,10 @@ function RequirementValidationStrip({
 }) {
   const isSafeToApprove = validation.isSafeToApprove;
   const toneClasses = isSafeToApprove
-    ? "border-[#2f8f8a]/45 bg-[#2f8f8a]/12 text-[#d2eee7]"
+    ? "tone-positive"
     : validation.severity === "attention"
-      ? "border-[#c8953f]/45 bg-[#c8953f]/12 text-[#ead19a]"
-      : "border-[#ff776d]/45 bg-[#ff776d]/12 text-[#ffb4ae]";
+      ? "tone-warning"
+      : "tone-danger";
 
   return (
     <section className={`mt-4 rounded-2xl border px-4 py-3 ${toneClasses}`}>
@@ -2024,10 +2624,10 @@ function RequirementValidationStrip({
               key={signal}
               className={`rounded-full border px-2 py-1 text-xs font-semibold ${
                 isSafeToApprove
-                  ? "border-[#2f8f8a]/45 bg-black/20 text-[#d2eee7]"
+                  ? "tone-positive"
                   : validation.severity === "attention"
-                    ? "border-[#c8953f]/45 bg-black/20 text-[#ead19a]"
-                    : "border-[#ff776d]/45 bg-black/20 text-[#ffb4ae]"
+                    ? "tone-warning"
+                    : "tone-danger"
               }`}
             >
               {requirementValidationSignalLabels[signal]}
@@ -2054,15 +2654,15 @@ function GeneratedDraftList({
 }) {
   return (
     <div>
-      <p className="mono-label text-[0.58rem] text-[#8ea7a0]">{label}</p>
+      <p className="theme-shell-subtle mono-label text-[0.58rem]">{label}</p>
       {items.length > 0 ? (
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-[#bdd7d0]">
+        <ul className="theme-shell-body mt-2 list-disc space-y-1 pl-5 text-sm leading-6">
           {items.map((item) => (
             <li key={item}>{item}</li>
           ))}
         </ul>
       ) : (
-        <p className="mt-2 text-sm leading-6 text-[#bdd7d0]">{emptyText}</p>
+        <p className="theme-shell-body mt-2 text-sm leading-6">{emptyText}</p>
       )}
     </div>
   );
@@ -2079,10 +2679,10 @@ function ReviewActionButton({
 }) {
   const toneClass =
     tone === "approve"
-      ? "border-[#2f8f8a] bg-[#2f8f8a] text-white hover:bg-[#3b9d98]"
+      ? "theme-button-primary"
       : tone === "review"
-        ? "border-[#c8953f]/45 bg-[#c8953f]/12 text-[#ead19a] hover:bg-[#c8953f]/18"
-        : "border-white/12 bg-white/[0.06] text-[#dff8f0] hover:bg-white/[0.1]";
+        ? "tone-warning hover:brightness-[0.98]"
+        : "theme-shell-button-secondary";
 
   return (
     <button
@@ -2103,9 +2703,9 @@ function DetailField({
   label: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-      <dt className="mono-label text-[0.58rem] text-[#8ea7a0]">{label}</dt>
-      <dd className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-[#e4f4ef]">
+    <div className="theme-shell-card-soft rounded-2xl p-4">
+      <dt className="theme-shell-subtle mono-label text-[0.58rem]">{label}</dt>
+      <dd className="theme-shell-title mt-2 whitespace-pre-wrap break-words text-sm leading-6">
         {children}
       </dd>
     </div>
@@ -2128,13 +2728,15 @@ function EmptyFilterState({
 
   return (
     <div className="p-8">
-      <p className="mono-label text-[0.68rem] text-[#8fcac0]">Empty filter</p>
-      <h2 className="mt-2 text-2xl font-bold tracking-[-0.03em] text-white">
+      <p className="theme-shell-kicker mono-label text-[0.68rem]">
+        Empty filter
+      </p>
+      <h2 className="theme-shell-title mt-2 text-2xl font-bold tracking-[-0.03em]">
         {searchQuery.trim().length > 0
           ? "No rows match this search"
           : `No ${filterLabels[filter].toLowerCase()} yet`}
       </h2>
-      <p className="mt-4 max-w-2xl leading-7 text-[#9fb9b2]">{emptyCopy}</p>
+      <p className="theme-shell-body mt-4 max-w-2xl leading-7">{emptyCopy}</p>
     </div>
   );
 }
@@ -2143,9 +2745,7 @@ function FlagBadge({ active }: { active: boolean }) {
   return (
     <span
       className={`inline-flex min-w-16 justify-center rounded-md border px-2 py-1 text-xs font-semibold ${
-        active
-          ? "border-[#2f8f8a]/45 bg-[#2f8f8a]/12 text-[#d2eee7]"
-          : "border-white/10 bg-white/[0.05] text-[#8ea7a0]"
+        active ? "tone-positive" : "tone-neutral"
       }`}
     >
       {formatBoolean(active)}

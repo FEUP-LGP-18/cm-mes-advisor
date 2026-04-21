@@ -5,6 +5,7 @@ export type RequirementGenerationRouteMode = "mock" | "real";
 
 export interface RequirementGenerationRequestBody {
   requirements: ParsedRequirement[];
+  mode?: RequirementGenerationRouteMode;
 }
 
 export interface RequirementGenerationRouteError {

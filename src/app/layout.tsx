@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
+import { themeInitScript } from "./theme";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-display",
@@ -29,8 +30,14 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${spaceGrotesk.variable} ${ibmPlexMono.variable}`}
+      data-scroll-behavior="smooth"
+      data-theme="dark"
+      suppressHydrationWarning
     >
-      <body>{children}</body>
+      <body>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        {children}
+      </body>
     </html>
   );
 }

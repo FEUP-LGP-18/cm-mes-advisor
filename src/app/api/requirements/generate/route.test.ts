@@ -56,6 +56,35 @@ describe("POST /api/requirements/generate", () => {
     });
   });
 
+  it("allows an explicit mock request even when real mode is misconfigured", async () => {
+    vi.stubEnv("GENERATION_MODE", "real");
+    vi.stubEnv("MCP_SERVER_URL", "https://example.invalid/mcp");
+    vi.stubEnv("BEDROCK_MODEL_ID", "example-bedrock-model-id");
+    vi.stubEnv("AWS_REGION", "eu-west-1");
+    vi.stubEnv("AWS_BEARER_TOKEN_BEDROCK", "");
+
+    const response = await POST(
+      new Request("http://localhost/api/requirements/generate", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          mode: "mock",
+          requirements: [parsedRequirement],
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      ok: true,
+      mode: "mock",
+    });
+  });
+
   it("rejects malformed payloads with a safe 400 response", async () => {
     const response = await POST(
       new Request("http://localhost/api/requirements/generate", {
@@ -65,6 +94,31 @@ describe("POST /api/requirements/generate", () => {
         },
         body: JSON.stringify({
           requirements: [{ ...parsedRequirement, sourceRowNumber: "bad" }],
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+
+    const body = (await response.json()) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      ok: false,
+      error: {
+        code: "invalid-request",
+      },
+    });
+  });
+
+  it("rejects unsupported generation modes", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/requirements/generate", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          mode: "prototype",
+          requirements: [parsedRequirement],
         }),
       }),
     );

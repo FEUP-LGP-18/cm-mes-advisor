@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type {
   DemoScriptAssembly,
   DemoScriptDraft,
@@ -48,6 +49,23 @@ export default function DemoScriptEditingPanel({
   onSwitchToReview,
   projectMetadata,
 }: DemoScriptEditingPanelProps) {
+  const [selectedSectionKey, setSelectedSectionKey] = useState<string | null>(
+    assembly.sections[0]?.key ?? null,
+  );
+
+  const selectedSection =
+    assembly.sections.find((section) => section.key === selectedSectionKey) ??
+    assembly.sections[0] ??
+    null;
+  const [selectedStepKey, setSelectedStepKey] = useState<string | null>(
+    selectedSection?.steps[0]?.key ?? null,
+  );
+
+  const selectedStep =
+    selectedSection?.steps.find((step) => step.key === selectedStepKey) ??
+    selectedSection?.steps[0] ??
+    null;
+
   return (
     <section className="grid min-w-0 gap-5">
       <div className="grid gap-3 md:grid-cols-4">
@@ -77,70 +95,28 @@ export default function DemoScriptEditingPanel({
         />
       </div>
 
-      <div className="document-panel overflow-hidden rounded-2xl p-5 sm:p-7">
-        <div className="flex flex-col gap-5 border-b border-[#17211f]/10 pb-6 lg:flex-row lg:items-start lg:justify-between">
+      <div className="document-panel overflow-hidden rounded-[1.75rem] p-5 sm:p-7">
+        <div className="flex flex-col gap-5 border-b border-[color:var(--document-border)] pb-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-3xl">
-            <p className="mono-label text-[0.68rem] text-[#0f6f62]">
+            <p className="theme-doc-kicker mono-label text-[0.68rem]">
               Script editor
             </p>
-            <h3 className="mt-3 text-3xl font-bold leading-tight tracking-[-0.05em] text-[#17211f] sm:text-4xl">
+            <h3 className="theme-doc-title mt-3 text-3xl font-bold leading-tight tracking-[-0.05em] sm:text-4xl">
               Shape the consultant-facing narrative
             </h3>
-            <p className="mt-3 text-sm leading-7 text-[#45534f]">
-              Refine the story before handoff. This step is for naming sections,
-              polishing step notes, and checking traceability before the final
-              export.
+            <p className="theme-doc-body mt-3 text-sm leading-7">
+              Edit the narrative with a section-by-section workflow. Keep the
+              active section focused, and pull in evidence only when you need
+              it.
             </p>
           </div>
           <button
             type="button"
             onClick={onSwitchToReview}
-            className="focus-premium rounded-2xl border border-[#17211f]/10 bg-white/70 px-4 py-3 text-sm font-bold text-[#17211f] transition hover:bg-white"
+            className="focus-premium theme-doc-button-secondary rounded-2xl px-4 py-3 text-sm font-bold transition"
           >
             Back to review
           </button>
-        </div>
-
-        <div className="mt-6 grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
-          <label className="block">
-            <span className="mono-label text-[0.62rem] text-[#6a7773]">
-              Script title
-            </span>
-            <input
-              value={draft.title}
-              onChange={(event) =>
-                onDraftAction({
-                  type: "renameTitle",
-                  title: event.currentTarget.value,
-                })
-              }
-              className="focus-premium mt-2 w-full rounded-2xl border border-[#17211f]/10 bg-white/70 px-4 py-3 text-sm font-bold text-[#17211f] transition focus:bg-white"
-            />
-          </label>
-
-          <div className="rounded-xl border border-[#17211f]/10 bg-white/55 p-4 text-sm leading-6 text-[#45534f]">
-            <p className="mono-label text-[0.58rem] text-[#6a7773]">
-              Script context
-            </p>
-            <p className="mt-2">
-              Project:{" "}
-              <span className="font-bold text-[#17211f]">
-                {projectMetadata.projectName}
-              </span>
-            </p>
-            <p>
-              Customer:{" "}
-              <span className="font-bold text-[#17211f]">
-                {projectMetadata.customerName}
-              </span>
-            </p>
-            <p className="break-all">
-              Source:{" "}
-              <span className="font-bold text-[#17211f]">
-                {projectMetadata.sourceFilename}
-              </span>
-            </p>
-          </div>
         </div>
 
         {assembly.emptyState ? (
@@ -151,22 +127,196 @@ export default function DemoScriptEditingPanel({
             titleEyebrow="Script blocked"
           />
         ) : (
-          <div className="mt-6 grid gap-5">
-            <SectionOrderControls
-              draft={draft}
-              sections={assembly.sections}
-              onDraftAction={onDraftAction}
-            />
+          <div className="mt-6 grid gap-5 xl:grid-cols-[280px_minmax(0,1fr)]">
+            <aside className="theme-doc-card-muted rounded-[1.5rem] p-4">
+              <div className="border-b border-[color:var(--document-border)] pb-4">
+                <p className="theme-doc-subtle mono-label text-[0.58rem]">
+                  Section outline
+                </p>
+                <p className="theme-doc-body mt-2 text-sm leading-6">
+                  Choose the section you want to refine. Only one section stays
+                  open at a time so the editing flow stays focused.
+                </p>
+              </div>
+
+              <div className="mt-4 grid gap-2">
+                {assembly.sections.map((section, index) => {
+                  const isActive = section.key === selectedSection?.key;
+                  return (
+                    <div
+                      key={section.key}
+                      className={`rounded-2xl border p-3 transition ${
+                        isActive
+                          ? "theme-doc-card theme-doc-title"
+                          : "theme-doc-card-muted theme-doc-body"
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedSectionKey(section.key);
+                          setSelectedStepKey(section.steps[0]?.key ?? null);
+                        }}
+                        className="focus-premium block w-full text-left"
+                      >
+                        <p className="text-sm font-bold">
+                          {resolveSectionTitle(draft, section)}
+                        </p>
+                        <p className="theme-doc-subtle mt-1 text-xs">
+                          {section.sourceLabel} · {section.stepCount} steps
+                        </p>
+                      </button>
+
+                      {assembly.sections.length > 1 ? (
+                        <div className="mt-3 flex gap-2">
+                          <SectionOrderButton
+                            direction="up"
+                            disabled={index === 0}
+                            onClick={() =>
+                              onDraftAction({
+                                type: "setSectionOrder",
+                                sectionOrder: moveSection(
+                                  assembly.sections.map((item) => item.key),
+                                  section.key,
+                                  "up",
+                                ),
+                              })
+                            }
+                          />
+                          <SectionOrderButton
+                            direction="down"
+                            disabled={index === assembly.sections.length - 1}
+                            onClick={() =>
+                              onDraftAction({
+                                type: "setSectionOrder",
+                                sectionOrder: moveSection(
+                                  assembly.sections.map((item) => item.key),
+                                  section.key,
+                                  "down",
+                                ),
+                              })
+                            }
+                          />
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </aside>
 
             <div className="grid gap-4">
-              {assembly.sections.map((section) => (
-                <DemoScriptSectionCard
-                  key={section.key}
-                  draft={draft}
-                  onDraftAction={onDraftAction}
-                  section={section}
-                />
-              ))}
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+                <label className="theme-doc-card block rounded-[1.5rem] p-4">
+                  <span className="theme-doc-subtle mono-label text-[0.62rem]">
+                    Script title
+                  </span>
+                  <input
+                    value={draft.title}
+                    onChange={(event) =>
+                      onDraftAction({
+                        type: "renameTitle",
+                        title: event.currentTarget.value,
+                      })
+                    }
+                    className="focus-premium theme-doc-input mt-2 w-full rounded-2xl px-4 py-3 text-sm font-bold transition"
+                  />
+                </label>
+
+                <div className="theme-doc-card rounded-[1.5rem] p-4 text-sm leading-6 theme-doc-body">
+                  <p className="theme-doc-subtle mono-label text-[0.58rem]">
+                    Script context
+                  </p>
+                  <p className="mt-2">
+                    Project:{" "}
+                    <span className="theme-doc-title font-bold">
+                      {projectMetadata.projectName}
+                    </span>
+                  </p>
+                  <p>
+                    Customer:{" "}
+                    <span className="theme-doc-title font-bold">
+                      {projectMetadata.customerName}
+                    </span>
+                  </p>
+                  <p className="break-all">
+                    Source:{" "}
+                    <span className="theme-doc-title font-bold">
+                      {projectMetadata.sourceFilename}
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              {selectedSection ? (
+                <article className="theme-doc-card rounded-[1.75rem] p-4 sm:p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="theme-doc-kicker mono-label text-[0.58rem]">
+                        {selectedSection.sourceLabel}
+                      </p>
+                      <label className="mt-2 block">
+                        <span className="sr-only">Section title</span>
+                        <input
+                          value={resolveSectionTitle(draft, selectedSection)}
+                          onChange={(event) =>
+                            onDraftAction({
+                              type: "editSectionTitle",
+                              sectionKey: selectedSection.key,
+                              title: event.currentTarget.value,
+                            })
+                          }
+                          className="focus-premium theme-doc-title w-full rounded-xl border border-transparent bg-transparent px-0 py-0 text-2xl font-bold tracking-[-0.04em] transition focus:border-[color:var(--document-border)] focus:bg-[color:var(--document-soft-surface)] focus:px-3 focus:py-2"
+                        />
+                      </label>
+                      <p className="theme-doc-body mt-2 text-sm leading-6">
+                        {selectedSection.subtitle}
+                      </p>
+                    </div>
+                    <div className="theme-doc-chip-brand rounded-full px-3 py-1.5 text-xs font-bold">
+                      {selectedSection.stepCount} steps
+                    </div>
+                  </div>
+
+                  <div className="mt-5 overflow-x-auto pb-1">
+                    <div className="flex min-w-max gap-2">
+                      {selectedSection.steps.map((step, index) => {
+                        const isActive = step.key === selectedStep?.key;
+                        return (
+                          <button
+                            key={step.key}
+                            type="button"
+                            onClick={() => setSelectedStepKey(step.key)}
+                            className={`focus-premium min-w-[180px] rounded-2xl border px-3 py-3 text-left transition ${
+                              isActive
+                                ? "theme-doc-card-brand"
+                                : "theme-doc-card-muted hover:bg-[color:var(--document-soft-surface)]"
+                            }`}
+                          >
+                            <p className="theme-doc-subtle mono-label text-[0.5rem]">
+                              Step {index + 1}
+                            </p>
+                            <p className="mt-2 text-sm font-bold">
+                              {resolveStepTitle(draft, step)}
+                            </p>
+                            <p className="theme-doc-subtle mt-1 text-xs">
+                              {step.traceability.requirementId}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {selectedStep ? (
+                    <ScriptStepWorkbench
+                      draft={draft}
+                      onDraftAction={onDraftAction}
+                      step={selectedStep}
+                    />
+                  ) : null}
+                </article>
+              ) : null}
             </div>
           </div>
         )}
@@ -246,136 +396,152 @@ export function DemoScriptExportPanel({
         />
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <section className="premium-panel-strong min-w-0 rounded-2xl p-5 sm:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-white/10 pb-5">
-            <div className="max-w-3xl">
-              <p className="mono-label text-[0.68rem] text-[#8fcac0]">
-                Export handoff
-              </p>
-              <h3 className="mt-3 text-3xl font-bold tracking-[-0.045em] text-white sm:text-4xl">
-                Finalize the Phase 1 deliverable
-              </h3>
-              <p className="mt-3 text-sm leading-7 text-[#bdd7d0]">
-                The editing work is done. This step confirms what will be in the
-                document and gives you one clean download action for the client
-                demo handoff.
-              </p>
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <section className="document-panel min-w-0 rounded-[1.75rem] p-5 sm:p-6">
+          <div className="theme-doc-card rounded-[1.5rem] p-5">
+            <p className="theme-doc-kicker mono-label text-[0.68rem]">
+              Export handoff
+            </p>
+            <h3 className="theme-doc-title mt-3 text-3xl font-bold tracking-[-0.045em] sm:text-4xl">
+              Finalize the Phase 1 deliverable
+            </h3>
+            <p className="theme-doc-body mt-3 max-w-3xl text-sm leading-7">
+              The editing work is done. This screen confirms what is going into
+              the handoff document and keeps the download action front and
+              center.
+            </p>
+
+            <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(280px,0.9fr)]">
+              <div className="theme-doc-card-contrast rounded-[1.4rem] p-5">
+                <p className="theme-shell-kicker mono-label text-[0.56rem]">
+                  Deliverable preview
+                </p>
+                <h4 className="mt-4 text-3xl font-bold tracking-[-0.045em] text-[color:var(--document-contrast-ink)]">
+                  {assembly.title || projectMetadata.projectName}
+                </h4>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  <ExportKeyValue
+                    label="Project"
+                    value={projectMetadata.projectName}
+                  />
+                  <ExportKeyValue
+                    label="Customer"
+                    value={projectMetadata.customerName}
+                  />
+                  <ExportKeyValue
+                    breakWords
+                    label="Source workbook"
+                    value={projectMetadata.sourceFilename}
+                  />
+                  <ExportKeyValue
+                    label="Output"
+                    value="Phase 1 demo narrative"
+                  />
+                </div>
+              </div>
+
+              <div className="theme-doc-card-muted rounded-[1.4rem] p-5">
+                <p className="theme-doc-subtle mono-label text-[0.56rem]">
+                  Included in this handoff
+                </p>
+                <div className="mt-4 grid gap-2">
+                  <ExportPresencePill
+                    label="Assumptions"
+                    present={overview.hasAssumptions}
+                  />
+                  <ExportPresencePill
+                    label="Warnings"
+                    present={overview.hasWarnings}
+                  />
+                  <ExportPresencePill
+                    label="Traceability"
+                    present={overview.hasTraceability}
+                  />
+                  <ExportPresencePill label="Step groups" present />
+                </div>
+              </div>
             </div>
-            <span className="rounded-full border border-[#2f8f8a]/35 bg-[#2f8f8a]/12 px-3 py-1.5 text-xs font-bold text-[#d2eee7]">
-              Markdown ready
-            </span>
-          </div>
 
-          <div className="mt-5 grid gap-4 lg:grid-cols-2">
-            <ExportInfoCard title="Document details">
-              <ExportKeyValue
-                label="Title"
-                value={assembly.title || projectMetadata.projectName}
-              />
-              <ExportKeyValue
-                label="Project"
-                value={projectMetadata.projectName}
-              />
-              <ExportKeyValue
-                label="Customer"
-                value={projectMetadata.customerName}
-              />
-              <ExportKeyValue
-                breakWords
-                label="Source workbook"
-                value={projectMetadata.sourceFilename}
-              />
-            </ExportInfoCard>
+            <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+              <section className="theme-doc-card rounded-[1.4rem] p-4">
+                <p className="theme-doc-subtle mono-label text-[0.56rem]">
+                  Included requirements
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {overview.includedRequirementIds.slice(0, 12).map((id) => (
+                    <span
+                      key={id}
+                      className="theme-doc-chip-muted rounded-full px-3 py-1.5 text-xs font-bold"
+                    >
+                      {id}
+                    </span>
+                  ))}
+                  {overview.includedRequirementIds.length > 12 ? (
+                    <span className="theme-doc-chip rounded-full px-3 py-1.5 text-xs font-bold theme-doc-subtle">
+                      +{overview.includedRequirementIds.length - 12} more
+                    </span>
+                  ) : null}
+                </div>
+              </section>
 
-            <ExportInfoCard title="Included in this document">
-              <div className="grid gap-2 sm:grid-cols-2">
-                <ExportPresencePill
-                  label="Assumptions"
-                  present={overview.hasAssumptions}
-                />
-                <ExportPresencePill
-                  label="Warnings"
-                  present={overview.hasWarnings}
-                />
-                <ExportPresencePill
-                  label="Traceability"
-                  present={overview.hasTraceability}
-                />
-                <ExportPresencePill label="Step groups" present />
-              </div>
-            </ExportInfoCard>
-          </div>
-
-          <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-            <ExportInfoCard title="Included requirements">
-              <div className="flex flex-wrap gap-2">
-                {overview.includedRequirementIds.slice(0, 12).map((id) => (
-                  <span
-                    key={id}
-                    className="rounded-full border border-white/12 bg-white/[0.06] px-3 py-1.5 text-xs font-bold text-[#eefcf8]"
-                  >
-                    {id}
-                  </span>
-                ))}
-                {overview.includedRequirementIds.length > 12 ? (
-                  <span className="rounded-full border border-white/12 bg-white/[0.04] px-3 py-1.5 text-xs font-bold text-[#9fb9b2]">
-                    +{overview.includedRequirementIds.length - 12} more
-                  </span>
-                ) : null}
-              </div>
-            </ExportInfoCard>
-
-            <ExportInfoCard title="Grouped demo steps">
-              <div className="grid gap-2">
-                {overview.sectionSummaries.map((section) => (
-                  <div
-                    key={section.key}
-                    className="rounded-xl border border-white/10 bg-black/18 px-3 py-3"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-bold text-white">
-                        {section.title}
+              <section className="theme-doc-card rounded-[1.4rem] p-4">
+                <p className="theme-doc-subtle mono-label text-[0.56rem]">
+                  Section coverage
+                </p>
+                <div className="mt-3 grid gap-2">
+                  {overview.sectionSummaries.map((section) => (
+                    <div
+                      key={section.key}
+                      className="theme-doc-card-muted rounded-2xl px-3 py-3"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="theme-doc-title text-sm font-bold">
+                          {section.title}
+                        </p>
+                        <span className="theme-doc-subtle text-xs font-bold">
+                          {section.stepCount} steps
+                        </span>
+                      </div>
+                      <p className="theme-doc-subtle mt-1 text-xs">
+                        {section.requirementCount} approved requirement
+                        {section.requirementCount === 1 ? "" : "s"} grouped
+                        here.
                       </p>
-                      <span className="text-xs font-bold text-[#9fb9b2]">
-                        {section.stepCount} steps
-                      </span>
                     </div>
-                    <p className="mt-1 text-xs text-[#a9c5be]">
-                      {section.requirementCount} approved requirement
-                      {section.requirementCount === 1 ? "" : "s"} grouped here.
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </ExportInfoCard>
+                  ))}
+                </div>
+              </section>
+            </div>
           </div>
         </section>
 
-        <aside className="document-panel h-fit rounded-2xl p-5 sm:p-6">
-          <p className="mono-label text-[0.68rem] text-[#0f6f62]">Download</p>
-          <h4 className="mt-3 text-3xl font-bold tracking-[-0.04em] text-[#17211f]">
+        <aside className="premium-panel-strong h-fit rounded-[1.75rem] p-5 sm:p-6">
+          <p className="theme-shell-kicker mono-label text-[0.68rem]">
+            Download
+          </p>
+          <h4 className="theme-shell-title mt-3 text-3xl font-bold tracking-[-0.04em]">
             Ready to hand off
           </h4>
-          <p className="mt-3 text-sm leading-7 text-[#45534f]">
+          <p className="theme-shell-body mt-3 text-sm leading-7">
             Download the Markdown deliverable for the Phase 1 demo review. This
             is the completion point for the current workflow.
           </p>
 
-          <div className="mt-5 rounded-xl border border-[#17211f]/10 bg-white/70 p-4 text-sm leading-6 text-[#45534f]">
+          <div className="theme-shell-card mt-5 rounded-[1.4rem] p-4 text-sm leading-6 theme-shell-body">
             <p>
-              <span className="font-bold text-[#17211f]">Format:</span> Markdown
+              <span className="theme-shell-title font-bold">Format:</span>{" "}
+              Markdown
             </p>
             <p>
-              <span className="font-bold text-[#17211f]">Filename:</span>{" "}
+              <span className="theme-shell-title font-bold">Filename:</span>{" "}
               {createDemoScriptExportFilename(
                 assembly.title,
                 projectMetadata.projectName,
               )}
             </p>
             <p>
-              <span className="font-bold text-[#17211f]">Scope:</span> Phase 1
-              only, with consultant-reviewed content and traceability.
+              <span className="theme-shell-title font-bold">Scope:</span> Phase
+              1 only, with consultant-reviewed content and traceability.
             </p>
           </div>
 
@@ -388,27 +554,27 @@ export function DemoScriptExportPanel({
                   projectMetadata,
                 })
               }
-              className="focus-premium rounded-2xl bg-[#0f766e] px-4 py-3 text-sm font-bold text-white shadow-[0_12px_28px_rgba(0,0,0,0.22)] transition hover:-translate-y-0.5 hover:bg-[#0b5f59]"
+              className="focus-premium theme-button-primary rounded-2xl px-4 py-3 text-sm font-bold transition"
             >
               Download Markdown
             </button>
             <button
               type="button"
               onClick={onSwitchToScript}
-              className="focus-premium rounded-2xl border border-[#17211f]/10 bg-white/70 px-4 py-3 text-sm font-bold text-[#17211f] transition hover:bg-white"
+              className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-bold transition"
             >
               Back to script
             </button>
             <button
               type="button"
               onClick={onSwitchToReview}
-              className="focus-premium rounded-2xl border border-[#17211f]/10 bg-[#17211f]/4 px-4 py-3 text-sm font-bold text-[#45534f] transition hover:bg-[#17211f]/8"
+              className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-bold transition"
             >
               Back to review
             </button>
           </div>
 
-          <p className="mt-5 rounded-xl border border-dashed border-[#0f766e]/20 bg-[#0f766e]/7 px-4 py-3 text-sm leading-6 text-[#45534f]">
+          <p className="theme-shell-card-soft theme-shell-body mt-5 rounded-xl border-dashed px-4 py-3 text-sm leading-6">
             Phase 2 is optional and stays outside this handoff. Phase 1 is
             complete once this reviewed document is exported.
           </p>
@@ -535,19 +701,21 @@ function EmptyDemoScriptState({
   const emptyCopy = getDemoScriptEmptyStateCopy(emptyState);
 
   return (
-    <section className="mt-6 rounded-2xl border border-dashed border-[#0f766e]/35 bg-[#0f766e]/8 p-6">
-      <p className="mono-label text-[0.68rem] text-[#0f6f62]">{titleEyebrow}</p>
-      <h3 className="mt-3 text-3xl font-bold tracking-[-0.04em] text-[#17211f]">
+    <section className="theme-doc-card-brand mt-6 rounded-2xl border-dashed p-6">
+      <p className="theme-doc-kicker mono-label text-[0.68rem]">
+        {titleEyebrow}
+      </p>
+      <h3 className="theme-doc-title mt-3 text-3xl font-bold tracking-[-0.04em]">
         {emptyCopy.title}
       </h3>
-      <p className="mt-4 max-w-3xl leading-7 text-[#45534f]">
+      <p className="theme-doc-body mt-4 max-w-3xl leading-7">
         {emptyCopy.body}
       </p>
       <div className="mt-5 flex flex-wrap gap-3">
         <button
           type="button"
           onClick={onAction}
-          className="focus-premium rounded-2xl bg-[#0f766e] px-4 py-3 text-sm font-bold text-white shadow-[0_12px_28px_rgba(0,0,0,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0b5f59]"
+          className="focus-premium theme-button-primary rounded-2xl px-4 py-3 text-sm font-bold transition"
         >
           {actionLabel}
         </button>
@@ -555,7 +723,7 @@ function EmptyDemoScriptState({
           <button
             type="button"
             onClick={onSecondaryAction}
-            className="focus-premium rounded-2xl border border-[#17211f]/10 bg-white/70 px-4 py-3 text-sm font-bold text-[#17211f] transition hover:bg-white"
+            className="focus-premium theme-doc-button-secondary rounded-2xl px-4 py-3 text-sm font-bold transition"
           >
             {secondaryActionLabel}
           </button>
@@ -565,145 +733,28 @@ function EmptyDemoScriptState({
   );
 }
 
-function SectionOrderControls({
-  draft,
-  onDraftAction,
-  sections,
+function SectionOrderButton({
+  direction,
+  disabled,
+  onClick,
 }: {
-  draft: DemoScriptDraft;
-  onDraftAction: (action: DemoScriptDraftAction) => void;
-  sections: DemoScriptSection[];
+  direction: "up" | "down";
+  disabled: boolean;
+  onClick: () => void;
 }) {
-  if (sections.length <= 1) {
-    return null;
-  }
-
-  const currentOrder = sections.map((section) => section.key);
-
   return (
-    <section className="rounded-xl border border-[#17211f]/10 bg-white/55 p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h4 className="text-base font-bold text-[#17211f]">Section order</h4>
-          <p className="mt-2 text-sm leading-6 text-[#45534f]">
-            Reorder sections to match the walkthrough. The chosen order is
-            stored locally with the review state.
-          </p>
-        </div>
-        <p className="rounded-full border border-[#17211f]/10 bg-white/80 px-3 py-1.5 text-xs font-bold text-[#5d6b67]">
-          {draft.sectionOrder.length > 0
-            ? "Custom ordering saved"
-            : "Using the source order"}
-        </p>
-      </div>
-
-      <div className="mt-4 grid gap-2">
-        {sections.map((section, index) => (
-          <div
-            key={section.key}
-            className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#17211f]/10 bg-white/80 px-4 py-3"
-          >
-            <div>
-              <p className="text-sm font-bold text-[#17211f]">
-                {section.title}
-              </p>
-              <p className="mono-label mt-1 text-[0.56rem] text-[#6a7773]">
-                {section.sourceLabel}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() =>
-                  onDraftAction({
-                    type: "setSectionOrder",
-                    sectionOrder: moveSection(currentOrder, section.key, "up"),
-                  })
-                }
-                disabled={index === 0}
-                className="focus-premium rounded-full border border-[#17211f]/10 bg-white px-3 py-1.5 text-xs font-bold text-[#45534f] transition hover:bg-[#edf7f4] disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Move up
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  onDraftAction({
-                    type: "setSectionOrder",
-                    sectionOrder: moveSection(
-                      currentOrder,
-                      section.key,
-                      "down",
-                    ),
-                  })
-                }
-                disabled={index === sections.length - 1}
-                className="focus-premium rounded-full border border-[#17211f]/10 bg-white px-3 py-1.5 text-xs font-bold text-[#45534f] transition hover:bg-[#edf7f4] disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Move down
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="focus-premium theme-doc-button-secondary rounded-full px-3 py-1.5 text-[0.7rem] font-bold transition disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      Move {direction}
+    </button>
   );
 }
 
-function DemoScriptSectionCard({
-  draft,
-  onDraftAction,
-  section,
-}: {
-  draft: DemoScriptDraft;
-  onDraftAction: (action: DemoScriptDraftAction) => void;
-  section: DemoScriptSection;
-}) {
-  return (
-    <article className="rounded-2xl border border-[#17211f]/10 bg-white/78 p-4 shadow-[0_18px_50px_rgba(23,33,31,0.08)]">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="mono-label text-[0.6rem] text-[#0f6f62]">
-            {section.sourceLabel}
-          </p>
-          <label className="mt-2 block">
-            <span className="sr-only">Section title</span>
-            <input
-              value={resolveSectionTitle(draft, section)}
-              onChange={(event) =>
-                onDraftAction({
-                  type: "editSectionTitle",
-                  sectionKey: section.key,
-                  title: event.currentTarget.value,
-                })
-              }
-              className="focus-premium w-full rounded-xl border border-transparent bg-transparent px-0 py-0 text-2xl font-bold tracking-[-0.04em] text-[#17211f] transition focus:border-[#17211f]/10 focus:bg-white/80 focus:px-3 focus:py-2"
-            />
-          </label>
-          <p className="mt-2 text-sm leading-6 text-[#45534f]">
-            {section.subtitle}
-          </p>
-        </div>
-        <div className="rounded-full border border-[#0f766e]/20 bg-[#0f766e]/8 px-3 py-1.5 text-xs font-bold text-[#0f6f62]">
-          {section.stepCount} steps
-        </div>
-      </div>
-
-      <div className="mt-4 grid gap-4">
-        {section.steps.map((step) => (
-          <DemoScriptStepCard
-            key={step.key}
-            draft={draft}
-            onDraftAction={onDraftAction}
-            step={step}
-          />
-        ))}
-      </div>
-    </article>
-  );
-}
-
-function DemoScriptStepCard({
+function ScriptStepWorkbench({
   draft,
   onDraftAction,
   step,
@@ -713,10 +764,10 @@ function DemoScriptStepCard({
   step: DemoScriptStep;
 }) {
   return (
-    <section className="rounded-xl border border-[#17211f]/10 bg-[#fbf8ef] p-4">
+    <section className="theme-doc-card-muted mt-5 rounded-[1.5rem] p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="max-w-3xl">
-          <p className="mono-label text-[0.58rem] text-[#6a7773]">
+          <p className="theme-doc-subtle mono-label text-[0.58rem]">
             {step.groupLabel}
           </p>
           <label className="mt-2 block">
@@ -731,39 +782,23 @@ function DemoScriptStepCard({
                   note: resolveStepNote(draft, step),
                 })
               }
-              className="focus-premium w-full rounded-xl border border-transparent bg-transparent px-0 py-0 text-lg font-bold text-[#17211f] transition focus:border-[#17211f]/10 focus:bg-white/80 focus:px-3 focus:py-2"
+              className="focus-premium theme-doc-title w-full rounded-xl border border-transparent bg-transparent px-0 py-0 text-lg font-bold transition focus:border-[color:var(--document-border)] focus:bg-[color:var(--document-soft-surface)] focus:px-3 focus:py-2"
             />
           </label>
-          <p className="mt-2 text-sm leading-6 text-[#5d6b67]">
+          <p className="theme-doc-subtle mt-2 text-sm leading-6">
             {step.traceability.requirementId} · Excel row{" "}
             {step.traceability.sourceRowNumber} ·{" "}
             {step.sourceDemoStep.reviewStatus}
           </p>
         </div>
-        <div className="rounded-full border border-[#17211f]/10 bg-white/80 px-3 py-1.5 text-xs font-bold text-[#5d6b67]">
+        <div className="theme-doc-chip rounded-full px-3 py-1.5 text-xs font-bold theme-doc-subtle">
           {step.confidence.level} confidence
         </div>
       </div>
 
       <div className="mt-4 grid gap-4">
-        <div>
-          <p className="mono-label text-[0.58rem] text-[#6a7773]">
-            Current comment
-          </p>
-          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#17211f]">
-            {step.currentComment}
-          </p>
-        </div>
-        <div>
-          <p className="mono-label text-[0.58rem] text-[#6a7773]">
-            Generated source comment
-          </p>
-          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#45534f]">
-            {step.generatedComment}
-          </p>
-        </div>
         <label className="block">
-          <span className="mono-label text-[0.58rem] text-[#6a7773]">
+          <span className="theme-doc-subtle mono-label text-[0.58rem]">
             Step note
           </span>
           <textarea
@@ -776,71 +811,96 @@ function DemoScriptStepCard({
                 note: event.currentTarget.value,
               })
             }
-            placeholder="Add local prototype notes for this step."
-            className="focus-premium mt-2 min-h-20 w-full rounded-2xl border border-[#17211f]/10 bg-white/80 p-3 text-sm leading-6 text-[#17211f] placeholder:text-[#80908b]"
+            placeholder="Add the consultant note for this step."
+            className="focus-premium theme-doc-input mt-2 min-h-24 w-full rounded-2xl p-3 text-sm leading-6"
           />
         </label>
-        <div>
-          <p className="mono-label text-[0.58rem] text-[#6a7773]">
+
+        <div className="theme-doc-card rounded-[1.25rem] p-4">
+          <p className="theme-doc-subtle mono-label text-[0.58rem]">
             Demo instructions
           </p>
-          <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm leading-6 text-[#17211f]">
+          <ol className="theme-doc-title mt-3 list-decimal space-y-2 pl-5 text-sm leading-6">
             {step.instructions.map((instruction) => (
               <li key={instruction}>{instruction}</li>
             ))}
           </ol>
         </div>
-        <ScriptDetailList label="Assumptions" items={step.assumptions} />
-        <ScriptDetailList label="Warnings" items={step.warnings} />
-        <div>
-          <p className="mono-label text-[0.58rem] text-[#6a7773]">
-            Traceability
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold text-[#45534f]">
-            <TraceChip
-              label={`Requirement ${step.traceability.requirementId}`}
-            />
-            <TraceChip
-              label={`Excel row ${step.traceability.sourceRowNumber}`}
-            />
-            <TraceChip label={step.sourceDemoStep.mesModuleOrScreen} />
-          </div>
-        </div>
-        {step.sourceReferences.length > 0 ? (
-          <div>
-            <p className="mono-label text-[0.58rem] text-[#6a7773]">
-              Source references
-            </p>
-            <ul className="mt-2 grid gap-2">
-              {step.sourceReferences.map((reference) => (
-                <li
-                  key={reference.id}
-                  className="rounded-2xl border border-[#17211f]/10 bg-white/80 p-3 text-sm leading-6 text-[#45534f]"
-                >
-                  <span className="font-bold text-[#17211f]">
-                    {reference.kind}
-                  </span>
-                  :{" "}
-                  {reference.url ? (
-                    <a
-                      href={reference.url}
-                      rel="noreferrer"
-                      target="_blank"
-                      className="font-bold text-[#0f6f62] underline decoration-[#0f6f62]/25 underline-offset-4"
+
+        <details className="theme-doc-card rounded-[1.25rem] p-4">
+          <summary className="theme-doc-title cursor-pointer text-sm font-bold">
+            Evidence and context
+          </summary>
+          <div className="mt-4 grid gap-4">
+            <div>
+              <p className="theme-doc-subtle mono-label text-[0.58rem]">
+                Current comment
+              </p>
+              <p className="theme-doc-title mt-2 whitespace-pre-wrap text-sm leading-6">
+                {step.currentComment}
+              </p>
+            </div>
+            <div>
+              <p className="theme-doc-subtle mono-label text-[0.58rem]">
+                Generated source comment
+              </p>
+              <p className="theme-doc-body mt-2 whitespace-pre-wrap text-sm leading-6">
+                {step.generatedComment}
+              </p>
+            </div>
+            <ScriptDetailList label="Assumptions" items={step.assumptions} />
+            <ScriptDetailList label="Warnings" items={step.warnings} />
+            <div>
+              <p className="theme-doc-subtle mono-label text-[0.58rem]">
+                Traceability
+              </p>
+              <div className="theme-doc-body mt-2 flex flex-wrap gap-2 text-xs font-bold">
+                <TraceChip
+                  label={`Requirement ${step.traceability.requirementId}`}
+                />
+                <TraceChip
+                  label={`Excel row ${step.traceability.sourceRowNumber}`}
+                />
+                <TraceChip label={step.sourceDemoStep.mesModuleOrScreen} />
+              </div>
+            </div>
+            {step.sourceReferences.length > 0 ? (
+              <div>
+                <p className="theme-doc-subtle mono-label text-[0.58rem]">
+                  Source references
+                </p>
+                <ul className="mt-2 grid gap-2">
+                  {step.sourceReferences.map((reference) => (
+                    <li
+                      key={reference.id}
+                      className="theme-doc-card rounded-2xl p-3 text-sm leading-6 theme-doc-body"
                     >
-                      {reference.label}
-                    </a>
-                  ) : (
-                    <span className="font-bold text-[#17211f]">
-                      {reference.label}
-                    </span>
-                  )}
-                  . {reference.note}
-                </li>
-              ))}
-            </ul>
+                      <span className="theme-doc-title font-bold">
+                        {reference.kind}
+                      </span>
+                      :{" "}
+                      {reference.url ? (
+                        <a
+                          href={reference.url}
+                          rel="noreferrer"
+                          target="_blank"
+                          className="theme-doc-link font-bold underline underline-offset-4"
+                        >
+                          {reference.label}
+                        </a>
+                      ) : (
+                        <span className="theme-doc-title font-bold">
+                          {reference.label}
+                        </span>
+                      )}
+                      . {reference.note}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
-        ) : null}
+        </details>
       </div>
     </section>
   );
@@ -856,28 +916,13 @@ function ScriptSummaryCard({
   value: number | string;
 }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.045] p-4">
-      <p className="mono-label text-[0.56rem] text-[#8ea7a0]">{label}</p>
-      <p className="mt-2 text-3xl font-black tracking-[-0.05em] text-white">
+    <div className="theme-shell-card-soft rounded-xl p-4">
+      <p className="theme-shell-subtle mono-label text-[0.56rem]">{label}</p>
+      <p className="theme-shell-title mt-2 text-3xl font-black tracking-[-0.05em]">
         {value}
       </p>
-      <p className="mt-2 text-sm leading-6 text-[#a9c5be]">{helper}</p>
+      <p className="theme-shell-body mt-2 text-sm leading-6">{helper}</p>
     </div>
-  );
-}
-
-function ExportInfoCard({
-  children,
-  title,
-}: {
-  children: React.ReactNode;
-  title: string;
-}) {
-  return (
-    <section className="rounded-xl border border-white/10 bg-black/18 p-4">
-      <p className="mono-label text-[0.58rem] text-[#8ea7a0]">{title}</p>
-      <div className="mt-3 grid gap-3">{children}</div>
-    </section>
   );
 }
 
@@ -892,11 +937,11 @@ function ExportKeyValue({
 }) {
   return (
     <div>
-      <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8ea7a0]">
+      <p className="theme-doc-subtle text-xs font-bold uppercase tracking-[0.18em]">
         {label}
       </p>
       <p
-        className={`mt-1 text-sm font-semibold text-white ${
+        className={`mt-1 text-sm font-semibold text-[color:var(--document-contrast-ink)] ${
           breakWords ? "break-all" : ""
         }`}
       >
@@ -916,9 +961,7 @@ function ExportPresencePill({
   return (
     <div
       className={`rounded-full border px-3 py-2 text-xs font-bold ${
-        present
-          ? "border-[#2f8f8a]/35 bg-[#2f8f8a]/12 text-[#d2eee7]"
-          : "border-white/10 bg-white/[0.05] text-[#9fb9b2]"
+        present ? "theme-doc-chip-brand" : "theme-doc-chip-muted"
       }`}
     >
       {label}: {present ? "Included" : "None"}
@@ -968,9 +1011,7 @@ function moveSection(
 
 function TraceChip({ label }: { label: string }) {
   return (
-    <span className="rounded-full border border-[#0f766e]/20 bg-[#0f766e]/8 px-3 py-1">
-      {label}
-    </span>
+    <span className="theme-doc-chip-brand rounded-full px-3 py-1">{label}</span>
   );
 }
 
@@ -983,15 +1024,15 @@ function ScriptDetailList({
 }) {
   return (
     <div>
-      <p className="mono-label text-[0.58rem] text-[#6a7773]">{label}</p>
+      <p className="theme-doc-subtle mono-label text-[0.58rem]">{label}</p>
       {items.length > 0 ? (
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-[#45534f]">
+        <ul className="theme-doc-body mt-2 list-disc space-y-1 pl-5 text-sm leading-6">
           {items.map((item) => (
             <li key={item}>{item}</li>
           ))}
         </ul>
       ) : (
-        <p className="mt-2 text-sm leading-6 text-[#45534f]">
+        <p className="theme-doc-body mt-2 text-sm leading-6">
           No {label.toLowerCase()} recorded.
         </p>
       )}

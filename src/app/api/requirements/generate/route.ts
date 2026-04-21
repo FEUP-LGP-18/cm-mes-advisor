@@ -24,7 +24,10 @@ export async function POST(request: Request) {
   }
 
   const config = readRequirementGenerationServerConfig();
-  const provider = createRequirementGenerationProvider(config);
+  const provider = createRequirementGenerationProvider({
+    ...config,
+    mode: parsedBody.mode ?? config.mode,
+  });
   const result = await provider.generate(parsedBody.requirements);
 
   if (!result.ok) {

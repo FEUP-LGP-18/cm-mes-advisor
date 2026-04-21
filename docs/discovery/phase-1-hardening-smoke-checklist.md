@@ -2,7 +2,7 @@
 
 Use this short checklist to verify the guided Phase 1 flow without browser automation:
 
-1. Start the app and confirm the workspace opens on Step 1, `Source`, with a clear next-best-action header.
+1. Run `./start.sh` from the workspace root and confirm the workspace opens on Step 1, `Source`, with a clear next-best-action header.
 2. Confirm the committed Customer X fixture is visible, then continue to Step 2, `Generate`.
 3. Generate drafts with the recommended `Demo rows` preset and confirm the app moves to Step 3, `Review`.
 4. Review one generated requirement at a time, using `Approve and next`, `Needs review`, or `Skip row` without needing the expert table.
@@ -24,8 +24,8 @@ Visual QA gate:
 
 Real-mode extension:
 
-1. Start the local partner stack and confirm the MCP endpoint is reachable before launching the app in real mode.
-2. Configure local secrets only in `.env.local` and verify `GENERATION_MODE=real`, `MCP_SERVER_URL`, `BEDROCK_MODEL_ID`, `AWS_REGION`, and either AWS credentials or `AWS_BEARER_TOKEN_BEDROCK` are present.
+1. Configure local secrets only in `.env.local` and verify `GENERATION_MODE=real`, `MCP_SERVER_URL`, `BEDROCK_MODEL_ID`, `AWS_REGION`, and either AWS credentials or `AWS_BEARER_TOKEN_BEDROCK` are present.
+2. Run `./start.sh` from the workspace root and confirm the local partner support stack comes up before the app starts.
 3. Generate drafts for 5-10 representative demo rows and confirm the run completes without infrastructure failure.
 4. Review the returned drafts and confirm they include grounded comments, practical demo steps, and real documentation references where available.
 5. Approve at least one grounded row, continue through Script and Export, and confirm the Markdown file preserves traceability links when present.

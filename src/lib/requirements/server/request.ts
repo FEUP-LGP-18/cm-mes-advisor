@@ -1,7 +1,9 @@
+import type { RequirementGenerationRouteMode } from "../generation-api";
 import type { ParsedRequirement } from "../parser";
 
 export interface RequirementGenerationRequestValidationSuccess {
   ok: true;
+  mode?: RequirementGenerationRouteMode;
   requirements: ParsedRequirement[];
 }
 
@@ -31,6 +33,13 @@ export function parseRequirementGenerationRequestBody(
   }
 
   const requirements: ParsedRequirement[] = [];
+  const mode = readMode(value.mode);
+
+  if (value.mode !== undefined && mode === null) {
+    return invalidRequest(
+      "Request body mode must be either 'mock' or 'real' when provided.",
+    );
+  }
 
   for (let index = 0; index < value.requirements.length; index += 1) {
     const parsedRequirement = parseRequirement(
@@ -47,6 +56,7 @@ export function parseRequirementGenerationRequestBody(
 
   return {
     ok: true,
+    mode: mode ?? undefined,
     requirements,
   };
 }
@@ -153,6 +163,10 @@ function readString(value: unknown): string | null {
 
 function readFiniteNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function readMode(value: unknown): RequirementGenerationRouteMode | null {
+  return value === "mock" || value === "real" ? value : null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
