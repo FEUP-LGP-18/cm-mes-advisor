@@ -122,6 +122,10 @@ Current status:
 - `pnpm typecheck`
 - `pnpm test`
 - `pnpm build`
+- `pnpm storybook`
+- `pnpm storybook:build`
+- `pnpm test:e2e`
+- `./scripts/codex/review-ui.sh`
 - `pnpm format`
 - `pnpm format:check`
 
@@ -130,6 +134,9 @@ Current status:
 Canonical docs:
 
 - [AGENTS.md](AGENTS.md): agent instructions and coding guardrails
+- [docs/codex-frontend-setup-macos.md](docs/codex-frontend-setup-macos.md): repo-specific Codex setup on macOS
+- [docs/frontend-ui-quality-workflow.md](docs/frontend-ui-quality-workflow.md): frontend execution and verification playbook
+- [docs/codex-figma-mcp.md](docs/codex-figma-mcp.md): Figma MCP readiness and manual auth steps
 - [docs/discovery/project-context.md](docs/discovery/project-context.md): current-state product and repo context
 - [docs/phase-1-epic-plan.md](docs/phase-1-epic-plan.md): current roadmap and status
 - [`../start.sh`](../start.sh): root local startup orchestrator for the full local stack
@@ -146,6 +153,7 @@ Design references:
 
 - [docs/design/agent-ui-canon.md](docs/design/agent-ui-canon.md)
 - [docs/design/phase1-ui-audit-2026-04-21.md](docs/design/phase1-ui-audit-2026-04-21.md)
+- [docs/design/phase1-design-system-guidelines.md](docs/design/phase1-design-system-guidelines.md)
 
 ## Status
 

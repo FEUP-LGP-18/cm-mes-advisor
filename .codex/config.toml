@@ -1,0 +1,11 @@
+profile = "frontend"
+project_doc_max_bytes = 65536
+
+[features]
+apps = true
+
+[profiles.frontend]
+personality = "friendly"
+plan_mode_reasoning_effort = "high"
+tools_view_image = true
+web_search = "live"

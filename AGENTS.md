@@ -2,86 +2,129 @@
 
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+This version has breaking changes. Read the relevant guide in `node_modules/next/dist/docs/` before writing framework-specific code and heed deprecation notices.
 
 <!-- END:nextjs-agent-rules -->
 
-# AI Agent Instructions
+# CM MES Demo Advisor Agent Guide
 
-Start with these files in order:
+Use this file as the repo-level source of truth for Codex work in `cm-mes-advisor/`.
 
-- `README.md`
-- `docs/discovery/project-context.md`
-- `docs/phase-1-epic-plan.md`
-- `docs/discovery/rui-answers-2026-04-14.md`
-- `docs/discovery/ui-ux-decisions.md`
+## Repo Layout
 
-For frontend or user-facing workflow changes, also read:
-
-- `docs/design/agent-ui-canon.md`
-- `docs/design/phase1-ui-audit-2026-04-21.md`
+- `src/app/`: Next.js App Router entrypoints, routed Phase 1 screens, shared app shell, and API routes.
+- `src/components/phase1/`: consultant-facing Phase 1 surfaces and workflow components.
+- `src/lib/phase1/`: project registry, routing, workflow state, and shared UI fixture builders.
+- `src/lib/requirements/`: parsing, review state, generation, export, and server boundaries.
+- `fixtures/`: committed sample workbook used for onboarding and deterministic local QA.
+- `docs/design/`: product UI canon, audits, and design-system guidance.
+- `docs/discovery/`: current product context, scope notes, and partner validation history.
+- `.agents/skills/`: repo-scoped Codex skills for premium UI, flow design, visual QA, and Figma-informed work.
+- `.codex/`: repo-scoped Codex config only. Do not commit secrets or guessed local-environment schemas here.
+- `scripts/codex/`: stable scripts for setup, dev, Storybook, linting, tests, Playwright, and full UI review.
+- `tests/e2e/`: Playwright smoke and screenshot-oriented visual QA coverage.
 
 ## Product Truth
 
-Treat the current product as a project-based, routed Phase 1 workspace:
+- Treat this as a consultant-facing Phase 1 workspace, not a marketing site or executive dashboard.
+- The project unit is the `project`, not one oversized workbook page.
+- Preserve the routed flow: `source -> generate -> review -> script -> export`.
+- Keep Phase 1 Excel-first and human-reviewed.
+- Do not imply that Phase 2 Master Data generation, broad document ingestion, or a LibreChat shell is part of the default shipped product.
+- Keep Bedrock, AWS, MCP, MES, and partner credentials server-side only.
 
-- home creates or reopens local projects
-- each project follows `source -> generate -> review -> script -> export`
-- the committed fixture is only the default starting point, not the whole product
-- consultant review is required before Phase 1 output is final
+## Commands
 
-Keep the MVP Excel-first. Phase 1 starts from a customer requirements Excel file, supports human review, generates requirement-level MES comments, generates demo guidance, and exports a separate Markdown demo document.
+Run commands from `/Users/mahmoudali/Documents/LGP project dicovery/cm-mes-advisor`.
 
-Do not implement Phase 2 Master Data generation unless the user explicitly requests it. Do not build the product directly on top of LibreChat; treat LibreChat/MCP notes as context and support material only.
+- `pnpm dev`: repo-local Next.js dev server for frontend work.
+- `../start.sh`: full local stack startup when the archived partner support stack is needed.
+- `pnpm lint`: ESLint.
+- `pnpm typecheck`: TypeScript no-emit typecheck.
+- `pnpm test`: Vitest unit and surface tests.
+- `pnpm build`: production build.
+- `pnpm storybook`: Storybook dev server.
+- `pnpm storybook:build`: Storybook static build.
+- `pnpm test:e2e`: Playwright smoke and visual QA flow.
+- `./scripts/codex/review-ui.sh`: full frontend quality sequence.
 
-Keep AI credentials, Bedrock access, MCP access, MES credentials, and all partner secrets server-side only. Never expose them in browser code, logs, Markdown, exported documents, fixtures, or commits.
+## Frontend Workflow
 
-Real-mode generation exists, but external partner credential access is still the live blocker. Do not describe it as fully validated unless the repo and validation notes change.
+- Classify every user-visible task before editing: `product workspace`, `wizard/form`, `settings/admin`, `landing/marketing`, or `empty/onboarding`.
+- State the user job and dominant action before substantial UI work.
+- For major UI work, write these before implementation:
+  - `Visual thesis`
+  - `Content plan`
+  - `Interaction thesis`
+- Start with composition, hierarchy, and workflow clarity before local component or styling tweaks.
+- Prefer one coherent surface-level pass over scattered micro-tweaks.
+- Reuse existing Phase 1 shell patterns, tokens, and shared surface classes before creating new primitives.
+- Use repo skills when they fit:
+  - `$app-flow-architect` before new flows or major workflow changes
+  - `$frontend-premium-ui` for premium redesigns, new screens, and visually led product work
+  - `$mes-product-ui` for this repo’s product-specific consultant workflow surfaces
+  - `$figma-implementation-rules` when coding from Figma or Figma MCP context
+  - `$playwright-visual-qa` before signoff on rendering, layout, or responsive changes
 
-Preserve human-in-the-loop review for generated comments and demo guidance.
+## UI Hard Rules
 
-## Repo Orientation
+- Default to calm, utility-first product surfaces.
+- Start with composition, not components.
+- Prefer one strong visual idea per section.
+- Default to cardless layouts unless the card itself is the interaction or grouping primitive.
+- Avoid dashboard-card mosaics unless the product truly is a dashboard.
+- Favor typography, spacing, hierarchy, and calm surfaces over decorative effects.
+- Use few colors and one clear accent by default.
+- Avoid decorative gradients or hero treatment on routine product UI unless they solve a real UX problem.
+- Reuse existing design tokens, CSS variables, and shared components before creating new ones.
+- Do not invent ad hoc colors, shadows, radii, spacing, or motion curves.
+- Keep copy operational and scannable on product screens. If a line sounds like marketing copy, rewrite it.
+- Every important screen needs appropriate empty, loading, error, and overflow states.
+- Mobile responsiveness is required, not optional.
+- Preserve or improve keyboard/focus behavior for dialogs, menus, tabs, and similar controls.
+- Treat shell-first layouts, nav-first mobile ordering on task-heavy screens, and repeated guidance chrome as blocking UX issues.
 
-- `src/app/projects/[projectId]/` contains the routed Phase 1 steps.
-- `src/components/phase1/` contains the project shell and step orchestration.
-- `src/lib/phase1/` contains project registry and workflow helpers.
-- `src/lib/requirements/` contains parsing, review state, generation, export, and server integration boundaries.
-- `/api/requirements/generate` is the server generation route boundary.
+## Do Not
 
-## Documentation Maintenance
+- Do not redesign the product around a new visual language when the existing system already supports the task.
+- Do not create a second parallel design system.
+- Do not add bloated abstraction layers or component dumps “for future flexibility.”
+- Do not commit secrets, `.env` files, generated exports, uploads, local data, or raw partner artifacts.
+- Do not describe real-mode partner workflows as validated unless the validation docs and repo state support that claim.
+- Do not call meaningful UI work polished, production-ready, or complete without rendered evidence.
 
-If you change product behavior, workflow, setup, scope boundaries, or teammate onboarding, update the canonical docs in the same PR when relevant:
+## Done Means
 
-- `README.md`
-- `AGENTS.md`
-- `docs/discovery/project-context.md`
-- `docs/phase-1-epic-plan.md`
+A frontend task is done only when all of the following are true:
 
-For local startup, prefer the root `../start.sh` entrypoint before falling back to manual `pnpm` or Docker commands. It is the canonical teammate and agent startup path for this workspace and always starts the full local stack.
+- The requested surface or flow is implemented coherently, not as a pile of disconnected tweaks.
+- Existing product truth, routed workflow, and scope boundaries still read honestly.
+- Shared tokens and components were reused where possible, and any new surface styles are documented or obviously justified.
+- Relevant empty, loading, error, and overflow states are covered or explicitly called out as not in scope.
+- Mobile layout and the dominant action remain usable.
+- Docs and agent guidance were updated if workflow, setup, or UI expectations changed.
+- Verification evidence exists.
 
-## Frontend Done Criteria
+## Verification Sequence
 
-- Treat this as a consultant-facing product UI, not a marketing site or fake executive dashboard.
-- For UI changes, classify the surface first: `product workspace`, `wizard/form`, `settings/admin`, `landing/marketing`, or `empty/onboarding`.
-- For major UI work, choose the layout pattern before local styling decisions.
-- Product surfaces must use utility copy, clear status/action hierarchy, and restrained visual treatment.
-- Prefer table-detail, queue-detail, editor-detail, or progress-rail layouts over dashboard-card mosaics.
-- Phase 1 must feel complete without forcing Phase 2 as the next required step.
-- Do not imply broader document ingestion or Phase 2 capability beyond the confirmed MVP scope.
-- Before calling material UI work done, compare the requested outcome to the rendered result.
-- Treat shell-first layouts as UX failures when the workflow chrome outranks the actual task.
-- Treat conflicting step messaging or next-action language as a blocking UX issue.
-- On mobile task-heavy screens, keep the current task ahead of navigation chrome.
-- Do not repeat the same guidance across the page title, intro copy, and support cards.
-- Material UI work is `NEEDS WORK` until desktop, mobile, and the key interaction for that surface are verified.
-- Check relevant empty, loading, error, and overflow states before signoff.
-- Do not describe material UI work as polished, ready, or production-ready without browser evidence.
+For material frontend work, run this sequence in order:
 
-Before finalizing changes, run:
+1. `pnpm lint`
+2. `pnpm typecheck`
+3. `pnpm test`
+4. `pnpm build`
+5. `pnpm storybook:build` when shared UI surfaces or stories changed
+6. `pnpm test:e2e` for rendering, layout, flow, or responsiveness changes
+7. Desktop responsive/visual check
+8. Mobile responsive/visual check
+9. Screenshot or browser inspection pass against the requested outcome
 
-```bash
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm build
-```
+When a dev server is available, prefer browser verification over code inspection alone.
+
+## PR And Review Expectations
+
+- UI PRs must include screenshots or an explicit note explaining why screenshots are not applicable.
+- Call out desktop and mobile verification explicitly.
+- Mention whether `pnpm test:e2e` and `./scripts/codex/review-ui.sh` were run.
+- Review findings should prioritize behavior regressions, UX regressions, missing states, accessibility regressions, and gaps in verification before style commentary.
+- If setup, workflow, or onboarding changed, update the relevant docs in the same PR.

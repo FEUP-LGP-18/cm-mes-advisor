@@ -5,7 +5,7 @@ on:
 
 jobs:
   checks:
-    name: Install, lint, typecheck, test, and build
+    name: Install, lint, typecheck, test, build, and build Storybook
     runs-on: ubuntu-latest
 
     steps:
@@ -34,3 +34,41 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Build Storybook
+        run: pnpm storybook:build
+
+  ui-smoke:
+    name: Playwright UI smoke
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run Playwright smoke checks
+        run: pnpm test:e2e
+
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore

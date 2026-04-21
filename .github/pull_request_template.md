@@ -1,6 +1,8 @@
 ## Summary
 
 - What changed:
+- User job and dominant action for any UI work:
+- Visual thesis / content plan / interaction thesis for major UI work:
 
 ## Testing
 
@@ -8,10 +10,20 @@
 - [ ] `pnpm typecheck`
 - [ ] `pnpm test`
 - [ ] `pnpm build`
+- [ ] `pnpm storybook:build`
+- [ ] `pnpm test:e2e`
+- [ ] `./scripts/codex/review-ui.sh`
 
 ## Screenshots
 
 Add screenshots for UI changes, or write `Not applicable`.
+
+## UI Verification
+
+- [ ] Desktop checked
+- [ ] Mobile checked
+- [ ] Critical interaction path checked
+- [ ] Empty / loading / error / overflow states checked or explicitly not applicable
 
 ## Scope And Secret Checklist
 
