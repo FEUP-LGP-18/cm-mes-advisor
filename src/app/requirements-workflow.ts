@@ -1,6 +1,7 @@
 export {
   getAllowedWorkflowStep,
   getNextAction,
+  getLegacyPhase1StepRedirectPath,
   getPhase1StepPath,
   getRecommendedWorkflowStep,
   getWorkflowProgress,

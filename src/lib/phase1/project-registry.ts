@@ -6,25 +6,34 @@ import {
 } from "@/lib/requirements/review";
 import {
   parseRequirementsReviewState,
+  CUSTOMER_X_REVIEW_STORAGE_KEY,
   type StorageLike,
 } from "@/lib/requirements/review-storage";
 import type { RequirementsSourceMetadata } from "@/lib/requirements/source";
 import {
+  getRequirementsWorkspaceStorageKey,
   createRequirementsWorkspaceState,
   loadRequirementsWorkspaceState,
+  REQUIREMENTS_WORKSPACE_ACTIVE_SOURCE_STORAGE_KEY,
   type RequirementsWorkspaceState,
 } from "@/lib/requirements/workspace-state";
 import {
   getRecommendedWorkflowStep,
+  type LegacyPhase1WorkflowStep,
   type Phase1WorkflowSnapshot,
   type Phase1WorkflowStep,
+  resolveLegacyPhase1WorkflowStep,
 } from "./workflow";
 
 export const PHASE1_PROJECT_REGISTRY_STORAGE_KEY =
+  "cm-mes-advisor:phase1-project-registry:v3";
+export const LEGACY_PHASE1_PROJECT_REGISTRY_STORAGE_KEY =
+  "cm-mes-advisor:phase1-project-registry:v2";
+const EARLIER_PHASE1_PROJECT_REGISTRY_STORAGE_KEY =
   "cm-mes-advisor:phase1-project-registry:v1";
 
 export interface Phase1ProjectRecord {
-  version: 1;
+  version: 3;
   projectId: string;
   projectName: string;
   customerName: string;
@@ -42,7 +51,7 @@ export interface Phase1ProjectSnapshot extends Phase1WorkflowSnapshot {
 }
 
 export interface Phase1ProjectRegistry {
-  version: 1;
+  version: 3;
   activeProjectId: string | null;
   projects: Phase1ProjectRecord[];
 }
@@ -58,7 +67,7 @@ export function createPhase1ProjectRegistry(
   activeProjectId: string | null = projects[0]?.projectId ?? null,
 ): Phase1ProjectRegistry {
   return {
-    version: 1,
+    version: 3,
     activeProjectId,
     projects: sortProjects(projects),
   };
@@ -68,30 +77,54 @@ export function loadPhase1ProjectRegistry(
   storage: StorageLike,
   fallbackWorkspaceState: RequirementsWorkspaceState,
 ): Phase1ProjectRegistry {
-  let rawRegistry: string | null;
-
   try {
-    rawRegistry = storage.getItem(PHASE1_PROJECT_REGISTRY_STORAGE_KEY);
-  } catch {
-    return createMigratedProjectRegistry(storage, fallbackWorkspaceState);
-  }
+    const currentRawRegistry = storage.getItem(PHASE1_PROJECT_REGISTRY_STORAGE_KEY);
 
-  if (!rawRegistry) {
-    return createMigratedProjectRegistry(storage, fallbackWorkspaceState);
-  }
+    if (currentRawRegistry) {
+      return normalizeProjectRegistry(
+        JSON.parse(currentRawRegistry),
+        fallbackWorkspaceState,
+      );
+    }
 
-  try {
-    const parsed = JSON.parse(rawRegistry);
-    const normalized = normalizeProjectRegistry(parsed, fallbackWorkspaceState);
+    const legacyRawRegistry = storage.getItem(
+      LEGACY_PHASE1_PROJECT_REGISTRY_STORAGE_KEY,
+    );
 
-    if (normalized.projects.length > 0) {
-      return normalized;
+    if (legacyRawRegistry) {
+      const normalized = normalizeProjectRegistry(
+        JSON.parse(legacyRawRegistry),
+        fallbackWorkspaceState,
+      );
+
+      if (normalized.projects.length > 0) {
+        savePhase1ProjectRegistry(storage, normalized);
+        return normalized;
+      }
+    }
+
+    const earlierLegacyRawRegistry = storage.getItem(
+      EARLIER_PHASE1_PROJECT_REGISTRY_STORAGE_KEY,
+    );
+
+    if (earlierLegacyRawRegistry) {
+      const normalized = normalizeProjectRegistry(
+        JSON.parse(earlierLegacyRawRegistry),
+        fallbackWorkspaceState,
+      );
+
+      if (normalized.projects.length > 0) {
+        savePhase1ProjectRegistry(storage, normalized);
+        return normalized;
+      }
     }
   } catch {
-    // Fall through to migration.
+    return createMigratedProjectRegistry(storage, fallbackWorkspaceState);
   }
 
-  return createMigratedProjectRegistry(storage, fallbackWorkspaceState);
+  return hasPersistedWorkspaceState(storage, fallbackWorkspaceState)
+    ? createMigratedProjectRegistry(storage, fallbackWorkspaceState)
+    : createPhase1ProjectRegistry();
 }
 
 export function savePhase1ProjectRegistry(
@@ -131,7 +164,7 @@ export function upsertPhase1Project(
   nextProjects.push(project);
 
   return {
-    version: 1,
+    version: 3,
     activeProjectId: project.projectId,
     projects: sortProjects(nextProjects),
   };
@@ -158,20 +191,16 @@ export function createPhase1ProjectRecordFromWorkspaceState(
 ): Phase1ProjectRecord {
   const createdAt =
     options?.createdAt ?? workspaceState.source.uploadedAt ?? nowIso();
-  const snapshotWithoutScriptVisit = summarizePhase1Workspace(
-    workspaceState,
-    false,
-  );
   const currentStep =
     options?.currentStep ??
-    getRecommendedWorkflowStep(snapshotWithoutScriptVisit);
+    getRecommendedWorkflowStep(summarizePhase1Workspace(workspaceState, false));
   const snapshot = summarizePhase1Workspace(
     workspaceState,
     currentStep === "script" || currentStep === "export",
   );
 
   return {
-    version: 1,
+    version: 3,
     projectId:
       options?.projectId ??
       createStablePhase1ProjectId(workspaceState.reviewState.project.projectId),
@@ -356,13 +385,44 @@ function createMigratedProjectRegistry(
   return registry;
 }
 
+function hasPersistedWorkspaceState(
+  storage: StorageLike,
+  fallbackWorkspaceState: RequirementsWorkspaceState,
+): boolean {
+  try {
+    const activeSourceId = storage.getItem(
+      REQUIREMENTS_WORKSPACE_ACTIVE_SOURCE_STORAGE_KEY,
+    );
+
+    if (
+      typeof activeSourceId === "string" &&
+      activeSourceId.trim().length > 0 &&
+      storage.getItem(getRequirementsWorkspaceStorageKey(activeSourceId))
+    ) {
+      return true;
+    }
+
+    if (
+      storage.getItem(
+        getRequirementsWorkspaceStorageKey(fallbackWorkspaceState.source.sourceId),
+      )
+    ) {
+      return true;
+    }
+
+    return storage.getItem(CUSTOMER_X_REVIEW_STORAGE_KEY) !== null;
+  } catch {
+    return false;
+  }
+}
+
 function normalizeProjectRegistry(
   value: unknown,
   fallbackWorkspaceState: RequirementsWorkspaceState,
 ): Phase1ProjectRegistry {
   if (
     !isRecord(value) ||
-    value.version !== 1 ||
+    (value.version !== 1 && value.version !== 2 && value.version !== 3) ||
     !Array.isArray(value.projects)
   ) {
     return createPhase1ProjectRegistry();
@@ -385,7 +445,10 @@ function normalizeProjectRecord(
   value: unknown,
   fallbackWorkspaceState: RequirementsWorkspaceState,
 ): Phase1ProjectRecord | null {
-  if (!isRecord(value) || value.version !== 1) {
+  if (
+    !isRecord(value) ||
+    (value.version !== 1 && value.version !== 2 && value.version !== 3)
+  ) {
     return null;
   }
 
@@ -398,11 +461,19 @@ function normalizeProjectRecord(
     return null;
   }
 
-  const currentStep = isWorkflowStep(value.currentStep)
-    ? value.currentStep
-    : getRecommendedWorkflowStep(
-        summarizePhase1Workspace(workspaceState, false),
-      );
+  const snapshotWithoutScriptVisit = summarizePhase1Workspace(
+    workspaceState,
+    false,
+  );
+  const normalizedSnapshot = normalizeWorkflowSnapshot(
+    value.snapshot,
+    snapshotWithoutScriptVisit,
+  );
+  const currentStep = normalizeWorkflowStep(
+    value.currentStep,
+    getRecommendedWorkflowStep(snapshotWithoutScriptVisit),
+    normalizedSnapshot,
+  );
 
   return createPhase1ProjectRecordFromWorkspaceState(workspaceState, {
     createdAt: typeof value.createdAt === "string" ? value.createdAt : nowIso(),
@@ -415,6 +486,22 @@ function normalizeProjectRecord(
           ),
     updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : nowIso(),
   });
+}
+
+function normalizeWorkflowStep(
+  value: unknown,
+  fallbackStep: Phase1WorkflowStep,
+  snapshot: Phase1WorkflowSnapshot,
+): Phase1WorkflowStep {
+  if (isWorkflowStep(value)) {
+    return value;
+  }
+
+  if (isLegacyWorkflowStep(value) || isMergedWorkflowStep(value)) {
+    return resolveLegacyPhase1WorkflowStep(value, snapshot);
+  }
+
+  return fallbackStep;
 }
 
 function normalizeWorkspaceState(
@@ -443,6 +530,58 @@ function normalizeWorkspaceState(
       isRecord(value.reviewState) ? JSON.stringify(value.reviewState) : null,
       normalized.reviewState,
     ),
+  };
+}
+
+function normalizeWorkflowSnapshot(
+  value: unknown,
+  fallbackSnapshot: Phase1WorkflowSnapshot,
+): Phase1WorkflowSnapshot {
+  if (!isRecord(value)) {
+    return fallbackSnapshot;
+  }
+
+  return {
+    sourceRowCount:
+      typeof value.sourceRowCount === "number"
+        ? value.sourceRowCount
+        : fallbackSnapshot.sourceRowCount,
+    demoCount:
+      typeof value.demoCount === "number"
+        ? value.demoCount
+        : fallbackSnapshot.demoCount,
+    mvpCount:
+      typeof value.mvpCount === "number"
+        ? value.mvpCount
+        : fallbackSnapshot.mvpCount,
+    generatedCount:
+      typeof value.generatedCount === "number"
+        ? value.generatedCount
+        : fallbackSnapshot.generatedCount,
+    generatedReviewableCount:
+      typeof value.generatedReviewableCount === "number"
+        ? value.generatedReviewableCount
+        : fallbackSnapshot.generatedReviewableCount,
+    approvedCount:
+      typeof value.approvedCount === "number"
+        ? value.approvedCount
+        : fallbackSnapshot.approvedCount,
+    approvedStepCount:
+      typeof value.approvedStepCount === "number"
+        ? value.approvedStepCount
+        : fallbackSnapshot.approvedStepCount,
+    selectedCount:
+      typeof value.selectedCount === "number"
+        ? value.selectedCount
+        : fallbackSnapshot.selectedCount,
+    scriptVisited:
+      typeof value.scriptVisited === "boolean"
+        ? value.scriptVisited
+        : fallbackSnapshot.scriptVisited,
+    exportReady:
+      typeof value.exportReady === "boolean"
+        ? value.exportReady
+        : fallbackSnapshot.exportReady,
   };
 }
 
@@ -574,4 +713,20 @@ function isWorkflowStep(value: unknown): value is Phase1WorkflowStep {
     value === "script" ||
     value === "export"
   );
+}
+
+function isLegacyWorkflowStep(value: unknown): value is LegacyPhase1WorkflowStep {
+  return (
+    value === "source" ||
+    value === "generate" ||
+    value === "review" ||
+    value === "script" ||
+    value === "export"
+  );
+}
+
+function isMergedWorkflowStep(
+  value: unknown,
+): value is Extract<LegacyPhase1WorkflowStep, "setup" | "handoff"> {
+  return value === "setup" || value === "handoff";
 }

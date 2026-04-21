@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type {
   DemoScriptAssembly,
   DemoScriptDraft,
@@ -18,12 +18,17 @@ interface DemoScriptEditingPanelProps {
   assembly: DemoScriptAssembly;
   draft: DemoScriptDraft;
   onDraftAction: (action: DemoScriptDraftAction) => void;
+  onSwitchToExport?: () => void;
   onSwitchToReview: () => void;
+  exportReady?: boolean;
+  pendingReviewCount?: number;
   projectMetadata: ReviewProjectMetadata;
 }
 
 interface DemoScriptExportPanelProps {
   assembly: DemoScriptAssembly;
+  exportReady?: boolean;
+  pendingReviewCount?: number;
   onSwitchToReview: () => void;
   onSwitchToScript: () => void;
   projectMetadata: ReviewProjectMetadata;
@@ -46,9 +51,16 @@ export default function DemoScriptEditingPanel({
   assembly,
   draft,
   onDraftAction,
+  onSwitchToExport,
   onSwitchToReview,
+  exportReady = !assembly.emptyState,
+  pendingReviewCount = 0,
   projectMetadata,
 }: DemoScriptEditingPanelProps) {
+  const overview = buildDemoScriptExportOverview(assembly);
+  const blockerCopy = assembly.emptyState
+    ? getDemoScriptEmptyStateCopy(assembly.emptyState)
+    : null;
   const [selectedSectionKey, setSelectedSectionKey] = useState<string | null>(
     assembly.sections[0]?.key ?? null,
   );
@@ -56,10 +68,32 @@ export default function DemoScriptEditingPanel({
     assembly.sections[0]?.steps[0]?.key ?? null,
   );
 
+  useEffect(() => {
+    if (
+      selectedSectionKey &&
+      assembly.sections.some((section) => section.key === selectedSectionKey)
+    ) {
+      return;
+    }
+
+    setSelectedSectionKey(assembly.sections[0]?.key ?? null);
+  }, [assembly.sections, selectedSectionKey]);
+
   const selectedSection =
     assembly.sections.find((section) => section.key === selectedSectionKey) ??
     assembly.sections[0] ??
     null;
+
+  useEffect(() => {
+    if (
+      selectedStepKey &&
+      selectedSection?.steps.some((step) => step.key === selectedStepKey)
+    ) {
+      return;
+    }
+
+    setSelectedStepKey(selectedSection?.steps[0]?.key ?? null);
+  }, [selectedSection, selectedStepKey]);
 
   const selectedStep =
     selectedSection?.steps.find((step) => step.key === selectedStepKey) ??
@@ -67,102 +101,105 @@ export default function DemoScriptEditingPanel({
     null;
 
   return (
-    <section className="grid min-w-0 gap-5">
-      <div className="document-panel overflow-hidden rounded-[1.5rem] p-4 sm:p-5">
-        <div className="flex flex-col gap-4 border-b border-[color:var(--document-border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0 max-w-4xl flex-1">
-            <p className="theme-doc-kicker mono-label text-[0.68rem]">
-              Script editor
-            </p>
-            <div className="mt-2 grid gap-3 lg:grid-cols-[minmax(0,1fr)_240px]">
-              <label className="block">
-                <span className="theme-doc-subtle mono-label text-[0.58rem]">
-                  Script title
+    <section className="phase-document-workspace">
+      <aside className="phase-document-sidebar">
+        <div className="phase-document-sidebar-scroll">
+          <div className="grid gap-4">
+            <section className="phase-sidebar-panel">
+              <div className="phase-rail-header">
+                <div>
+                  <p className="phase-overline">Script</p>
+                  <h3 className="phase-rail-title">
+                    {exportReady
+                      ? "Narrative is ready for export"
+                      : "Keep shaping the handoff"}
+                  </h3>
+                </div>
+                <span className="phase-count-pill">
+                  {assembly.approvedRequirementCount} approved
                 </span>
-                <input
-                  value={draft.title}
-                  onChange={(event) =>
-                    onDraftAction({
-                      type: "renameTitle",
-                      title: event.currentTarget.value,
-                    })
-                  }
-                  className="focus-premium theme-doc-input mt-2 w-full rounded-2xl px-4 py-3 text-lg font-bold transition sm:text-[1.45rem]"
-                />
-              </label>
-
-              <div className="theme-doc-card rounded-[1.15rem] px-4 py-3 text-sm leading-6 theme-doc-body">
-                <p className="theme-doc-subtle mono-label text-[0.58rem]">
-                  Ready for handoff
-                </p>
-                <p className="mt-2">
-                  <span className="theme-doc-title font-bold">
-                    {assembly.approvedRequirementCount}
-                  </span>{" "}
-                  approved rows across{" "}
-                  <span className="theme-doc-title font-bold">
-                    {assembly.sections.length}
-                  </span>{" "}
-                  section{assembly.sections.length === 1 ? "" : "s"}.
-                </p>
-                <p className="mt-2 break-all">
-                  Source:{" "}
-                  <span className="theme-doc-title font-bold">
-                    {projectMetadata.sourceFilename}
-                  </span>
-                </p>
               </div>
-            </div>
-            <p className="theme-doc-body mt-2 max-w-3xl text-sm leading-6">
-              Shape the consultant-facing narrative, then keep the editing pass
-              focused on clarity, sequence, and traceability.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onSwitchToReview}
-            className="focus-premium theme-doc-button-secondary rounded-full px-4 py-2 text-sm font-bold transition"
-          >
-            Back to review
-          </button>
-        </div>
 
-        {assembly.emptyState ? (
-          <EmptyDemoScriptState
-            actionLabel="Return to review"
-            emptyState={assembly.emptyState}
-            onAction={onSwitchToReview}
-            titleEyebrow="Script blocked"
-          />
-        ) : (
-          <div
-            className={`mt-6 grid gap-5 ${
-              assembly.sections.length > 1
-                ? "xl:grid-cols-[220px_minmax(0,1fr)]"
-                : ""
-            }`}
-          >
-            {assembly.sections.length > 1 ? (
-              <aside className="order-2 rounded-[1.25rem] theme-doc-card-muted p-3 xl:order-1">
-                <div className="border-b border-[color:var(--document-border)] pb-3">
-                  <p className="theme-doc-subtle mono-label text-[0.58rem]">
-                    Section outline
-                  </p>
-                  <p className="theme-doc-body mt-2 text-sm leading-6">
-                    Choose the section, then get back to the document.
-                  </p>
+              {blockerCopy ? (
+                <div className="phase-feedback phase-feedback-error">
+                  <strong>{blockerCopy.title}</strong> {blockerCopy.body}
+                </div>
+              ) : null}
+
+              {pendingReviewCount > 0 ? (
+                <div className="phase-feedback">
+                  {pendingReviewCount} generated row
+                  {pendingReviewCount === 1 ? "" : "s"} still need consultant
+                  review before the handoff is fully exportable.
+                </div>
+              ) : null}
+
+              <div className="phase-status-list">
+                <DocumentChecklistItem
+                  label="Approved rows"
+                  ready={assembly.approvedRequirementCount > 0}
+                  value={`${assembly.approvedRequirementCount} confirmed`}
+                />
+                <DocumentChecklistItem
+                  label="Sections"
+                  ready={overview.sectionSummaries.length > 0}
+                  value={`${overview.sectionSummaries.length} assembled`}
+                />
+                <DocumentChecklistItem
+                  label="Traceability"
+                  ready={overview.hasTraceability}
+                  value={
+                    overview.hasTraceability
+                      ? "References included"
+                      : "No references yet"
+                  }
+                />
+                <DocumentChecklistItem
+                  label="Export path"
+                  ready={exportReady}
+                  value={exportReady ? "Ready now" : "Still blocked"}
+                />
+              </div>
+
+              <div className="phase-rail-stack">
+                {onSwitchToExport ? (
+                  <button
+                    type="button"
+                    disabled={!exportReady}
+                    onClick={onSwitchToExport}
+                    className="focus-premium theme-button-primary rounded-2xl px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Continue to export
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={onSwitchToReview}
+                  className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-semibold transition"
+                >
+                  Back to review
+                </button>
+              </div>
+            </section>
+
+            {!assembly.emptyState && assembly.sections.length > 0 ? (
+              <section className="phase-sidebar-panel">
+                <div className="phase-sidebar-copy">
+                  <p className="phase-overline">Outline</p>
+                  <h3 className="phase-rail-title">Section order and focus</h3>
                 </div>
 
-                <div className="mt-3 grid gap-2">
+                <div className="phase-sidebar-list">
                   {assembly.sections.map((section, index) => {
                     const isActive = section.key === selectedSection?.key;
+
                     return (
                       <div
                         key={section.key}
-                        className={`rounded-[1rem] border p-2.5 transition ${
+                        className={`rounded-[1rem] border p-3 transition ${
                           isActive
-                            ? "theme-doc-card theme-doc-title"
-                            : "theme-doc-card-muted theme-doc-body"
+                            ? "theme-doc-card"
+                            : "theme-doc-card-muted"
                         }`}
                       >
                         <button
@@ -173,7 +210,7 @@ export default function DemoScriptEditingPanel({
                           }}
                           className="focus-premium block w-full text-left"
                         >
-                          <p className="text-sm font-bold">
+                          <p className="text-sm font-bold theme-doc-title">
                             {resolveSectionTitle(draft, section)}
                           </p>
                           <p className="theme-doc-subtle mt-1 text-xs">
@@ -181,7 +218,7 @@ export default function DemoScriptEditingPanel({
                           </p>
                         </button>
 
-                        <div className="mt-2 flex gap-2">
+                        <div className="phase-section-order-controls mt-3">
                           <SectionOrderButton
                             direction="up"
                             disabled={index === 0}
@@ -215,82 +252,162 @@ export default function DemoScriptEditingPanel({
                     );
                   })}
                 </div>
-              </aside>
+              </section>
             ) : null}
 
-            <div className="order-1 grid gap-4 xl:order-2">
-              {selectedSection ? (
-                <article className="theme-doc-card rounded-[1.75rem] p-4 sm:p-5">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="theme-doc-kicker mono-label text-[0.58rem]">
-                        {selectedSection.sourceLabel}
-                      </p>
-                      <label className="mt-2 block">
-                        <span className="sr-only">Section title</span>
-                        <input
-                          value={resolveSectionTitle(draft, selectedSection)}
-                          onChange={(event) =>
-                            onDraftAction({
-                              type: "editSectionTitle",
-                              sectionKey: selectedSection.key,
-                              title: event.currentTarget.value,
-                            })
-                          }
-                          className="focus-premium theme-doc-title w-full rounded-xl border border-transparent bg-transparent px-0 py-0 text-2xl font-bold tracking-[-0.04em] transition focus:border-[color:var(--document-border)] focus:bg-[color:var(--document-soft-surface)] focus:px-3 focus:py-2"
-                        />
-                      </label>
-                      <p className="theme-doc-body mt-2 text-sm leading-6">
-                        {selectedSection.subtitle}
-                      </p>
-                    </div>
-                    <div className="theme-doc-chip-brand rounded-full px-3 py-1.5 text-xs font-bold">
-                      {selectedSection.stepCount} steps
-                    </div>
-                  </div>
+            {!assembly.emptyState && overview.sectionSummaries.length > 0 ? (
+              <section className="phase-sidebar-panel">
+                <div className="phase-sidebar-copy">
+                  <p className="phase-overline">Coverage</p>
+                  <h3 className="phase-rail-title">What the handoff includes</h3>
+                </div>
 
-                  <div className="mt-4 overflow-x-auto pb-1">
-                    <div className="flex min-w-max gap-1.5">
-                      {selectedSection.steps.map((step, index) => {
-                        const isActive = step.key === selectedStep?.key;
-                        return (
-                          <button
-                            key={step.key}
-                            type="button"
-                            onClick={() => setSelectedStepKey(step.key)}
-                            className={`focus-premium min-w-[132px] rounded-[1rem] border px-3 py-2.5 text-left transition sm:min-w-[148px] ${
-                              isActive
-                                ? "theme-doc-card-brand"
-                                : "theme-doc-card-muted hover:bg-[color:var(--document-soft-surface)]"
-                            }`}
-                          >
-                            <p className="theme-doc-subtle mono-label text-[0.5rem]">
-                              Step {index + 1}
-                            </p>
-                            <p className="mt-1.5 text-sm font-bold leading-5">
-                              {resolveStepTitle(draft, step)}
-                            </p>
-                            <p className="theme-doc-subtle mt-1 text-xs">
-                              {step.traceability.requirementId}
-                            </p>
-                          </button>
-                        );
-                      })}
+                <div className="phase-coverage-list">
+                  {overview.sectionSummaries.map((section) => (
+                    <div key={section.key} className="phase-coverage-item">
+                      <div>
+                        <p className="phase-overlay-row-title">
+                          {section.title}
+                        </p>
+                        <p className="phase-overlay-row-body">
+                          {section.requirementCount} approved requirement
+                          {section.requirementCount === 1 ? "" : "s"}
+                        </p>
+                      </div>
+                      <span>{section.stepCount} steps</span>
                     </div>
-                  </div>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+          </div>
+        </div>
+      </aside>
 
-                  {selectedStep ? (
-                    <ScriptStepWorkbench
-                      draft={draft}
-                      onDraftAction={onDraftAction}
-                      step={selectedStep}
-                    />
-                  ) : null}
-                </article>
-              ) : null}
+      <div className="grid min-w-0 gap-5">
+        <section className="document-panel overflow-hidden rounded-[1.5rem] p-4 sm:p-5">
+          <div className="flex flex-col gap-4 border-b border-[color:var(--document-border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0 max-w-4xl flex-1">
+              <p className="theme-doc-kicker mono-label text-[0.68rem]">
+                Script editor
+              </p>
+              <div className="mt-2 grid gap-3 lg:grid-cols-[minmax(0,1fr)_240px]">
+                <label className="block">
+                  <span className="theme-doc-subtle mono-label text-[0.58rem]">
+                    Script title
+                  </span>
+                  <input
+                    value={draft.title}
+                    onChange={(event) =>
+                      onDraftAction({
+                        type: "renameTitle",
+                        title: event.currentTarget.value,
+                      })
+                    }
+                    className="focus-premium theme-doc-input mt-2 w-full rounded-2xl px-4 py-3 text-lg font-bold transition sm:text-[1.45rem]"
+                  />
+                </label>
+
+                <div className="theme-doc-card rounded-[1.15rem] px-4 py-3 text-sm leading-6 theme-doc-body">
+                  <p className="theme-doc-subtle mono-label text-[0.58rem]">
+                    Active source
+                  </p>
+                  <p className="mt-2 break-all">
+                    <span className="theme-doc-title font-bold">
+                      {projectMetadata.sourceFilename}
+                    </span>
+                  </p>
+                  <p className="mt-2">
+                    {assembly.approvedRequirementCount} approved row
+                    {assembly.approvedRequirementCount === 1 ? "" : "s"} across{" "}
+                    {assembly.sections.length} section
+                    {assembly.sections.length === 1 ? "" : "s"}.
+                  </p>
+                </div>
+              </div>
+              <p className="theme-doc-body mt-2 max-w-3xl text-sm leading-6">
+                Refine the structure, wording, and notes while keeping the
+                approved story easy to scan and defend.
+              </p>
             </div>
           </div>
-        )}
+
+          {assembly.emptyState ? (
+            <EmptyDemoScriptState
+              actionLabel="Return to review"
+              emptyState={assembly.emptyState}
+              onAction={onSwitchToReview}
+              titleEyebrow="Script blocked"
+            />
+          ) : selectedSection ? (
+            <article className="theme-doc-card mt-6 rounded-[1.75rem] p-4 sm:p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="theme-doc-kicker mono-label text-[0.58rem]">
+                    {selectedSection.sourceLabel}
+                  </p>
+                  <label className="mt-2 block">
+                    <span className="sr-only">Section title</span>
+                    <input
+                      value={resolveSectionTitle(draft, selectedSection)}
+                      onChange={(event) =>
+                        onDraftAction({
+                          type: "editSectionTitle",
+                          sectionKey: selectedSection.key,
+                          title: event.currentTarget.value,
+                        })
+                      }
+                      className="focus-premium theme-doc-title w-full rounded-xl border border-transparent bg-transparent px-0 py-0 text-2xl font-bold tracking-[-0.04em] transition focus:border-[color:var(--document-border)] focus:bg-[color:var(--document-soft-surface)] focus:px-3 focus:py-2"
+                    />
+                  </label>
+                  <p className="theme-doc-body mt-2 text-sm leading-6">
+                    {selectedSection.subtitle}
+                  </p>
+                </div>
+                <div className="theme-doc-chip-brand rounded-full px-3 py-1.5 text-xs font-bold">
+                  {selectedSection.stepCount} steps
+                </div>
+              </div>
+
+              <div className="phase-doc-step-grid mt-4">
+                {selectedSection.steps.map((step, index) => {
+                  const isActive = step.key === selectedStep?.key;
+
+                  return (
+                    <button
+                      key={step.key}
+                      type="button"
+                      onClick={() => setSelectedStepKey(step.key)}
+                      className={`focus-premium rounded-[1rem] border px-3 py-3 text-left transition ${
+                        isActive
+                          ? "theme-doc-card-brand"
+                          : "theme-doc-card-muted hover:bg-[color:var(--document-soft-surface)]"
+                      }`}
+                    >
+                      <p className="theme-doc-subtle mono-label text-[0.5rem]">
+                        Step {index + 1}
+                      </p>
+                      <p className="mt-1.5 text-sm font-bold leading-5">
+                        {resolveStepTitle(draft, step)}
+                      </p>
+                      <p className="theme-doc-subtle mt-1 text-xs">
+                        {step.traceability.requirementId}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedStep ? (
+                <ScriptStepWorkbench
+                  draft={draft}
+                  onDraftAction={onDraftAction}
+                  step={selectedStep}
+                />
+              ) : null}
+            </article>
+          ) : null}
+        </section>
       </div>
     </section>
   );
@@ -298,215 +415,333 @@ export default function DemoScriptEditingPanel({
 
 export function DemoScriptExportPanel({
   assembly,
+  exportReady = !assembly.emptyState,
+  pendingReviewCount = 0,
   onSwitchToReview,
   onSwitchToScript,
   projectMetadata,
 }: DemoScriptExportPanelProps) {
   const overview = buildDemoScriptExportOverview(assembly);
+  const blockerCopy = assembly.emptyState
+    ? getDemoScriptEmptyStateCopy(assembly.emptyState)
+    : null;
 
   if (assembly.emptyState) {
     return (
-      <section className="grid min-w-0 gap-5">
-        <EmptyDemoScriptState
-          actionLabel="Back to review"
-          emptyState={assembly.emptyState}
-          onAction={onSwitchToReview}
-          secondaryActionLabel="Back to script"
-          onSecondaryAction={onSwitchToScript}
-          titleEyebrow="Export blocked"
-        />
+      <section className="phase-document-workspace">
+        <aside className="phase-document-sidebar">
+          <section className="phase-sidebar-panel">
+            <div className="phase-sidebar-copy">
+              <p className="phase-overline">Export</p>
+              <h3 className="phase-rail-title">Export is still blocked</h3>
+            </div>
+
+            <div className="phase-feedback phase-feedback-error">
+              <strong>{blockerCopy?.title}</strong> {blockerCopy?.body}
+            </div>
+
+            <div className="phase-rail-stack">
+              <button
+                type="button"
+                onClick={onSwitchToScript}
+                className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-semibold transition"
+              >
+                Back to script
+              </button>
+              <button
+                type="button"
+                onClick={onSwitchToReview}
+                className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-semibold transition"
+              >
+                Back to review
+              </button>
+            </div>
+          </section>
+        </aside>
+
+        <section className="document-panel min-w-0 rounded-[1.75rem] p-5 sm:p-6">
+          <EmptyDemoScriptState
+            actionLabel="Back to review"
+            emptyState={assembly.emptyState}
+            onAction={onSwitchToReview}
+            secondaryActionLabel="Back to script"
+            onSecondaryAction={onSwitchToScript}
+            titleEyebrow="Export blocked"
+          />
+        </section>
       </section>
     );
   }
 
   return (
-    <section className="grid min-w-0 gap-5">
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <section className="document-panel min-w-0 rounded-[1.75rem] p-5 sm:p-6">
-          <div className="theme-doc-card rounded-[1.5rem] p-5">
-            <p className="theme-doc-kicker mono-label text-[0.68rem]">
-              Export handoff
-            </p>
-            <h3 className="theme-doc-title mt-3 text-3xl font-bold tracking-[-0.045em] sm:text-4xl">
-              Finalize the Phase 1 deliverable
-            </h3>
-            <p className="theme-doc-body mt-3 max-w-3xl text-sm leading-7">
-              The editing work is done. This screen confirms what is going into
-              the handoff document and keeps the download action front and
-              center.
-            </p>
-
-            <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(280px,0.9fr)]">
-              <div className="theme-doc-card-contrast rounded-[1.4rem] p-5">
-                <p className="theme-shell-kicker mono-label text-[0.56rem]">
-                  Deliverable
-                </p>
-                <h4 className="mt-4 text-3xl font-bold tracking-[-0.045em] text-[color:var(--document-contrast-ink)]">
-                  {assembly.title || projectMetadata.projectName}
-                </h4>
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  <ExportKeyValue
-                    label="Project"
-                    value={projectMetadata.projectName}
-                  />
-                  <ExportKeyValue
-                    label="Customer"
-                    value={projectMetadata.customerName}
-                  />
-                  <ExportKeyValue
-                    breakWords
-                    label="Source workbook"
-                    value={projectMetadata.sourceFilename}
-                  />
-                  <ExportKeyValue
-                    label="Output"
-                    value="Phase 1 demo narrative"
-                  />
+    <section className="phase-document-workspace">
+      <aside className="phase-document-sidebar">
+        <div className="phase-document-sidebar-scroll">
+          <div className="grid gap-4">
+            <section className="phase-sidebar-panel">
+              <div className="phase-rail-header">
+                <div>
+                  <p className="phase-overline">Export</p>
+                  <h3 className="phase-rail-title">
+                    {exportReady ? "Ready to download" : "Export is still blocked"}
+                  </h3>
                 </div>
+                <span className="phase-count-pill">
+                  {assembly.approvedRequirementCount} approved
+                </span>
               </div>
 
-              <div className="theme-doc-card-muted rounded-[1.4rem] p-5">
-                <p className="theme-doc-subtle mono-label text-[0.56rem]">
-                  Readiness
-                </p>
-                <div className="mt-4 grid gap-2">
-                  <ExportPresencePill label="Approved rows" present />
-                  <ExportPresencePill
-                    label="Assumptions"
-                    present={overview.hasAssumptions}
-                  />
-                  <ExportPresencePill
-                    label="Warnings"
-                    present={overview.hasWarnings}
-                  />
-                  <ExportPresencePill
-                    label="Traceability"
-                    present={overview.hasTraceability}
-                  />
-                  <ExportPresencePill label="Step groups" present />
+              {pendingReviewCount > 0 ? (
+                <div className="phase-feedback">
+                  {pendingReviewCount} generated row
+                  {pendingReviewCount === 1 ? "" : "s"} still need consultant
+                  review before this handoff can be downloaded.
                 </div>
+              ) : null}
+
+              <div className="theme-shell-card rounded-[1.25rem] p-4 text-sm leading-6 theme-shell-body">
+                <p>
+                  <span className="theme-shell-title font-bold">Format:</span>{" "}
+                  Markdown
+                </p>
+                <p>
+                  <span className="theme-shell-title font-bold">Filename:</span>{" "}
+                  {createDemoScriptExportFilename(
+                    assembly.title,
+                    projectMetadata.projectName,
+                  )}
+                </p>
+                <p>
+                  <span className="theme-shell-title font-bold">Scope:</span>{" "}
+                  Phase 1 handoff only.
+                </p>
               </div>
-            </div>
 
-            <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-              <section className="theme-doc-card rounded-[1.4rem] p-4">
-                <p className="theme-doc-subtle mono-label text-[0.56rem]">
-                  Included requirements
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {overview.includedRequirementIds.slice(0, 12).map((id) => (
-                    <span
-                      key={id}
-                      className="theme-doc-chip-muted rounded-full px-3 py-1.5 text-xs font-bold"
-                    >
-                      {id}
-                    </span>
-                  ))}
-                  {overview.includedRequirementIds.length > 12 ? (
-                    <span className="theme-doc-chip rounded-full px-3 py-1.5 text-xs font-bold theme-doc-subtle">
-                      +{overview.includedRequirementIds.length - 12} more
-                    </span>
-                  ) : null}
-                </div>
-              </section>
+              <div className="phase-status-list">
+                <DocumentChecklistItem
+                  label="Approved rows"
+                  ready={assembly.approvedRequirementCount > 0}
+                  value={`${assembly.approvedRequirementCount} confirmed`}
+                />
+                <DocumentChecklistItem
+                  label="Warnings and assumptions"
+                  ready
+                  value={
+                    overview.hasWarnings || overview.hasAssumptions
+                      ? "Included when present"
+                      : "None recorded"
+                  }
+                />
+                <DocumentChecklistItem
+                  label="Traceability"
+                  ready={overview.hasTraceability}
+                  value={
+                    overview.hasTraceability
+                      ? "Included"
+                      : "Still missing references"
+                  }
+                />
+                <DocumentChecklistItem
+                  label="Export"
+                  ready={exportReady}
+                  value={exportReady ? "Ready to download" : "Blocked"}
+                />
+              </div>
 
-              <section className="theme-doc-card rounded-[1.4rem] p-4">
-                <p className="theme-doc-subtle mono-label text-[0.56rem]">
-                  Section coverage
-                </p>
-                <div className="mt-3 grid gap-2">
-                  {overview.sectionSummaries.map((section) => (
-                    <div
-                      key={section.key}
-                      className="theme-doc-card-muted rounded-2xl px-3 py-3"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="theme-doc-title text-sm font-bold">
-                          {section.title}
-                        </p>
-                        <span className="theme-doc-subtle text-xs font-bold">
-                          {section.stepCount} steps
-                        </span>
-                      </div>
-                      <p className="theme-doc-subtle mt-1 text-xs">
+              <div className="phase-rail-stack">
+                <button
+                  type="button"
+                  disabled={!exportReady}
+                  onClick={() =>
+                    downloadDemoScriptMarkdown({
+                      assembly,
+                      projectMetadata,
+                    })
+                  }
+                  className="focus-premium theme-button-primary rounded-2xl px-4 py-3 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Download Markdown
+                </button>
+                <button
+                  type="button"
+                  onClick={onSwitchToScript}
+                  className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-bold transition"
+                >
+                  Back to script
+                </button>
+                <button
+                  type="button"
+                  onClick={onSwitchToReview}
+                  className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-bold transition"
+                >
+                  Back to review
+                </button>
+              </div>
+            </section>
+
+            <section className="phase-sidebar-panel">
+              <div className="phase-sidebar-copy">
+                <p className="phase-overline">Coverage</p>
+                <h3 className="phase-rail-title">Included sections</h3>
+              </div>
+
+              <div className="phase-coverage-list">
+                {overview.sectionSummaries.map((section) => (
+                  <div key={section.key} className="phase-coverage-item">
+                    <div>
+                      <p className="phase-overlay-row-title">{section.title}</p>
+                      <p className="phase-overlay-row-body">
                         {section.requirementCount} approved requirement
-                        {section.requirementCount === 1 ? "" : "s"} grouped
-                        here.
+                        {section.requirementCount === 1 ? "" : "s"}
                       </p>
                     </div>
-                  ))}
-                </div>
-              </section>
+                    <span>{section.stepCount} steps</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+        </div>
+      </aside>
+
+      <section className="document-panel min-w-0 rounded-[1.75rem] p-5 sm:p-6">
+        <div className="theme-doc-card rounded-[1.5rem] p-5">
+          <p className="theme-doc-kicker mono-label text-[0.68rem]">
+            Export handoff
+          </p>
+          <h3 className="theme-doc-title mt-3 text-3xl font-bold tracking-[-0.045em] sm:text-4xl">
+            Finalize the Phase 1 deliverable
+          </h3>
+          <p className="theme-doc-body mt-3 max-w-3xl text-sm leading-7">
+            Review what is going into the handoff, confirm the included
+            requirement coverage, and download the final Markdown deliverable.
+          </p>
+
+          <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(260px,0.95fr)]">
+            <div className="theme-doc-card-contrast rounded-[1.4rem] p-5">
+              <p className="theme-shell-kicker mono-label text-[0.56rem]">
+                Deliverable
+              </p>
+              <h4 className="mt-4 text-3xl font-bold tracking-[-0.045em] text-[color:var(--document-contrast-ink)]">
+                {assembly.title || projectMetadata.projectName}
+              </h4>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <ExportKeyValue
+                  label="Project"
+                  value={projectMetadata.projectName}
+                />
+                <ExportKeyValue
+                  label="Customer"
+                  value={projectMetadata.customerName}
+                />
+                <ExportKeyValue
+                  breakWords
+                  label="Source workbook"
+                  value={projectMetadata.sourceFilename}
+                />
+                <ExportKeyValue label="Output" value="Markdown handoff" />
+              </div>
+            </div>
+
+            <div className="theme-doc-card-muted rounded-[1.4rem] p-5">
+              <p className="theme-doc-subtle mono-label text-[0.56rem]">
+                Readiness
+              </p>
+              <div className="mt-4 grid gap-2">
+                <ExportPresencePill label="Approved rows" present />
+                <ExportPresencePill
+                  label="Assumptions"
+                  present={overview.hasAssumptions}
+                />
+                <ExportPresencePill
+                  label="Warnings"
+                  present={overview.hasWarnings}
+                />
+                <ExportPresencePill
+                  label="Traceability"
+                  present={overview.hasTraceability}
+                />
+                <ExportPresencePill label="Step groups" present />
+              </div>
             </div>
           </div>
-        </section>
 
-        <aside className="premium-panel-strong h-fit rounded-[1.75rem] p-5 sm:p-6">
-          <p className="theme-shell-kicker mono-label text-[0.68rem]">
-            Download
-          </p>
-          <h4 className="theme-shell-title mt-3 text-3xl font-bold tracking-[-0.04em]">
-            Ready to hand off
-          </h4>
-          <p className="theme-shell-body mt-3 text-sm leading-7">
-            Download the Markdown deliverable for the Phase 1 demo review. This
-            is the completion point for the current workflow.
-          </p>
+          <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+            <section className="theme-doc-card rounded-[1.4rem] p-4">
+              <p className="theme-doc-subtle mono-label text-[0.56rem]">
+                Included requirements
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {overview.includedRequirementIds.slice(0, 12).map((id) => (
+                  <span
+                    key={id}
+                    className="theme-doc-chip-muted rounded-full px-3 py-1.5 text-xs font-bold"
+                  >
+                    {id}
+                  </span>
+                ))}
+                {overview.includedRequirementIds.length > 12 ? (
+                  <span className="theme-doc-chip rounded-full px-3 py-1.5 text-xs font-bold theme-doc-subtle">
+                    +{overview.includedRequirementIds.length - 12} more
+                  </span>
+                ) : null}
+              </div>
+            </section>
 
-          <div className="theme-shell-card mt-5 rounded-[1.4rem] p-4 text-sm leading-6 theme-shell-body">
-            <p>
-              <span className="theme-shell-title font-bold">Format:</span>{" "}
-              Markdown
-            </p>
-            <p>
-              <span className="theme-shell-title font-bold">Filename:</span>{" "}
-              {createDemoScriptExportFilename(
-                assembly.title,
-                projectMetadata.projectName,
-              )}
-            </p>
-            <p>
-              <span className="theme-shell-title font-bold">Scope:</span> Phase
-              1 only, with consultant-reviewed content and traceability.
-            </p>
+            <section className="theme-doc-card rounded-[1.4rem] p-4">
+              <p className="theme-doc-subtle mono-label text-[0.56rem]">
+                Section coverage
+              </p>
+              <div className="mt-3 grid gap-2">
+                {overview.sectionSummaries.map((section) => (
+                  <div
+                    key={section.key}
+                    className="theme-doc-card-muted rounded-2xl px-3 py-3"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="theme-doc-title text-sm font-bold">
+                        {section.title}
+                      </p>
+                      <span className="theme-doc-subtle text-xs font-bold">
+                        {section.stepCount} steps
+                      </span>
+                    </div>
+                    <p className="theme-doc-subtle mt-1 text-xs">
+                      {section.requirementCount} approved requirement
+                      {section.requirementCount === 1 ? "" : "s"} grouped here.
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
           </div>
-
-          <div className="mt-5 grid gap-3">
-            <button
-              type="button"
-              onClick={() =>
-                downloadDemoScriptMarkdown({
-                  assembly,
-                  projectMetadata,
-                })
-              }
-              className="focus-premium theme-button-primary rounded-2xl px-4 py-3 text-sm font-bold transition"
-            >
-              Download Markdown
-            </button>
-            <button
-              type="button"
-              onClick={onSwitchToScript}
-              className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-bold transition"
-            >
-              Back to script
-            </button>
-            <button
-              type="button"
-              onClick={onSwitchToReview}
-              className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-bold transition"
-            >
-              Back to review
-            </button>
-          </div>
-
-          <p className="theme-shell-card-soft theme-shell-body mt-5 rounded-xl border-dashed px-4 py-3 text-sm leading-6">
-            Phase 2 is optional and stays outside this handoff. Phase 1 is
-            complete once this reviewed document is exported.
-          </p>
-        </aside>
-      </div>
+        </div>
+      </section>
     </section>
+  );
+}
+
+function DocumentChecklistItem({
+  label,
+  ready,
+  value,
+}: {
+  label: string;
+  ready: boolean;
+  value: string;
+}) {
+  return (
+    <div className="phase-status-item">
+      <span
+        className={`phase-status-dot ${
+          ready ? "phase-status-complete" : "phase-status-waiting"
+        }`}
+      />
+      <div>
+        <p className="phase-status-label">{label}</p>
+        <p className="phase-status-meta">{value}</p>
+      </div>
+    </div>
   );
 }
 

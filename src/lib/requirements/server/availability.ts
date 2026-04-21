@@ -61,7 +61,7 @@ export async function getRequirementGenerationAvailabilitySnapshot(
   const checkedAt = now().toISOString();
   const mockCapability = createAvailableCapability(
     "mock",
-    "Prototype drafts are available locally.",
+    "Draft mode is available.",
   );
   const realCapability = await resolveRealCapability(realConfig, dependencies);
 
@@ -93,7 +93,7 @@ async function resolveRealCapability(
   if (missingConfig.length > 0) {
     return createUnavailableCapability(
       "missing-config",
-      "Grounded real generation is unavailable because the local MCP or Bedrock configuration is incomplete.",
+      "Grounded generation is unavailable because the MCP or Bedrock configuration is incomplete.",
       missingConfig,
     );
   }
@@ -123,7 +123,7 @@ async function resolveRealCapability(
   } catch {
     return createUnavailableCapability(
       "check-failed",
-      "Grounded real generation could not confirm MCP access right now. You can continue with prototype drafts and recheck later.",
+      "Grounded generation could not confirm MCP access right now. You can continue with draft mode and recheck later.",
     );
   }
 
@@ -132,7 +132,7 @@ async function resolveRealCapability(
 
     return createAvailableCapability(
       "real",
-      "Grounded real generation is available.",
+      "Grounded generation is available.",
     );
   } catch (error) {
     const reason = classifyAvailabilityReason(error);
@@ -189,8 +189,8 @@ function getUnavailableMessage(
 ) {
   switch (reason) {
     case "blocked":
-      return "Grounded real generation is unavailable because direct Bedrock access is currently blocked by partner-side permissions.";
+      return "Grounded generation is unavailable because direct Bedrock access is currently blocked by partner-side permissions.";
     case "check-failed":
-      return "Grounded real generation could not be confirmed right now. You can continue with prototype drafts and recheck later.";
+      return "Grounded generation could not be confirmed right now. You can continue with draft mode and recheck later.";
   }
 }

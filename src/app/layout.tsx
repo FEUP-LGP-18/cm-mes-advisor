@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
+import Script from "next/script";
+import { IBM_Plex_Mono, Instrument_Sans } from "next/font/google";
 import "./globals.css";
-import { themeInitScript } from "./theme";
+import { defaultTheme, themeInitScript } from "./theme";
 
-const spaceGrotesk = Space_Grotesk({
+const instrumentSans = Instrument_Sans({
   variable: "--font-display",
   weight: ["400", "500", "600", "700"],
   subsets: ["latin"],
@@ -29,13 +30,15 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${spaceGrotesk.variable} ${ibmPlexMono.variable}`}
+      className={`${instrumentSans.variable} ${ibmPlexMono.variable}`}
       data-scroll-behavior="smooth"
-      data-theme="dark"
+      data-theme={defaultTheme}
       suppressHydrationWarning
     >
       <body>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <Script id="theme-init" strategy="beforeInteractive">
+          {themeInitScript}
+        </Script>
         {children}
       </body>
     </html>

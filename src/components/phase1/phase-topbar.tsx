@@ -6,7 +6,7 @@ import ThemeToggle from "@/app/theme-toggle";
 export default function Phase1Topbar() {
   return (
     <nav aria-label="Product" className="top-shell animate-enter">
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="top-shell-brand">
         <div className="brand-lockup">
           <Image
             alt="Critical Manufacturing"
@@ -26,32 +26,37 @@ export default function Phase1Topbar() {
           />
         </div>
 
-        <div className="min-w-0">
-          <p className="mono-label truncate text-[0.62rem] text-[color:var(--shell-subtle)]">
+        <div className="top-shell-copy">
+          <p className="mono-label text-[0.6rem] text-[color:var(--shell-subtle)]">
             Critical Manufacturing
           </p>
-          <p className="truncate text-sm font-semibold text-[color:var(--shell-ink)]">
+          <p className="text-base font-semibold text-[color:var(--shell-ink)]">
             MES Demo Advisor
           </p>
         </div>
       </div>
 
-      <div className="header-actions">
-        <div className="uporto-lockup" aria-label="University of Porto">
-          <Image
-            alt="University of Porto"
-            className="theme-logo theme-logo-light uporto-logo"
-            height={118}
-            src="/brand/uporto-header-light.png"
-            width={533}
-          />
-          <Image
-            alt="University of Porto"
-            className="theme-logo theme-logo-dark uporto-logo"
-            height={118}
-            src="/brand/uporto-header-dark.png"
-            width={533}
-          />
+      <div className="top-shell-actions">
+        <div className="top-shell-partner">
+          <span className="mono-label text-[0.56rem] text-[color:var(--shell-subtle)]">
+            In collaboration with
+          </span>
+          <div className="uporto-lockup" aria-label="University of Porto">
+            <Image
+              alt="University of Porto"
+              className="theme-logo theme-logo-light uporto-logo"
+              height={118}
+              src="/brand/uporto-header-light.png"
+              width={533}
+            />
+            <Image
+              alt="University of Porto"
+              className="theme-logo theme-logo-dark uporto-logo"
+              height={118}
+              src="/brand/uporto-header-dark.png"
+              width={533}
+            />
+          </div>
         </div>
         <ThemeToggle />
       </div>

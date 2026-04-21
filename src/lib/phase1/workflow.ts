@@ -5,6 +5,11 @@ export type Phase1WorkflowStep =
   | "script"
   | "export";
 
+export type LegacyPhase1WorkflowStep =
+  | Phase1WorkflowStep
+  | "setup"
+  | "handoff";
+
 export type Phase1WorkflowStepStatus = "available" | "blocked" | "complete";
 
 export interface Phase1WorkflowSnapshot {
@@ -20,10 +25,15 @@ export interface Phase1WorkflowSnapshot {
   exportReady: boolean;
 }
 
-export interface Phase1WorkflowStepState {
+export interface Phase1WorkflowStepMeta {
   step: Phase1WorkflowStep;
   label: string;
+  subtitle: string;
+}
+
+export interface Phase1WorkflowStepState extends Phase1WorkflowStepMeta {
   status: Phase1WorkflowStepStatus;
+  statusLabel: string;
 }
 
 export interface Phase1NextAction {
@@ -32,13 +42,34 @@ export interface Phase1NextAction {
   helper: string;
 }
 
-export const phase1WorkflowLabels: Record<Phase1WorkflowStep, string> = {
-  source: "Source",
-  generate: "Generate",
-  review: "Review",
-  script: "Script",
-  export: "Export",
-};
+export const phase1WorkflowMeta: Record<Phase1WorkflowStep, Phase1WorkflowStepMeta> =
+  {
+    source: {
+      step: "source",
+      label: "Source",
+      subtitle: "Confirm workbook",
+    },
+    generate: {
+      step: "generate",
+      label: "Generate",
+      subtitle: "Produce drafts",
+    },
+    review: {
+      step: "review",
+      label: "Review",
+      subtitle: "Consultant decisions",
+    },
+    script: {
+      step: "script",
+      label: "Script",
+      subtitle: "Shape narrative",
+    },
+    export: {
+      step: "export",
+      label: "Export",
+      subtitle: "Download handoff",
+    },
+  };
 
 export const phase1WorkflowSteps: Phase1WorkflowStep[] = [
   "source",
@@ -48,14 +79,26 @@ export const phase1WorkflowSteps: Phase1WorkflowStep[] = [
   "export",
 ];
 
+export const phase1WorkflowLabels: Record<Phase1WorkflowStep, string> = {
+  source: phase1WorkflowMeta.source.label,
+  generate: phase1WorkflowMeta.generate.label,
+  review: phase1WorkflowMeta.review.label,
+  script: phase1WorkflowMeta.script.label,
+  export: phase1WorkflowMeta.export.label,
+};
+
 export function getWorkflowProgress(
   snapshot: Phase1WorkflowSnapshot,
 ): Phase1WorkflowStepState[] {
-  return phase1WorkflowSteps.map((step) => ({
-    step,
-    label: phase1WorkflowLabels[step],
-    status: getStepStatus(snapshot, step),
-  }));
+  return phase1WorkflowSteps.map((step) => {
+    const status = getStepStatus(snapshot, step);
+
+    return {
+      ...phase1WorkflowMeta[step],
+      status,
+      statusLabel: `${phase1WorkflowMeta[step].label} ${status}`,
+    };
+  });
 }
 
 export function getRecommendedWorkflowStep(
@@ -91,13 +134,13 @@ export function getNextAction(
         step,
         label: "Confirm the workbook",
         helper:
-          "Start with the Customer X sample or upload another requirements Excel.",
+          "Start with the Customer X sample or upload another requirements workbook for this project.",
       };
     case "generate":
       return {
         step,
-        label: "Generate drafts for demo rows",
-        helper: `${snapshot.demoCount} demo rows are ready for safe prototype generation.`,
+        label: "Generate the recommended draft",
+        helper: `${snapshot.demoCount} demo row${snapshot.demoCount === 1 ? "" : "s"} are ready for the first consultant-safe generation pass.`,
       };
     case "review":
       return {
@@ -105,22 +148,36 @@ export function getNextAction(
         label:
           snapshot.approvedCount === 0
             ? "Review the first generated draft"
-            : "Finish reviewing generated drafts",
-        helper: `${snapshot.generatedReviewableCount} generated rows still need a consultant decision.`,
+            : "Finish consultant review",
+        helper: `${snapshot.generatedReviewableCount} generated row${snapshot.generatedReviewableCount === 1 ? "" : "s"} still need a consultant decision.`,
       };
     case "script":
       return {
         step,
-        label: "Shape the assembled demo script",
+        label: "Shape the narrative",
         helper:
-          "Approved rows are ready. Review the narrative, section names, notes, and traceability before the final handoff.",
+          "Approved rows are ready for the narrative pass. Refine the structure, wording, notes, and traceability before export.",
       };
     case "export":
       return {
         step,
-        label: "Download the Phase 1 deliverable",
-        helper: `${snapshot.approvedCount} approved requirements and ${snapshot.approvedStepCount} demo steps are ready for the final Markdown handoff.`,
+        label: "Download Markdown handoff",
+        helper: `${snapshot.approvedCount} approved requirement${snapshot.approvedCount === 1 ? "" : "s"} and ${snapshot.approvedStepCount} script step${snapshot.approvedStepCount === 1 ? "" : "s"} are ready for export.`,
       };
+  }
+}
+
+export function resolveLegacyPhase1WorkflowStep(
+  step: LegacyPhase1WorkflowStep,
+  snapshot?: Phase1WorkflowSnapshot,
+): Phase1WorkflowStep {
+  switch (step) {
+    case "setup":
+      return !snapshot || snapshot.sourceRowCount === 0 ? "source" : "generate";
+    case "handoff":
+      return snapshot?.exportReady ? "export" : "script";
+    default:
+      return step;
   }
 }
 
@@ -145,6 +202,17 @@ export function getPhase1StepPath(
   step: Phase1WorkflowStep,
 ): string {
   return `/projects/${encodeURIComponent(projectId)}/${step}`;
+}
+
+export function getLegacyPhase1StepRedirectPath(
+  projectId: string,
+  legacyStep: LegacyPhase1WorkflowStep,
+  snapshot?: Phase1WorkflowSnapshot,
+): string {
+  return getPhase1StepPath(
+    projectId,
+    resolveLegacyPhase1WorkflowStep(legacyStep, snapshot),
+  );
 }
 
 function getStepStatus(
@@ -174,16 +242,14 @@ function getStepStatus(
         return "blocked";
       }
 
-      return snapshot.approvedStepCount > 0 ? "complete" : "available";
+      return snapshot.approvedStepCount > 0 && snapshot.scriptVisited
+        ? "complete"
+        : "available";
     case "export":
-      if (
-        !snapshot.exportReady ||
-        snapshot.approvedCount === 0 ||
-        snapshot.generatedReviewableCount > 0
-      ) {
+      if (!snapshot.exportReady) {
         return "blocked";
       }
 
-      return "available";
+      return "complete";
   }
 }

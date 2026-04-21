@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   defaultTheme,
   normalizeThemeMode,
@@ -10,39 +10,36 @@ import {
 
 function applyTheme(theme: ThemeMode) {
   document.documentElement.dataset.theme = theme;
+  document.documentElement.style.colorScheme = theme;
   window.localStorage.setItem(themeStorageKey, theme);
 }
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState<ThemeMode>(defaultTheme);
-  const resolvedTheme =
-    typeof window === "undefined"
-      ? theme
-      : normalizeThemeMode(
-          document.documentElement.dataset.theme ||
-            window.localStorage.getItem(themeStorageKey) ||
-            theme,
-        );
-
-  useEffect(() => {
-    applyTheme(resolvedTheme);
-  }, [resolvedTheme]);
+  const [theme, setTheme] = useState<ThemeMode | null>(null);
 
   function handleThemeChange(nextTheme: ThemeMode) {
     setTheme(nextTheme);
     applyTheme(nextTheme);
   }
 
-  const isDark = resolvedTheme === "dark";
-  const nextTheme: ThemeMode = isDark ? "light" : "dark";
+  const isDark = (theme ?? defaultTheme) === "dark";
 
   return (
     <button
       type="button"
-      aria-label={`Switch to ${nextTheme} mode`}
+      aria-label="Toggle theme"
       className="focus-premium theme-toggle-icon"
-      onClick={() => handleThemeChange(nextTheme)}
-      title={`Switch to ${nextTheme} mode`}
+      onClick={() => {
+        const currentTheme = normalizeThemeMode(
+          document.documentElement.dataset.theme ||
+            window.localStorage.getItem(themeStorageKey) ||
+            defaultTheme,
+        );
+        const nextTheme: ThemeMode = currentTheme === "dark" ? "light" : "dark";
+
+        handleThemeChange(nextTheme);
+      }}
+      title="Toggle theme"
     >
       <span className="theme-toggle-icon-frame" aria-hidden="true">
         {isDark ? (
@@ -77,7 +74,7 @@ export default function ThemeToggle() {
           </svg>
         )}
       </span>
-      <span className="sr-only">{`Switch to ${nextTheme} mode`}</span>
+      <span className="sr-only">Toggle theme</span>
     </button>
   );
 }

@@ -283,7 +283,10 @@ export default function RequirementsReviewWorkspace({
   const scriptStageKey = `${summary.approvedCount}:${demoScriptAssembly.approvedStepCount}:${demoScriptAssembly.emptyState ?? "ready"}`;
 
   useEffect(() => {
-    if (activeWorkflowStep === "script" && !demoScriptAssembly.emptyState) {
+    if (
+      (activeWorkflowStep === "script" || activeWorkflowStep === "export") &&
+      !demoScriptAssembly.emptyState
+    ) {
       setReviewedScriptStageKey(scriptStageKey);
     }
   }, [activeWorkflowStep, demoScriptAssembly.emptyState, scriptStageKey]);
@@ -423,8 +426,7 @@ export default function RequirementsReviewWorkspace({
 
     setSourceFeedback({
       tone: "success",
-      message:
-        "Restored the committed Customer X fixture and its saved review state.",
+      message: "Restored the sample workbook and its saved review state.",
     });
     saveRequirementsWorkspaceState(window.localStorage, fixtureWorkspaceState);
     setSourcePreviewExpanded(false);
@@ -510,7 +512,7 @@ export default function RequirementsReviewWorkspace({
           tone: "error",
           message:
             message ||
-            "Server generation failed. Your local review state was not changed.",
+            "Server generation failed. Your saved review decisions were left unchanged.",
         });
         setMockGenerationRun({
           selectedCount: targetRequirements.length,
@@ -546,7 +548,7 @@ export default function RequirementsReviewWorkspace({
         setGenerationFeedback({
           tone: "error",
           message:
-            "Server generation returned drafts that did not match the selected rows. No local review state was changed.",
+            "Server generation returned drafts that did not match the selected rows. Your saved review decisions were left unchanged.",
         });
         setMockGenerationRun({
           selectedCount: targetRequirements.length,
@@ -600,7 +602,7 @@ export default function RequirementsReviewWorkspace({
         message:
           responseBody.mode === "real"
             ? `Generated ${responseBody.drafts.length} grounded draft(s) for ${targetLabel}.`
-            : `Generated ${responseBody.drafts.length} prototype draft(s) for ${targetLabel}.`,
+            : `Generated ${responseBody.drafts.length} draft(s) for ${targetLabel}.`,
       });
       window.dispatchEvent(new Event(reviewStorageChangeEventName));
     } catch {
@@ -608,7 +610,7 @@ export default function RequirementsReviewWorkspace({
       setGenerationFeedback({
         tone: "error",
         message:
-          "Server generation could not be reached. No local review state was changed.",
+          "Server generation could not be reached. Your saved review decisions were left unchanged.",
       });
       setMockGenerationRun({
         selectedCount: targetRequirements.length,
@@ -898,7 +900,7 @@ function WorkspaceShellHeader({
             <span className="theme-shell-card-soft rounded-full px-3 py-1.5 text-xs font-bold theme-shell-subtle">
               {generationMode === "real"
                 ? "Grounded generation mode"
-                : "Prototype draft mode"}
+                : "Draft mode"}
             </span>
           </div>
           <h2 className="theme-shell-title mt-3 text-2xl font-bold tracking-[-0.04em] sm:text-3xl">
@@ -1334,9 +1336,9 @@ export function ReviewWorkflowStep({
     const blocker = (
       <GuidedBlockerCard
         actionLabel="Generate demo rows now"
-        body="The review queue is intentionally empty until the prototype has produced draft comments and demo steps."
+        body="Generate draft comments and demo steps first, then come back here to review each requirement."
         onAction={onGenerateDemoRows}
-        title="Generation is the blocker"
+        title="Generate drafts before review"
       />
     );
 
@@ -1356,10 +1358,10 @@ export function ReviewWorkflowStep({
   if (!currentRequirement && approvedCount > 0) {
     const blocker = (
       <GuidedBlockerCard
-        actionLabel="Open demo script"
-        body="Great. Phase 1 now has enough approved material to assemble the consultant-facing demo document."
+        actionLabel="Open script"
+        body="Approved rows are ready to be assembled into the Phase 1 handoff."
         onAction={onOpenScript}
-        title="Queue cleared"
+        title="Review queue cleared"
       />
     );
 
@@ -1367,7 +1369,7 @@ export function ReviewWorkflowStep({
       <GuidedStepFrame
         eyebrow="Step 3"
         title="Review complete"
-        summary="Every generated row has a local decision. Open the demo script to see what the approved rows produce."
+        summary="Every generated row has a decision. Open the script to see what the approved rows produce."
       >
         {blocker}
       </GuidedStepFrame>
@@ -1390,7 +1392,7 @@ export function ReviewWorkflowStep({
       <GuidedStepFrame
         eyebrow="Step 3"
         title="No exportable rows yet"
-        summary="Generated rows exist, but none are approved for the demo script. Approve at least one draft to finish Phase 1."
+        summary="Generated rows exist, but none are approved for the script yet. Approve at least one draft to finish Phase 1."
       >
         {blocker}
       </GuidedStepFrame>
@@ -1432,15 +1434,15 @@ export function ReviewWorkflowStep({
   return (
     <GuidedStepFrame
       eyebrow="Step 3"
-      title="Review one generated draft"
-      summary="Focus on one requirement at a time, make the consultant decision, and let the queue move you forward."
+      title="Review generated requirements"
+      summary="Focus on one requirement at a time, make the consultant decision, and keep the queue moving."
     >
       {content}
     </GuidedStepFrame>
   );
 }
 
-function ReviewQueueNavigator({
+export function ReviewQueueNavigator({
   activeQueueIndex,
   approvedCount,
   currentRequirement,
@@ -1449,6 +1451,7 @@ function ReviewQueueNavigator({
   onSelectPrevious,
   onSelectQueueRequirement,
   reviewQueue,
+  stickyOnDesktop = true,
 }: {
   activeQueueIndex: number;
   approvedCount: number;
@@ -1458,18 +1461,23 @@ function ReviewQueueNavigator({
   onSelectPrevious: (requirement: ReviewRequirement | null) => void;
   onSelectQueueRequirement: (requirement: ReviewRequirement) => void;
   reviewQueue: ReviewRequirement[];
+  stickyOnDesktop?: boolean;
 }) {
   return (
-    <aside className="premium-panel rounded-[1.5rem] p-5 xl:sticky xl:top-4 xl:flex xl:max-h-[calc(100vh-8rem)] xl:flex-col">
+    <aside
+      className={`premium-panel rounded-[1.5rem] p-5 xl:flex xl:max-h-[calc(100vh-8rem)] xl:flex-col ${
+        stickyOnDesktop ? "xl:sticky xl:top-4" : ""
+      }`}
+    >
       <p className="theme-shell-kicker mono-label text-[0.64rem]">
         Review queue
       </p>
       <h3 className="theme-shell-title mt-3 text-2xl font-bold tracking-[-0.035em]">
-        Keep navigation secondary
+        Pending requirements
       </h3>
       <p className="theme-shell-body mt-3 text-sm leading-6">
-        Use previous and next to stay in flow. Open the full queue only when
-        you need to jump to another pending requirement.
+        Stay with the current row unless you need to jump to another pending
+        requirement.
       </p>
 
       <div className="mt-5 grid gap-2 sm:grid-cols-2">
@@ -1550,7 +1558,7 @@ function ReviewQueueNavigator({
           onClick={onOpenScript}
           className="focus-premium theme-shell-button-secondary mt-4 w-full rounded-2xl px-4 py-3 text-sm font-bold transition"
         >
-          Open demo script
+          Open script
         </button>
       ) : null}
     </aside>
@@ -1661,7 +1669,7 @@ function MiniQueueChip({
   );
 }
 
-function GuidedReviewCard({
+export function GuidedReviewCard({
   onReviewAction,
   onSelectNext,
   requirement,
@@ -1755,8 +1763,8 @@ function GuidedReviewCard({
                 Consultant decision
               </p>
               <p className="theme-shell-body mt-2 text-sm leading-6">
-                Decide now, then keep the comment and note close to that
-                decision instead of burying them in a separate section.
+                Approve, flag, or skip this row, then refine the comment and
+                note while the draft is still in view.
               </p>
             </div>
 
@@ -1996,9 +2004,10 @@ function GuidedBlockerCard({
   );
 }
 
-function RequirementsExplorer({
+export function RequirementsExplorer({
   allFilteredRequirementsSelected,
   allRequirements,
+  defaultOpen = false,
   disclosureLabel,
   filter,
   onFilterChange,
@@ -2013,6 +2022,7 @@ function RequirementsExplorer({
 }: {
   allFilteredRequirementsSelected: boolean;
   allRequirements: ReviewRequirement[];
+  defaultOpen?: boolean;
   disclosureLabel?: string;
   filter: RequirementReviewFilter;
   onFilterChange: (filter: RequirementReviewFilter) => void;
@@ -2028,7 +2038,10 @@ function RequirementsExplorer({
   const summary = summarizeReviewRequirements(allRequirements);
 
   return (
-    <details className="theme-shell-card rounded-[1.25rem] p-4">
+    <details
+      className="theme-shell-card rounded-[1.25rem] p-4"
+      open={defaultOpen}
+    >
       <summary className="theme-shell-title cursor-pointer text-sm font-bold">
         {disclosureLabel ??
           "Open all requirements for search, filtering, and custom selection"}
@@ -2166,7 +2179,7 @@ function RequirementsTable({
                     }
                     aria-label={`Select requirement ${
                       requirement.requirementId || requirement.sourceRowNumber
-                    } for prototype draft generation`}
+                    } for draft generation`}
                     className="h-4 w-4 accent-[#00558C]"
                   />
                 </td>
@@ -2264,6 +2277,8 @@ function searchRequirements(
 }
 
 export function WorkspaceSourcePanel({
+  continueHelper,
+  continueLabel,
   demoCount,
   feedback,
   mvpCount,
@@ -2278,6 +2293,8 @@ export function WorkspaceSourcePanel({
   sourcePreviewExpanded,
   sourceRowCount,
 }: {
+  continueHelper?: string;
+  continueLabel?: string;
   demoCount: number;
   feedback: SourceFeedback | null;
   mvpCount: number;
@@ -2298,49 +2315,97 @@ export function WorkspaceSourcePanel({
     : "Uploaded workbook";
   const previewCount = previewRows.length;
   const sourceStatus = isFixtureSource
-    ? "Customer X sample workbook is active for the fastest Phase 1 walkthrough."
-    : "Uploaded workbook is active and its saved review state is loaded.";
+    ? "The sample workbook is active right now. Upload the project workbook when you are ready to switch to the real source."
+    : "The uploaded workbook is active and ready for generation.";
   const sourceHint = isFixtureSource
-    ? "Upload another workbook only when you want to replace the sample for this run."
-    : "Upload a new workbook to replace this source, or restore the sample workbook.";
+    ? "Use the sample workbook only when you want a quick demo path."
+    : "Restore the sample workbook only when you need a fallback demo source.";
 
   return (
     <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.08fr)_360px]">
       <article className="theme-shell-card rounded-[1.5rem] p-5 sm:p-6">
-        <div
-          className={`rounded-[1.35rem] border p-4 sm:p-5 ${
-            isFixtureSource
-              ? "theme-shell-card-brand"
-              : "theme-shell-card-slate"
-          }`}
-        >
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="min-w-0 max-w-3xl">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="theme-shell-subtle mono-label text-[0.56rem]">
-                  Current source
-                </p>
-                <span className="tone-neutral-subtle rounded-full border px-3 py-1 text-[0.65rem] font-bold">
-                  {sourceKindLabel}
-                </span>
-              </div>
-              <h3 className="theme-shell-title mt-2 text-xl font-bold tracking-[-0.03em] sm:text-2xl">
-                {sourceMetadata.sourceLabel}
-              </h3>
-              <p className="theme-shell-body mt-2 text-sm leading-6">
-                {sourceStatus}
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(240px,0.85fr)]">
+          <section className="theme-shell-card-brand rounded-[1.35rem] p-4 sm:p-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="theme-shell-subtle mono-label text-[0.56rem]">
+                Workbook selection
               </p>
-              <p className="theme-shell-subtle mt-2 break-all text-xs leading-5">
-                {sourceMetadata.sourceFilename}
-              </p>
+              <span className="tone-positive rounded-full border px-3 py-1 text-[0.65rem] font-bold">
+                Primary action
+              </span>
             </div>
-          </div>
+            <h3 className="theme-shell-title mt-2 text-xl font-bold tracking-[-0.03em] sm:text-2xl">
+              Upload the workbook for this project
+            </h3>
+            <p className="theme-shell-body mt-2 text-sm leading-6">
+              Start with the real workbook whenever you have it. The sample file
+              stays available as a fallback for walkthroughs and demos.
+            </p>
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <SourceMeta label="Rows" value={sourceRowCount.toLocaleString()} />
-            <SourceMeta label="Demo" value={demoCount.toLocaleString()} />
-            <SourceMeta label="MVP" value={mvpCount.toLocaleString()} />
-          </div>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <label className="focus-premium theme-button-primary inline-flex cursor-pointer justify-center rounded-2xl px-4 py-3 text-sm font-bold transition">
+                Upload .xlsx workbook
+                <input
+                  accept=".xlsx"
+                  type="file"
+                  onChange={onUploadWorkbook}
+                  className="sr-only"
+                />
+              </label>
+
+              {!isFixtureSource ? (
+                <button
+                  type="button"
+                  onClick={onRestoreFixtureSource}
+                  className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-bold transition"
+                >
+                  Use sample workbook
+                </button>
+              ) : null}
+            </div>
+
+            {feedback ? (
+              <div
+                className={`mt-4 rounded-[1.1rem] border px-4 py-3 text-sm leading-6 ${
+                  feedback.tone === "success"
+                    ? "tone-positive"
+                    : feedback.tone === "error"
+                      ? "tone-warning"
+                      : "tone-neutral"
+                }`}
+                role="status"
+                aria-live="polite"
+              >
+                {feedback.message}
+              </div>
+            ) : null}
+          </section>
+
+          <section className="theme-shell-card-soft rounded-[1.35rem] p-4 sm:p-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="theme-shell-subtle mono-label text-[0.56rem]">
+                Active workbook
+              </p>
+              <span className="tone-neutral-subtle rounded-full border px-3 py-1 text-[0.65rem] font-bold">
+                {sourceKindLabel}
+              </span>
+            </div>
+            <h3 className="theme-shell-title mt-2 text-lg font-bold tracking-[-0.03em]">
+              {sourceMetadata.sourceLabel}
+            </h3>
+            <p className="theme-shell-body mt-2 text-sm leading-6">
+              {sourceStatus}
+            </p>
+            <p className="theme-shell-subtle mt-2 break-all text-xs leading-5">
+              {sourceMetadata.sourceFilename}
+            </p>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+              <SourceMeta label="Rows" value={sourceRowCount.toLocaleString()} />
+              <SourceMeta label="Demo" value={demoCount.toLocaleString()} />
+              <SourceMeta label="MVP" value={mvpCount.toLocaleString()} />
+            </div>
+          </section>
         </div>
 
         <div className="mt-5">
@@ -2377,8 +2442,11 @@ export function WorkspaceSourcePanel({
         </div>
 
         <GuidedStepFooter
-          helper={`Showing ${previewCount} of ${sourceRowCount} rows from the active workbook. Continue only after the parsed rows and row counts look right.`}
-          label="Continue to generation"
+          helper={
+            continueHelper ??
+            `Showing ${previewCount} of ${sourceRowCount} rows from the active workbook. Continue once the file, counts, and preview all look right.`
+          }
+          label={continueLabel ?? "Continue to generation"}
           onClick={onContinue}
         />
       </article>
@@ -2442,52 +2510,28 @@ export function WorkspaceSourcePanel({
 
         <section className="theme-shell-card-soft rounded-[1.35rem] p-4 sm:p-5">
           <p className="theme-shell-subtle mono-label text-[0.56rem]">
-            Replace source
+            Sample fallback
           </p>
           <h4 className="theme-shell-title mt-2 text-lg font-bold">
-            Change the input only when you mean to restart the run
+            Keep the sample workbook secondary
           </h4>
           <p className="theme-shell-body mt-2 text-sm leading-6">
             {sourceHint}
           </p>
 
-          <div className="mt-4 flex flex-col gap-3">
-            <label className="focus-premium theme-shell-button-secondary inline-flex cursor-pointer justify-center rounded-2xl px-4 py-3 text-sm font-bold transition">
-              Upload .xlsx workbook
-              <input
-                accept=".xlsx"
-                type="file"
-                onChange={onUploadWorkbook}
-                className="sr-only"
-              />
-            </label>
-
-            {!isFixtureSource ? (
-              <button
-                type="button"
-                onClick={onRestoreFixtureSource}
-                className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-bold transition"
-              >
-                Restore sample workbook
-              </button>
-            ) : null}
-          </div>
-
-          {feedback ? (
-            <div
-              className={`mt-4 rounded-[1.1rem] border px-4 py-3 text-sm leading-6 ${
-                feedback.tone === "success"
-                  ? "tone-positive"
-                  : feedback.tone === "error"
-                    ? "tone-warning"
-                    : "tone-neutral"
-              }`}
-              role="status"
-              aria-live="polite"
+          {!isFixtureSource ? (
+            <button
+              type="button"
+              onClick={onRestoreFixtureSource}
+              className="focus-premium theme-shell-button-secondary mt-4 rounded-2xl px-4 py-3 text-sm font-bold transition"
             >
-              {feedback.message}
+              Restore sample workbook
+            </button>
+          ) : (
+            <div className="tone-neutral rounded-[1.1rem] border px-4 py-3 text-sm leading-6">
+              The sample workbook is active for this run.
             </div>
-          ) : null}
+          )}
         </section>
       </aside>
     </section>
@@ -2720,7 +2764,7 @@ function EmptyFilterState({
       ? "Try a different requirement ID, process, status, or source text."
       : filter === "review" || filter === "approved" || filter === "skipped"
         ? "Use the row detail panel actions to move requirements into this review state."
-        : "No source rows match this fixture-backed filter.";
+        : "No source rows match this filter.";
 
   return (
     <div className="p-8">

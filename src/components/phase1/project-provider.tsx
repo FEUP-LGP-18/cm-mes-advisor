@@ -369,8 +369,7 @@ export function Phase1ProjectProvider({
     updateWorkspaceState(nextWorkspaceState, "source");
     setSourceFeedback({
       tone: "success",
-      message:
-        "Restored the Customer X sample workbook for this local project.",
+      message: "Restored the sample workbook for this project.",
     });
   }, [fallbackWorkspaceState, project, updateWorkspaceState]);
 
@@ -479,7 +478,7 @@ export function Phase1ProjectProvider({
             tone: "error",
             message:
               message ||
-              "Server generation failed. The local review state was not changed.",
+              "Server generation failed. The saved review state was not changed.",
             code:
               responseBody && !responseBody.ok
                 ? responseBody.error.code
@@ -520,7 +519,7 @@ export function Phase1ProjectProvider({
           setGenerationFeedback({
             tone: "error",
             message:
-              "Server generation returned drafts that did not match the selected rows. No local review state was changed.",
+              "Server generation returned drafts that did not match the selected rows. The saved review state was not changed.",
           });
           setMockGenerationRun(createIdleGenerationRun());
           return false;
@@ -564,7 +563,7 @@ export function Phase1ProjectProvider({
           message:
             responseBody.mode === "real"
               ? `Generated ${responseBody.drafts.length} grounded draft(s) for ${targetLabel}.`
-              : `Generated ${responseBody.drafts.length} prototype draft(s) for ${targetLabel}.`,
+              : `Generated ${responseBody.drafts.length} draft(s) for ${targetLabel}.`,
           code: undefined,
           missingConfig: undefined,
           reason: undefined,
@@ -576,7 +575,7 @@ export function Phase1ProjectProvider({
         setGenerationFeedback({
           tone: "error",
           message:
-            "Server generation could not be reached. The local review state was not changed.",
+            "Server generation could not be reached. The saved review state was not changed.",
           code: "generation-failed",
           missingConfig: undefined,
           reason: undefined,

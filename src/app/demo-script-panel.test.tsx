@@ -129,14 +129,17 @@ describe("demo script panels", () => {
       <DemoScriptEditingPanel
         assembly={readyAssembly}
         draft={demoScriptDraft}
+        exportReady
         onDraftAction={vi.fn()}
+        onSwitchToExport={vi.fn()}
         onSwitchToReview={vi.fn()}
+        pendingReviewCount={0}
         projectMetadata={projectMetadata}
       />,
     );
 
     expect(markup).toContain("Script editor");
-    expect(markup).toContain("Shape the consultant-facing narrative");
+    expect(markup).toContain("Refine the structure, wording, and notes");
     expect(markup).toContain("Script title");
     expect(markup).not.toContain("Download Markdown");
   });
@@ -152,6 +155,7 @@ describe("demo script panels", () => {
     );
 
     expect(markup).toContain("Finalize the Phase 1 deliverable");
+    expect(markup).toContain("Ready to download");
     expect(markup).toContain("Download Markdown");
     expect(markup).toContain("Included requirements");
     expect(markup).not.toContain("Script title");

@@ -19,8 +19,10 @@ export const themeInitScript = `
       ? storedTheme
       : defaultTheme;
     document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
   } catch {
     document.documentElement.dataset.theme = defaultTheme;
+    document.documentElement.style.colorScheme = defaultTheme;
   }
 })();
 `;
