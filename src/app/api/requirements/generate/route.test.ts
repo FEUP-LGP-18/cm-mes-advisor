@@ -157,6 +157,7 @@ describe("POST /api/requirements/generate", () => {
     expect(text).toContain("real-generation-unavailable");
     expect(text).toContain("not configured yet");
     expect(text).toContain("AWS_BEARER_TOKEN_BEDROCK");
+    expect(text).toContain("missing-config");
     expect(text).not.toContain("example-bedrock-model-id");
   });
 });

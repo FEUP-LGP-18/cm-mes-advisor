@@ -84,6 +84,7 @@ describe("real requirement generation orchestration", () => {
         },
         createModelClient() {
           return {
+            async checkAvailability() {},
             async generateDraft({ requirement }) {
               return {
                 generatedComment: `Generated comment for ${requirement.requirementId}.`,
@@ -152,6 +153,7 @@ describe("real requirement generation orchestration", () => {
         },
         createModelClient() {
           return {
+            async checkAvailability() {},
             async generateDraft({ requirement }) {
               if (requirement.requirementId === "01.02") {
                 throw new BedrockResponseFormatError("bad JSON");
@@ -214,6 +216,7 @@ describe("real requirement generation orchestration", () => {
         },
         createModelClient() {
           return {
+            async checkAvailability() {},
             async generateDraft() {
               throw new BedrockRequestError("network unavailable");
             },

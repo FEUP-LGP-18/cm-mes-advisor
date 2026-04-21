@@ -69,6 +69,10 @@ For local startup, prefer the root `../start.sh` entrypoint before falling back 
 - Phase 1 must feel complete without forcing Phase 2 as the next required step.
 - Do not imply broader document ingestion or Phase 2 capability beyond the confirmed MVP scope.
 - Before calling material UI work done, compare the requested outcome to the rendered result.
+- Treat shell-first layouts as UX failures when the workflow chrome outranks the actual task.
+- Treat conflicting step messaging or next-action language as a blocking UX issue.
+- On mobile task-heavy screens, keep the current task ahead of navigation chrome.
+- Do not repeat the same guidance across the page title, intro copy, and support cards.
 - Material UI work is `NEEDS WORK` until desktop, mobile, and the key interaction for that surface are verified.
 - Check relevant empty, loading, error, and overflow states before signoff.
 - Do not describe material UI work as polished, ready, or production-ready without browser evidence.

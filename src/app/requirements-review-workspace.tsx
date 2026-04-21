@@ -158,9 +158,7 @@ export default function RequirementsReviewWorkspace({
   const [reviewedScriptStageKey, setReviewedScriptStageKey] = useState<
     string | null
   >(null);
-  const [sourcePreviewExpanded, setSourcePreviewExpanded] = useState(
-    fallbackWorkspaceState.source.sourceKind !== "fixture",
-  );
+  const [sourcePreviewExpanded, setSourcePreviewExpanded] = useState(true);
   const [sourceDetailsExpanded, setSourceDetailsExpanded] = useState(
     fallbackWorkspaceState.source.sourceKind !== "fixture",
   );
@@ -192,7 +190,7 @@ export default function RequirementsReviewWorkspace({
     setGenerationFeedback(null);
     setLastGenerationMode(null);
     setReviewedScriptStageKey(null);
-    setSourcePreviewExpanded(workspaceState.source.sourceKind !== "fixture");
+    setSourcePreviewExpanded(true);
     setSourceDetailsExpanded(workspaceState.source.sourceKind !== "fixture");
   }, [workspaceState.source.sourceId, workspaceState.source.sourceKind]);
 
@@ -799,7 +797,6 @@ export default function RequirementsReviewWorkspace({
             approvedCount={summary.approvedCount}
             currentRequirement={currentReviewRequirement}
             generatedCount={generatedRequirements.length}
-            generatedReviewableCount={generatedReviewableRequirements.length}
             onGenerateDemoRows={handleGenerateDemoRows}
             onGoToGenerate={() => goToWorkflowStep("generate")}
             onOpenScript={() => goToWorkflowStep("script")}
@@ -808,7 +805,6 @@ export default function RequirementsReviewWorkspace({
             onSelectQueueRequirement={handleSelectReviewQueueRequirement}
             onSelectNext={handleSelectNextReviewRequirement}
             reviewQueue={reviewQueue}
-            selectedRequirementKeys={selectedRequirementKeys}
           />
         ) : null}
 
@@ -826,14 +822,26 @@ export default function RequirementsReviewWorkspace({
               projectMetadata={currentProjectMetadata}
             />
             <GuidedStepFooter
-              disabled={Boolean(demoScriptAssembly.emptyState)}
+              disabled={false}
               helper={
                 demoScriptAssembly.emptyState
-                  ? "Approve at least one generated row to unlock the export step."
-                  : `${demoScriptAssembly.approvedRequirementCount} approved requirements are ready for export.`
+                  ? "Approve at least one generated row in review before export becomes available."
+                  : generatedReviewableRequirements.length > 0
+                    ? `${generatedReviewableRequirements.length} generated row${generatedReviewableRequirements.length === 1 ? "" : "s"} still need consultant review before export unlocks.`
+                    : `${demoScriptAssembly.approvedRequirementCount} approved requirements are ready for export.`
               }
-              label="Continue to export"
-              onClick={() => goToWorkflowStep("export")}
+              label={
+                generatedReviewableRequirements.length > 0
+                  ? "Back to review"
+                  : "Continue to export"
+              }
+              onClick={() =>
+                goToWorkflowStep(
+                  generatedReviewableRequirements.length > 0
+                    ? "review"
+                    : "export",
+                )
+              }
             />
           </GuidedStepFrame>
         ) : null}
@@ -1019,8 +1027,8 @@ export function GuidedStepFooter({
   onClick: () => void;
 }) {
   return (
-    <div className="theme-shell-card mt-5 flex flex-col gap-3 rounded-xl p-4 sm:flex-row sm:items-center sm:justify-between">
-      <p className="theme-shell-body text-sm leading-6">{helper}</p>
+    <div className="theme-shell-card mt-5 flex flex-col gap-3 rounded-[1.15rem] p-4 sm:flex-row sm:items-center sm:justify-between">
+      <p className="theme-shell-body max-w-3xl text-sm leading-6">{helper}</p>
       <button
         type="button"
         onClick={onClick}
@@ -1086,41 +1094,78 @@ export function GenerateWorkflowStep({
 }) {
   const content = (
     <>
-      <div className="grid gap-4 lg:grid-cols-3">
-        <GenerationPresetCard
-          count={demoCount}
-          description="Best default for a client demo: rows already marked as demo-relevant."
-          disabled={demoCount === 0 || isGenerating}
-          label={isGenerating ? "Generating..." : "Generate demo rows"}
-          onClick={onGenerateDemoRows}
-          recommended
-          title="Demo rows"
-        />
-        <GenerationPresetCard
-          count={mvpCount}
-          description="Use this when the team wants to align with the MVP slice instead."
-          disabled={mvpCount === 0 || isGenerating}
-          label={isGenerating ? "Generating..." : "Generate MVP rows"}
-          onClick={onGenerateMvpRows}
-          title="MVP rows"
-        />
-        <GenerationPresetCard
-          count={selectedRowsCount}
-          description="Power-user path for hand-picked rows from the expert table below."
-          disabled={selectedRowsCount === 0 || isGenerating}
-          label={
-            selectedRowsCount > 0
-              ? `Generate ${selectedRowsCount} selected`
-              : "Select rows first"
-          }
-          onClick={onGenerateSelectedRows}
-          title="Selected rows"
-        />
-      </div>
+      <section className="theme-shell-card rounded-[1.5rem] p-5 sm:p-6">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-3xl">
+            <p className="theme-shell-kicker mono-label text-[0.6rem]">
+              Recommended slice
+            </p>
+            <h3 className="theme-shell-title mt-2 text-[1.75rem] font-bold tracking-[-0.04em] sm:text-[2rem]">
+              Generate demo rows first
+            </h3>
+            <p className="theme-shell-body mt-2 text-sm leading-6">
+              Use the demo-marked slice as the default starting point, then
+              open expert tools only when you intentionally want a narrower
+              batch.
+            </p>
+          </div>
+
+          <div className="theme-shell-card-brand rounded-[1.2rem] px-4 py-3 text-right">
+            <p className="theme-shell-subtle mono-label text-[0.54rem]">
+              Demo rows
+            </p>
+            <p className="theme-shell-title mt-1 text-3xl font-black tracking-[-0.06em]">
+              {demoCount}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <button
+            type="button"
+            onClick={onGenerateDemoRows}
+            disabled={demoCount === 0 || isGenerating}
+            className="focus-premium theme-button-primary rounded-2xl px-5 py-3 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            {isGenerating ? "Generating demo rows..." : "Generate demo rows"}
+          </button>
+          {generatedCount > 0 ? (
+            <button
+              type="button"
+              onClick={onGoToReview}
+              className="focus-premium theme-shell-button-secondary rounded-2xl px-5 py-3 text-sm font-bold transition"
+            >
+              Open review queue
+            </button>
+          ) : null}
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3 rounded-[1.1rem] border border-[color:var(--shell-border)] bg-[color:var(--shell-soft-surface)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="theme-shell-title text-sm font-bold">
+              {generatedCount > 0
+                ? `${generatedCount} generated row${generatedCount === 1 ? "" : "s"} already wait in review.`
+                : "No drafts exist yet for this project."}
+            </p>
+            <p className="theme-shell-body mt-1 text-sm leading-6">
+              Generate the demo slice first, then move straight into review.
+            </p>
+          </div>
+          {generatedCount > 0 ? (
+            <button
+              type="button"
+              onClick={onGoToReview}
+              className="focus-premium theme-shell-button-secondary rounded-full px-4 py-2 text-xs font-bold transition"
+            >
+              Open review queue
+            </button>
+          ) : null}
+        </div>
+      </section>
 
       {feedback ? (
         <div
-          className={`mt-4 rounded-2xl border px-4 py-3 text-sm leading-6 ${
+          className={`rounded-2xl border px-4 py-3 text-sm leading-6 ${
             feedback.tone === "success"
               ? "tone-positive"
               : feedback.tone === "error"
@@ -1134,35 +1179,37 @@ export function GenerateWorkflowStep({
         </div>
       ) : null}
 
-      {generatedCount > 0 ? (
-        <section className="theme-shell-card-brand mt-4 rounded-[1.5rem] p-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="max-w-3xl">
-              <p className="theme-shell-kicker mono-label text-[0.6rem]">
-                Drafts ready
-              </p>
-              <h3 className="theme-shell-title mt-2 text-xl font-bold tracking-[-0.03em]">
-                {generatedCount} generated row
-                {generatedCount === 1 ? "" : "s"} are ready for consultant
-                review.
-              </h3>
-              <p className="theme-shell-body mt-2 text-sm leading-6">
-                You can keep refining the generation slice here, or move
-                straight into the review queue.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={onGoToReview}
-              className="focus-premium theme-button-primary rounded-2xl px-5 py-3 text-sm font-bold transition"
-            >
-              Open review queue
-            </button>
-          </div>
-        </section>
-      ) : null}
+      <details className="theme-shell-card rounded-xl p-4">
+        <summary className="theme-shell-title cursor-pointer text-sm font-bold">
+          Open expert generation paths
+        </summary>
+        <div className="mt-4 grid gap-2 lg:grid-cols-2">
+          <GenerationShortcut
+            description={`${mvpCount} rows marked for the MVP slice.`}
+            disabled={mvpCount === 0 || isGenerating}
+            label={isGenerating ? "Generating..." : "Generate MVP rows"}
+            onClick={onGenerateMvpRows}
+            title="Use the MVP slice"
+          />
+          <GenerationShortcut
+            description={
+              selectedRowsCount > 0
+                ? `${selectedRowsCount} custom row${selectedRowsCount === 1 ? "" : "s"} selected in the expert table.`
+                : "Select rows in the expert table below before using a custom batch."
+            }
+            disabled={selectedRowsCount === 0 || isGenerating}
+            label={
+              selectedRowsCount > 0
+                ? `Generate ${selectedRowsCount} selected`
+                : "Select rows first"
+            }
+            onClick={onGenerateSelectedRows}
+            title="Generate a custom batch"
+          />
+        </div>
+      </details>
 
-      <details className="theme-shell-card mt-4 rounded-xl p-4">
+      <details className="theme-shell-card rounded-xl p-4">
         <summary className="theme-shell-title cursor-pointer text-sm font-bold">
           See generation status
         </summary>
@@ -1222,58 +1269,32 @@ export function GenerateWorkflowStep({
   );
 }
 
-function GenerationPresetCard({
-  count,
+function GenerationShortcut({
   description,
   disabled,
   label,
   onClick,
-  recommended,
   title,
 }: {
-  count: number;
   description: string;
   disabled: boolean;
   label: string;
   onClick: () => void | Promise<void>;
-  recommended?: boolean;
   title: string;
 }) {
   return (
-    <article
-      className={`rounded-2xl border p-5 ${
-        recommended ? "theme-shell-card-brand" : "theme-shell-card-soft"
-      }`}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="theme-shell-title text-lg font-black">{title}</p>
-          {recommended ? (
-            <p className="theme-shell-kicker mt-1 text-xs font-bold">
-              Recommended
-            </p>
-          ) : null}
-        </div>
-        <span className="theme-shell-title font-mono text-4xl font-black tracking-[-0.06em]">
-          {count}
-        </span>
-      </div>
-      <p className="theme-shell-body mt-4 min-h-14 text-sm leading-6">
-        {description}
-      </p>
+    <div className="rounded-2xl border border-[color:var(--shell-border)] bg-[color:var(--shell-card-surface)] px-4 py-4">
+      <p className="theme-shell-title text-sm font-bold">{title}</p>
+      <p className="theme-shell-body mt-2 text-sm leading-6">{description}</p>
       <button
         type="button"
         onClick={onClick}
         disabled={disabled}
-        className={`focus-premium mt-5 w-full rounded-2xl px-4 py-3 text-sm font-black transition ${
-          recommended
-            ? "theme-button-primary"
-            : "theme-shell-button-secondary border"
-        } disabled:cursor-not-allowed disabled:opacity-45`}
+        className="focus-premium theme-shell-button-secondary mt-4 w-full rounded-2xl border px-4 py-3 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-45"
       >
         {label}
       </button>
-    </article>
+    </div>
   );
 }
 
@@ -1282,7 +1303,6 @@ export function ReviewWorkflowStep({
   approvedCount,
   currentRequirement,
   generatedCount,
-  generatedReviewableCount,
   onGenerateDemoRows,
   onGoToGenerate,
   onOpenScript,
@@ -1291,14 +1311,12 @@ export function ReviewWorkflowStep({
   onSelectQueueRequirement,
   onSelectNext,
   reviewQueue,
-  selectedRequirementKeys,
   showFrame = true,
 }: {
   activeQueueIndex: number;
   approvedCount: number;
   currentRequirement: ReviewRequirement | null;
   generatedCount: number;
-  generatedReviewableCount: number;
   onGenerateDemoRows: () => void | Promise<void>;
   onGoToGenerate: () => void;
   onOpenScript: () => void;
@@ -1310,7 +1328,6 @@ export function ReviewWorkflowStep({
   onSelectQueueRequirement: (requirement: ReviewRequirement) => void;
   onSelectNext: (requirement: ReviewRequirement | null) => void;
   reviewQueue: ReviewRequirement[];
-  selectedRequirementKeys: Set<string>;
   showFrame?: boolean;
 }) {
   if (generatedCount === 0) {
@@ -1384,44 +1401,26 @@ export function ReviewWorkflowStep({
 
   const content = (
     <>
-      <section className="theme-shell-card mb-4 rounded-[1.35rem] p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="max-w-3xl">
-            <p className="theme-shell-kicker mono-label text-[0.58rem]">
-              Review focus
-            </p>
-            <p className="theme-shell-title mt-2 text-base font-bold">
-              Keep the queue visible, act above the fold, and only open extra
-              evidence when you need it.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <QueueMetricChip label="Pending" value={generatedReviewableCount} />
-            <QueueMetricChip label="Approved" value={approvedCount} />
-            <QueueMetricChip
-              label="Selected"
-              value={selectedRequirementKeys.size}
-            />
-          </div>
-        </div>
-      </section>
-
       <div className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
-        <ReviewQueueNavigator
-          activeQueueIndex={activeQueueIndex}
-          approvedCount={approvedCount}
-          currentRequirement={currentRequirement}
-          onOpenScript={onOpenScript}
-          onSelectNext={onSelectNext}
-          onSelectPrevious={onSelectPrevious}
-          onSelectQueueRequirement={onSelectQueueRequirement}
-          reviewQueue={reviewQueue}
-        />
-        <GuidedReviewCard
-          onReviewAction={onReviewAction}
-          onSelectNext={onSelectNext}
-          requirement={currentRequirement}
-        />
+        <div className="order-2 xl:order-1">
+          <ReviewQueueNavigator
+            activeQueueIndex={activeQueueIndex}
+            approvedCount={approvedCount}
+            currentRequirement={currentRequirement}
+            onOpenScript={onOpenScript}
+            onSelectNext={onSelectNext}
+            onSelectPrevious={onSelectPrevious}
+            onSelectQueueRequirement={onSelectQueueRequirement}
+            reviewQueue={reviewQueue}
+          />
+        </div>
+        <div className="order-1 xl:order-2">
+          <GuidedReviewCard
+            onReviewAction={onReviewAction}
+            onSelectNext={onSelectNext}
+            requirement={currentRequirement}
+          />
+        </div>
       </div>
     </>
   );
@@ -1466,37 +1465,14 @@ function ReviewQueueNavigator({
         Review queue
       </p>
       <h3 className="theme-shell-title mt-3 text-2xl font-bold tracking-[-0.035em]">
-        Browse what is next
+        Keep navigation secondary
       </h3>
       <p className="theme-shell-body mt-3 text-sm leading-6">
-        Pick any pending row, or move through the queue in order while you make
-        consultant decisions.
+        Use previous and next to stay in flow. Open the full queue only when
+        you need to jump to another pending requirement.
       </p>
 
-      <div className="theme-shell-card mt-5 rounded-[1.25rem] p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="theme-shell-subtle mono-label text-[0.52rem]">
-              Pending
-            </p>
-            <p className="theme-shell-title mt-2 text-3xl font-black tracking-[-0.04em]">
-              {reviewQueue.length}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="theme-shell-subtle mono-label text-[0.52rem]">
-              Position
-            </p>
-            <p className="theme-shell-title mt-2 text-sm font-bold">
-              {activeQueueIndex >= 0
-                ? `${activeQueueIndex + 1} of ${reviewQueue.length}`
-                : "Select a row"}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-2">
+      <div className="mt-5 grid gap-2 sm:grid-cols-2">
         <button
           type="button"
           onClick={() => onSelectPrevious(currentRequirement)}
@@ -1519,7 +1495,37 @@ function ReviewQueueNavigator({
         </button>
       </div>
 
-      <div className="mt-4 min-h-[18rem] xl:min-h-0 xl:flex-1 xl:overflow-hidden">
+      <div className="mt-4 flex flex-wrap gap-2">
+        <QueueMetricChip label="Pending" value={reviewQueue.length} />
+        <QueueMetricChip label="Approved" value={approvedCount} />
+        <QueueMetricChip
+          label="Position"
+          value={activeQueueIndex >= 0 ? activeQueueIndex + 1 : 0}
+          suffix={activeQueueIndex >= 0 ? `/${reviewQueue.length}` : ""}
+        />
+      </div>
+
+      <details className="theme-shell-card-soft mt-4 rounded-[1.15rem] p-4 xl:hidden">
+        <summary className="theme-shell-title cursor-pointer text-sm font-bold">
+          Open pending queue
+        </summary>
+        <div className="mt-4 grid gap-2">
+          {reviewQueue.map((requirement, index) => (
+            <ReviewQueueItem
+              key={requirement.requirementKey}
+              active={
+                currentRequirement?.requirementKey ===
+                requirement.requirementKey
+              }
+              index={index}
+              onClick={() => onSelectQueueRequirement(requirement)}
+              requirement={requirement}
+            />
+          ))}
+        </div>
+      </details>
+
+      <div className="mt-4 hidden min-h-[18rem] xl:min-h-0 xl:flex-1 xl:overflow-hidden xl:block">
         <div className="h-full overflow-y-auto pr-1">
           <div className="grid gap-2">
             {reviewQueue.map((requirement, index) => (
@@ -1551,13 +1557,24 @@ function ReviewQueueNavigator({
   );
 }
 
-function QueueMetricChip({ label, value }: { label: string; value: number }) {
+function QueueMetricChip({
+  label,
+  suffix,
+  value,
+}: {
+  label: string;
+  suffix?: string;
+  value: number;
+}) {
   return (
     <span className="theme-shell-card-soft inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-bold">
       <span className="theme-shell-subtle mono-label text-[0.48rem]">
         {label}
       </span>
-      <span className="theme-shell-title text-sm">{value}</span>
+      <span className="theme-shell-title text-sm">
+        {value}
+        {suffix ?? ""}
+      </span>
     </span>
   );
 }
@@ -1580,7 +1597,7 @@ function ReviewQueueItem({
     <button
       type="button"
       onClick={onClick}
-      className={`focus-premium rounded-[1.2rem] border p-3 text-left transition ${
+      className={`focus-premium rounded-[1rem] border px-3 py-3 text-left transition ${
         active
           ? "theme-shell-card-active"
           : "theme-shell-card-soft hover:bg-[color:var(--shell-soft-surface-hover)]"
@@ -1588,11 +1605,11 @@ function ReviewQueueItem({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="theme-shell-subtle mono-label text-[0.5rem]">
-            Queue {index + 1}
-          </p>
           <p className="theme-shell-title mt-1 text-sm font-bold">
             {requirement.requirementId || `Row ${requirement.sourceRowNumber}`}
+          </p>
+          <p className="theme-shell-subtle mt-1 text-[0.72rem] font-semibold uppercase tracking-[0.16em]">
+            Queue {index + 1}
           </p>
         </div>
         <span className="theme-shell-body text-xs font-semibold">
@@ -1600,7 +1617,7 @@ function ReviewQueueItem({
         </span>
       </div>
 
-      <p className="theme-shell-body mt-2 max-h-[3.25rem] overflow-hidden text-xs leading-5">
+      <p className="theme-shell-body mt-2 max-h-[2.8rem] overflow-hidden text-xs leading-5">
         {emptyValue(requirement.requirementDescription)}
       </p>
 
@@ -1664,7 +1681,7 @@ function GuidedReviewCard({
       : null;
 
   return (
-    <article className="premium-panel rounded-[1.5rem] p-5 pb-24 sm:p-6 sm:pb-28">
+    <article className="premium-panel rounded-[1.5rem] p-5 sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="theme-shell-kicker mono-label text-[0.64rem]">
@@ -1677,78 +1694,73 @@ function GuidedReviewCard({
         <StatusBadge status={requirement.reviewStatus} />
       </div>
 
-      <div className="theme-shell-card mt-5 rounded-[1.25rem] p-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="theme-shell-subtle mono-label text-[0.58rem]">
-            Requirement
-          </span>
-          <TinyInfoPill label="L2" value={emptyValue(requirement.l2Process)} />
-          <TinyInfoPill
-            label="L3"
-            value={emptyValue(requirement.l3Process || requirement.operation)}
-          />
-          <TinyInfoPill label="Demo" value={formatBoolean(requirement.demo)} />
-          <TinyInfoPill label="MVP" value={formatBoolean(requirement.mvp)} />
-        </div>
-        <p className="theme-shell-title mt-2 text-base leading-7">
-          {emptyValue(requirement.requirementDescription)}
-        </p>
+      <div className="mt-5 flex flex-wrap gap-2">
+        <TinyInfoPill label="L2" value={emptyValue(requirement.l2Process)} />
+        <TinyInfoPill
+          label="L3"
+          value={emptyValue(requirement.l3Process || requirement.operation)}
+        />
+        <TinyInfoPill label="Demo" value={formatBoolean(requirement.demo)} />
+        <TinyInfoPill label="MVP" value={formatBoolean(requirement.mvp)} />
       </div>
+
+      <p className="theme-shell-title mt-4 text-base leading-7">
+        {emptyValue(requirement.requirementDescription)}
+      </p>
 
       <RequirementValidationStrip validation={validation} />
 
       {draft ? (
-        <section className="mt-5 grid gap-4">
-          <div className="theme-shell-card-brand rounded-[1.25rem] p-4">
-            <p className="theme-shell-subtle mono-label text-[0.58rem]">
-              Draft comment
-            </p>
-            <p className="theme-shell-title mt-2 whitespace-pre-wrap text-sm leading-7">
-              {draft.generatedComment}
-            </p>
-          </div>
-
-          <div className="theme-shell-card rounded-[1.25rem] p-4">
-            <p className="theme-shell-subtle mono-label text-[0.58rem]">
-              Demo steps
-            </p>
-            <ol className="mt-3 grid gap-3">
-              {draft.demoSteps.map((step, index) => (
-                <li
-                  key={step.id}
-                  className="theme-shell-card-soft rounded-2xl p-3"
-                >
-                  <p className="theme-shell-title text-sm font-bold">
-                    {index + 1}. {step.title}
-                  </p>
-                  <p className="theme-shell-kicker mt-1 text-xs font-semibold">
-                    {step.mesModuleOrScreen}
-                  </p>
-                  <ol className="theme-shell-body mt-2 list-decimal space-y-1 pl-5 text-sm leading-6">
-                    {step.instructions.map((instruction) => (
-                      <li key={instruction}>{instruction}</li>
-                    ))}
-                  </ol>
-                </li>
-              ))}
-            </ol>
-          </div>
-
-          <div className="theme-shell-card sticky bottom-3 z-20 rounded-[1.25rem] border-[color:var(--shell-border-strong)] p-3 shadow-[var(--shadow-soft)] backdrop-blur sm:p-4">
-            <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="theme-shell-kicker mono-label text-[0.58rem]">
-                  Consultant decision
-                </p>
-                <p className="theme-shell-body mt-1 text-sm leading-6">
-                  Make the row decision now, then add notes or evidence only if
-                  you need them.
-                </p>
-              </div>
-              <StatusBadge status={requirement.reviewStatus} />
+        <section className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
+          <div className="grid gap-4">
+            <div className="theme-shell-card-brand rounded-[1.25rem] p-4">
+              <p className="theme-shell-subtle mono-label text-[0.58rem]">
+                Draft comment
+              </p>
+              <p className="theme-shell-title mt-2 whitespace-pre-wrap text-sm leading-7">
+                {draft.generatedComment}
+              </p>
             </div>
 
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="theme-shell-card rounded-[1.25rem] p-4">
+              <p className="theme-shell-subtle mono-label text-[0.58rem]">
+                Demo steps
+              </p>
+              <ol className="mt-3 grid gap-3">
+                {draft.demoSteps.map((step, index) => (
+                  <li
+                    key={step.id}
+                    className="theme-shell-card-soft rounded-2xl p-3"
+                  >
+                    <p className="theme-shell-title text-sm font-bold">
+                      {index + 1}. {step.title}
+                    </p>
+                    <p className="theme-shell-kicker mt-1 text-xs font-semibold">
+                      {step.mesModuleOrScreen}
+                    </p>
+                    <ol className="theme-shell-body mt-2 list-decimal space-y-1 pl-5 text-sm leading-6">
+                      {step.instructions.map((instruction) => (
+                        <li key={instruction}>{instruction}</li>
+                      ))}
+                    </ol>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </div>
+
+          <aside className="theme-shell-card rounded-[1.25rem] p-4 xl:sticky xl:top-4">
+            <div className="mb-3">
+              <p className="theme-shell-kicker mono-label text-[0.58rem]">
+                Consultant decision
+              </p>
+              <p className="theme-shell-body mt-2 text-sm leading-6">
+                Decide now, then keep the comment and note close to that
+                decision instead of burying them in a separate section.
+              </p>
+            </div>
+
+            <div className="grid gap-2">
               <ReviewActionButton
                 label="Approve and next"
                 onClick={() => onReviewAction(requirement, { type: "approve" })}
@@ -1772,7 +1784,43 @@ function GuidedReviewCard({
                 tone="neutral"
               />
             </div>
-          </div>
+
+            <div className="mt-4 grid gap-4">
+              <label className="block">
+                <span className="theme-shell-subtle mono-label text-[0.62rem]">
+                  Consultant comment
+                </span>
+                <textarea
+                  value={requirement.consultantComment}
+                  onChange={(event) =>
+                    onReviewAction(requirement, {
+                      type: "edit",
+                      consultantComment: event.currentTarget.value,
+                    })
+                  }
+                  placeholder="Edit the customer-facing wording before approval."
+                  className="focus-premium theme-shell-input mt-2 min-h-28 w-full rounded-2xl p-3 text-sm leading-6"
+                />
+              </label>
+
+              <label className="block">
+                <span className="theme-shell-subtle mono-label text-[0.62rem]">
+                  Review note
+                </span>
+                <textarea
+                  value={requirement.reviewNote}
+                  onChange={(event) =>
+                    onReviewAction(requirement, {
+                      type: "edit",
+                      reviewNote: event.currentTarget.value,
+                    })
+                  }
+                  placeholder="Why approve, flag, or skip this row?"
+                  className="focus-premium theme-shell-input mt-2 min-h-28 w-full rounded-2xl p-3 text-sm leading-6"
+                />
+              </label>
+            </div>
+          </aside>
         </section>
       ) : (
         <GuidedBlockerCard
@@ -1782,47 +1830,6 @@ function GuidedReviewCard({
           title="No generated draft"
         />
       )}
-
-      <details className="theme-shell-card mt-5 rounded-[1.25rem] p-4">
-        <summary className="theme-shell-title cursor-pointer text-sm font-bold">
-          Consultant edits and decision notes
-        </summary>
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          <label className="block">
-            <span className="theme-shell-subtle mono-label text-[0.62rem]">
-              Consultant comment
-            </span>
-            <textarea
-              value={requirement.consultantComment}
-              onChange={(event) =>
-                onReviewAction(requirement, {
-                  type: "edit",
-                  consultantComment: event.currentTarget.value,
-                })
-              }
-              placeholder="Edit the customer-facing wording before approval."
-              className="focus-premium theme-shell-input mt-2 min-h-28 w-full rounded-2xl p-3 text-sm leading-6"
-            />
-          </label>
-
-          <label className="block">
-            <span className="theme-shell-subtle mono-label text-[0.62rem]">
-              Review note
-            </span>
-            <textarea
-              value={requirement.reviewNote}
-              onChange={(event) =>
-                onReviewAction(requirement, {
-                  type: "edit",
-                  reviewNote: event.currentTarget.value,
-                })
-              }
-              placeholder="Why approve, flag, or skip this row?"
-              className="focus-premium theme-shell-input mt-2 min-h-28 w-full rounded-2xl p-3 text-sm leading-6"
-            />
-          </label>
-        </div>
-      </details>
 
       <details className="theme-shell-card-soft mt-5 rounded-[1.25rem] p-4">
         <summary className="theme-shell-title cursor-pointer text-sm font-bold">
@@ -2021,7 +2028,7 @@ function RequirementsExplorer({
   const summary = summarizeReviewRequirements(allRequirements);
 
   return (
-    <details className="theme-shell-card mt-5 rounded-[1.25rem] p-4">
+    <details className="theme-shell-card rounded-[1.25rem] p-4">
       <summary className="theme-shell-title cursor-pointer text-sm font-bold">
         {disclosureLabel ??
           "Open all requirements for search, filtering, and custom selection"}
@@ -2298,7 +2305,7 @@ export function WorkspaceSourcePanel({
     : "Upload a new workbook to replace this source, or restore the sample workbook.";
 
   return (
-    <section className="grid min-w-0 gap-4">
+    <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.08fr)_360px]">
       <article className="theme-shell-card rounded-[1.5rem] p-5 sm:p-6">
         <div
           className={`rounded-[1.35rem] border p-4 sm:p-5 ${
@@ -2327,14 +2334,6 @@ export function WorkspaceSourcePanel({
                 {sourceMetadata.sourceFilename}
               </p>
             </div>
-
-            <button
-              type="button"
-              onClick={onContinue}
-              className="focus-premium theme-button-primary rounded-2xl px-5 py-3 text-sm font-black transition lg:mt-1"
-            >
-              Continue to generation
-            </button>
           </div>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -2344,18 +2343,115 @@ export function WorkspaceSourcePanel({
           </div>
         </div>
 
-        <div className="theme-shell-card-soft mt-4 rounded-[1.35rem] p-4 sm:p-5">
+        <div className="mt-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="max-w-3xl">
+              <p className="theme-shell-kicker mono-label text-[0.58rem]">
+                Parsed preview
+              </p>
+              <h4 className="theme-shell-title mt-2 text-lg font-bold">
+                Check the workbook before you move on
+              </h4>
+              <p className="theme-shell-body mt-2 text-sm leading-6">
+                The first rows should look credible before generation becomes
+                the main job. Keep this preview visible, then continue only when
+                the row mix feels right.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onTogglePreview}
+              className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-bold transition"
+              aria-expanded={sourcePreviewExpanded}
+            >
+              {sourcePreviewExpanded ? "Hide preview" : "Show preview"}
+            </button>
+          </div>
+
+          {sourcePreviewExpanded ? (
+            <SourceWorkbookPreview
+              previewRows={previewRows}
+              sourceRowCount={sourceRowCount}
+            />
+          ) : null}
+        </div>
+
+        <GuidedStepFooter
+          helper={`Showing ${previewCount} of ${sourceRowCount} rows from the active workbook. Continue only after the parsed rows and row counts look right.`}
+          label="Continue to generation"
+          onClick={onContinue}
+        />
+      </article>
+
+      <aside className="grid gap-4">
+        <section className="theme-shell-card-soft rounded-[1.35rem] p-4 sm:p-5">
+          <p className="theme-shell-kicker mono-label text-[0.58rem]">
+            Validation checklist
+          </p>
+          <div className="mt-3 grid gap-2 text-sm leading-6 text-[color:var(--shell-muted)]">
+            <p>Project and customer names match the current workbook.</p>
+            <p>Row counts feel plausible for the selected source.</p>
+            <p>Demo and MVP flags line up with the slice you expect to generate.</p>
+          </div>
+        </section>
+
+        <section className="theme-shell-card-soft rounded-[1.35rem] p-4 sm:p-5">
+          <button
+            type="button"
+            onClick={onToggleDetails}
+            className="focus-premium flex w-full items-center justify-between gap-3 rounded-2xl text-left transition"
+            aria-expanded={sourceDetailsExpanded}
+          >
+            <div>
+              <p className="theme-shell-title text-sm font-bold">
+                Workbook details
+              </p>
+              <p className="theme-shell-body mt-1 text-sm leading-6">
+                Keep the extra metadata secondary until you need to confirm the
+                source identity.
+              </p>
+            </div>
+            <span className="theme-shell-subtle text-xs font-bold">
+              {sourceDetailsExpanded ? "Hide" : "Show"}
+            </span>
+          </button>
+
+          {sourceDetailsExpanded ? (
+            <div className="mt-4 grid gap-3">
+              <dl className="grid gap-3">
+                <SourceDetailRow
+                  label="Project"
+                  value={sourceMetadata.projectName}
+                />
+                <SourceDetailRow
+                  label="Customer"
+                  value={sourceMetadata.customerName}
+                />
+                <SourceDetailRow
+                  label="Source label"
+                  value={sourceMetadata.sourceLabel}
+                />
+                <SourceDetailRow
+                  label="Filename"
+                  value={sourceMetadata.sourceFilename}
+                />
+              </dl>
+            </div>
+          ) : null}
+        </section>
+
+        <section className="theme-shell-card-soft rounded-[1.35rem] p-4 sm:p-5">
           <p className="theme-shell-subtle mono-label text-[0.56rem]">
             Replace source
           </p>
           <h4 className="theme-shell-title mt-2 text-lg font-bold">
-            Upload another workbook only when you need to change the input
+            Change the input only when you mean to restart the run
           </h4>
           <p className="theme-shell-body mt-2 text-sm leading-6">
             {sourceHint}
           </p>
 
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="mt-4 flex flex-col gap-3">
             <label className="focus-premium theme-shell-button-secondary inline-flex cursor-pointer justify-center rounded-2xl px-4 py-3 text-sm font-bold transition">
               Upload .xlsx workbook
               <input
@@ -2392,108 +2488,8 @@ export function WorkspaceSourcePanel({
               {feedback.message}
             </div>
           ) : null}
-        </div>
-      </article>
-
-      <section className="theme-shell-card rounded-[1.5rem] p-4 sm:p-5">
-        <p className="theme-shell-kicker mono-label text-[0.58rem]">
-          Validate parsed workbook
-        </p>
-        <h4 className="theme-shell-title mt-2 text-lg font-bold">
-          Open the checks only when you want to confirm the parser read the
-          workbook correctly
-        </h4>
-        <p className="theme-shell-body mt-2 text-sm leading-6">
-          The preview and workbook details stay secondary for the sample, then
-          open automatically after a new upload so you can verify the parsed
-          input immediately.
-        </p>
-
-        <div className="mt-4 grid gap-3">
-          <div className="theme-shell-card-soft rounded-[1.25rem] p-3 sm:p-4">
-            <button
-              type="button"
-              onClick={onTogglePreview}
-              className="focus-premium flex w-full items-center justify-between gap-3 rounded-2xl px-2 py-1 text-left transition"
-              aria-expanded={sourcePreviewExpanded}
-            >
-              <div>
-                <p className="theme-shell-title text-sm font-bold">
-                  Preview parsed rows
-                </p>
-                <p className="theme-shell-body mt-1 text-sm leading-6">
-                  Showing {previewCount} of {sourceRowCount} rows from the
-                  active workbook.
-                </p>
-              </div>
-              <span className="theme-shell-subtle text-xs font-bold">
-                {sourcePreviewExpanded ? "Hide" : "Show"}
-              </span>
-            </button>
-
-            {sourcePreviewExpanded ? (
-              <SourceWorkbookPreview
-                previewRows={previewRows}
-                sourceRowCount={sourceRowCount}
-              />
-            ) : null}
-          </div>
-
-          <div className="theme-shell-card-soft rounded-[1.25rem] p-3 sm:p-4">
-            <button
-              type="button"
-              onClick={onToggleDetails}
-              className="focus-premium flex w-full items-center justify-between gap-3 rounded-2xl px-2 py-1 text-left transition"
-              aria-expanded={sourceDetailsExpanded}
-            >
-              <div>
-                <p className="theme-shell-title text-sm font-bold">
-                  Workbook details
-                </p>
-                <p className="theme-shell-body mt-1 text-sm leading-6">
-                  Project, customer, filename, and row counts for the active
-                  source.
-                </p>
-              </div>
-              <span className="theme-shell-subtle text-xs font-bold">
-                {sourceDetailsExpanded ? "Hide" : "Show"}
-              </span>
-            </button>
-
-            {sourceDetailsExpanded ? (
-              <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
-                <dl className="grid gap-3">
-                  <SourceDetailRow
-                    label="Project"
-                    value={sourceMetadata.projectName}
-                  />
-                  <SourceDetailRow
-                    label="Customer"
-                    value={sourceMetadata.customerName}
-                  />
-                  <SourceDetailRow
-                    label="Source label"
-                    value={sourceMetadata.sourceLabel}
-                  />
-                  <SourceDetailRow
-                    label="Filename"
-                    value={sourceMetadata.sourceFilename}
-                  />
-                </dl>
-
-                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-                  <SourceMeta
-                    label="Rows"
-                    value={sourceRowCount.toLocaleString()}
-                  />
-                  <SourceMeta label="Demo" value={demoCount.toLocaleString()} />
-                  <SourceMeta label="MVP" value={mvpCount.toLocaleString()} />
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      </section>
+        </section>
+      </aside>
     </section>
   );
 }

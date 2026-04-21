@@ -32,7 +32,11 @@ export async function POST(request: Request) {
 
   if (!result.ok) {
     return result.error.code === "real-generation-unavailable"
-      ? unavailableResponse(result.error.message, result.error.missingConfig)
+      ? unavailableResponse(
+          result.error.message,
+          result.error.reason,
+          result.error.missingConfig,
+        )
       : generationFailedResponse(result.error.message);
   }
 
@@ -57,12 +61,17 @@ function invalidRequestResponse(message: string) {
   return NextResponse.json(body, { status: 400 });
 }
 
-function unavailableResponse(message: string, missingConfig: string[]) {
+function unavailableResponse(
+  message: string,
+  reason: RequirementGenerationRouteErrorBody["error"]["reason"],
+  missingConfig: string[],
+) {
   const body: RequirementGenerationRouteErrorBody = {
     ok: false,
     error: {
       code: "real-generation-unavailable",
       message,
+      reason,
       missingConfig,
     },
   };

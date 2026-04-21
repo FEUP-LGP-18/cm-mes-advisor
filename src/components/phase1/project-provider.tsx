@@ -20,7 +20,9 @@ import {
 } from "@/lib/requirements/generation";
 import type {
   RequirementGenerationRouteBody,
+  RequirementGenerationRouteError,
   RequirementGenerationRouteMode,
+  RequirementGenerationUnavailableReason,
 } from "@/lib/requirements/generation-api";
 import type { ParsedRequirement } from "@/lib/requirements/types";
 import {
@@ -76,6 +78,9 @@ interface MockGenerationRunState {
 interface GenerationFeedback {
   tone: "neutral" | "success" | "error";
   message: string;
+  code?: RequirementGenerationRouteError["code"];
+  missingConfig?: string[];
+  reason?: RequirementGenerationUnavailableReason;
 }
 
 interface SourceFeedback {
@@ -475,6 +480,18 @@ export function Phase1ProjectProvider({
             message:
               message ||
               "Server generation failed. The local review state was not changed.",
+            code:
+              responseBody && !responseBody.ok
+                ? responseBody.error.code
+                : "generation-failed",
+            missingConfig:
+              responseBody && !responseBody.ok
+                ? responseBody.error.missingConfig
+                : undefined,
+            reason:
+              responseBody && !responseBody.ok
+                ? responseBody.error.reason
+                : undefined,
           });
           setMockGenerationRun(createIdleGenerationRun());
           return false;
@@ -548,6 +565,9 @@ export function Phase1ProjectProvider({
             responseBody.mode === "real"
               ? `Generated ${responseBody.drafts.length} grounded draft(s) for ${targetLabel}.`
               : `Generated ${responseBody.drafts.length} prototype draft(s) for ${targetLabel}.`,
+          code: undefined,
+          missingConfig: undefined,
+          reason: undefined,
         });
 
         return true;
@@ -557,6 +577,9 @@ export function Phase1ProjectProvider({
           tone: "error",
           message:
             "Server generation could not be reached. The local review state was not changed.",
+          code: "generation-failed",
+          missingConfig: undefined,
+          reason: undefined,
         });
         setMockGenerationRun(createIdleGenerationRun());
         return false;

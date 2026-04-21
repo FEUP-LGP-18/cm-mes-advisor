@@ -8,7 +8,12 @@ import {
   type RequirementReviewFilter,
   type ReviewRequirement,
 } from "@/lib/requirements/review";
-import type { RequirementGenerationRouteMode } from "@/lib/requirements/generation-api";
+import type {
+  RequirementGenerationAvailabilityBody,
+  RequirementGenerationModeCapability,
+  RequirementGenerationRouteMode,
+  RequirementGenerationUnavailableReason,
+} from "@/lib/requirements/generation-api";
 import {
   getAllowedWorkflowStep,
   getPhase1StepPath,
@@ -28,8 +33,10 @@ import Phase1ProjectShell from "./project-shell";
 const defaultGenerateFilter: RequirementReviewFilter = "demo";
 
 export default function Phase1ProjectStepRoute({
+  initialGenerationAvailability = null,
   step,
 }: {
+  initialGenerationAvailability?: RequirementGenerationAvailabilityBody | null;
   step: Phase1WorkflowStep;
 }) {
   const router = useRouter();
@@ -136,6 +143,13 @@ export default function Phase1ProjectStepRoute({
     );
   }
 
+  const reviewBacklogCount = generatedReviewableRequirements.length;
+  const scriptNeedsReviewFollowup =
+    step === "script" &&
+    (demoScriptAssembly.emptyState ||
+      reviewBacklogCount > 0 ||
+      !workflowSnapshot.exportReady);
+
   return (
     <Phase1ProjectShell
       currentStep={step}
@@ -164,6 +178,7 @@ export default function Phase1ProjectStepRoute({
         <GenerateScreen
           demoRequirements={demoRequirements}
           generationFeedback={generationFeedback}
+          initialGenerationAvailability={initialGenerationAvailability}
           isGenerating={isGenerating}
           mockGenerationRun={mockGenerationRun}
           lastGenerationMode={lastGenerationMode}
@@ -188,18 +203,7 @@ export default function Phase1ProjectStepRoute({
       ) : null}
 
       {step === "script" ? (
-        <section className="grid gap-5">
-          <div className="phase-screen-intro">
-            <p className="phase-overline">Step 4</p>
-            <h1 className="mt-3 text-3xl font-bold tracking-[-0.04em] text-[color:var(--shell-ink)]">
-              Shape the consultant-facing narrative
-            </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-7 text-[color:var(--shell-muted)]">
-              Refine the narrative, section order, notes, and traceability
-              before the final Phase 1 handoff.
-            </p>
-          </div>
-
+        <section className="grid gap-4">
           <DemoScriptEditingPanel
             assembly={demoScriptAssembly}
             draft={workspaceState.reviewState.demoScriptDraft}
@@ -211,33 +215,29 @@ export default function Phase1ProjectStepRoute({
           />
 
           <GuidedStepFooter
-            disabled={Boolean(demoScriptAssembly.emptyState)}
+            disabled={false}
             helper={
               demoScriptAssembly.emptyState
-                ? "Approve at least one generated row to unlock the export step."
-                : `${demoScriptAssembly.approvedRequirementCount} approved requirements are ready for export.`
+                ? "Approve at least one generated row in review before export becomes available."
+                : scriptNeedsReviewFollowup
+                  ? `${reviewBacklogCount} generated row${reviewBacklogCount === 1 ? "" : "s"} still need consultant review before export unlocks.`
+                  : `${demoScriptAssembly.approvedRequirementCount} approved requirements are ready for export.`
             }
-            label="Continue to export"
+            label={scriptNeedsReviewFollowup ? "Back to review" : "Continue to export"}
             onClick={() =>
-              router.push(getPhase1StepPath(project.projectId, "export"))
+              router.push(
+                getPhase1StepPath(
+                  project.projectId,
+                  scriptNeedsReviewFollowup ? "review" : "export",
+                ),
+              )
             }
           />
         </section>
       ) : null}
 
       {step === "export" ? (
-        <section className="grid gap-5">
-          <div className="phase-screen-intro">
-            <p className="phase-overline">Step 5</p>
-            <h1 className="mt-3 text-3xl font-bold tracking-[-0.04em] text-[color:var(--shell-ink)]">
-              Export the Phase 1 demo document
-            </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-7 text-[color:var(--shell-muted)]">
-              Finalize the consultant-facing deliverable and download the
-              Markdown handoff once the script is ready.
-            </p>
-          </div>
-
+        <section className="grid gap-4">
           <ExportWorkflowStep
             assembly={demoScriptAssembly}
             onGoToReview={() =>
@@ -278,9 +278,7 @@ function SourceScreen({
   onUploadWorkbook: (file: File) => Promise<boolean>;
   requirements: ReviewRequirement[];
 }) {
-  const [sourcePreviewExpanded, setSourcePreviewExpanded] = useState(
-    currentSourceMetadata.sourceKind !== "fixture",
-  );
+  const [sourcePreviewExpanded, setSourcePreviewExpanded] = useState(true);
   const [sourceDetailsExpanded, setSourceDetailsExpanded] = useState(
     currentSourceMetadata.sourceKind !== "fixture",
   );
@@ -303,14 +301,11 @@ function SourceScreen({
 
   return (
     <section className="grid gap-5">
-      <div className="phase-screen-intro">
+      <div className="phase-screen-intro phase-screen-intro-compact">
         <p className="phase-overline">Step 1</p>
-        <h1 className="mt-3 text-3xl font-bold tracking-[-0.04em] text-[color:var(--shell-ink)]">
-          Confirm the source before you generate anything
-        </h1>
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-[color:var(--shell-muted)]">
-          Keep the source step narrow: validate the active workbook, replace it
-          only when needed, and move forward once the parsed rows look right.
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-[color:var(--shell-muted)]">
+          Confirm the active workbook, scan the parsed rows, and only replace
+          the source when you intentionally want a new input.
         </p>
       </div>
 
@@ -336,6 +331,7 @@ function SourceScreen({
 function GenerateScreen({
   demoRequirements,
   generationFeedback,
+  initialGenerationAvailability,
   isGenerating,
   lastGenerationMode,
   mockGenerationRun,
@@ -345,6 +341,7 @@ function GenerateScreen({
 }: {
   demoRequirements: ReviewRequirement[];
   generationFeedback: ReturnType<typeof usePhase1Project>["generationFeedback"];
+  initialGenerationAvailability: RequirementGenerationAvailabilityBody | null;
   isGenerating: boolean;
   lastGenerationMode: ReturnType<typeof usePhase1Project>["lastGenerationMode"];
   mockGenerationRun: ReturnType<typeof usePhase1Project>["mockGenerationRun"];
@@ -359,6 +356,12 @@ function GenerateScreen({
   const router = useRouter();
   const [generationMode, setGenerationMode] =
     useState<RequirementGenerationRouteMode>("mock");
+  const [generationAvailability, setGenerationAvailability] =
+    useState<RequirementGenerationAvailabilityBody | null>(
+      initialGenerationAvailability,
+    );
+  const [isRefreshingAvailability, setIsRefreshingAvailability] =
+    useState(false);
   const [activeFilter, setActiveFilter] = useState<RequirementReviewFilter>(
     defaultGenerateFilter,
   );
@@ -398,6 +401,50 @@ function GenerateScreen({
     visibleRequirements.every((requirement) =>
       selectedRequirementKeys.has(requirement.requirementKey),
     );
+  const realGenerationCapability =
+    generationAvailability?.modes.real ?? createFallbackRealCapability();
+  const realGenerationAvailable = realGenerationCapability.available;
+
+  useEffect(() => {
+    setGenerationAvailability(initialGenerationAvailability);
+  }, [initialGenerationAvailability]);
+
+  useEffect(() => {
+    if (generationMode === "real" && !realGenerationAvailable) {
+      setGenerationMode("mock");
+    }
+  }, [generationMode, realGenerationAvailable]);
+
+  useEffect(() => {
+    const feedbackReason = generationFeedback?.reason;
+    if (
+      generationFeedback?.code !== "real-generation-unavailable" ||
+      !feedbackReason
+    ) {
+      return;
+    }
+
+    setGenerationAvailability((currentAvailability) => ({
+      ok: true,
+      checkedAt: new Date().toISOString(),
+      modes: {
+        mock:
+          currentAvailability?.modes.mock ?? {
+            available: true,
+            message: "Prototype drafts are available locally.",
+            mode: "mock",
+            status: "available",
+          },
+        real: {
+          available: false,
+          message: generationFeedback.message,
+          missingConfig: generationFeedback.missingConfig,
+          mode: "real",
+          status: feedbackReason,
+        },
+      },
+    }));
+  }, [generationFeedback]);
 
   function handleToggleRequirementSelection(requirementKey: string) {
     setSelectedRequirementKeys((currentSelection) => {
@@ -447,23 +494,64 @@ function GenerateScreen({
     }
   }
 
+  async function handleRefreshGenerationAvailability() {
+    setIsRefreshingAvailability(true);
+
+    try {
+      const response = await fetch(
+        "/api/requirements/generation-availability?refresh=1",
+        {
+          cache: "no-store",
+        },
+      );
+      const responseBody = (await response.json().catch(() => null)) as
+        | RequirementGenerationAvailabilityBody
+        | null;
+
+      if (response.ok && responseBody?.ok) {
+        setGenerationAvailability(responseBody);
+        return;
+      }
+
+      setGenerationAvailability((currentAvailability) => ({
+        ok: true,
+        checkedAt: new Date().toISOString(),
+        modes: {
+          mock:
+            currentAvailability?.modes.mock ?? {
+              available: true,
+              message: "Prototype drafts are available locally.",
+              mode: "mock",
+              status: "available",
+            },
+          real: createUnavailableRealCapability(
+            "check-failed",
+            "Grounded real generation could not be confirmed right now. You can continue with prototype drafts and recheck later.",
+          ),
+        },
+      }));
+    } finally {
+      setIsRefreshingAvailability(false);
+    }
+  }
+
   return (
     <section className="grid gap-5">
-      <div className="phase-screen-intro">
+      <div className="phase-screen-intro phase-screen-intro-compact">
         <p className="phase-overline">Step 2</p>
-        <h1 className="mt-3 text-3xl font-bold tracking-[-0.04em] text-[color:var(--shell-ink)]">
-          Generate the first safe draft from the right slice
-        </h1>
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-[color:var(--shell-muted)]">
-          Lead with the recommended demo rows, keep custom row selection as the
-          expert path, and move directly into review once drafts exist.
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-[color:var(--shell-muted)]">
+          Run the demo slice first. Treat every other control here as an expert
+          override.
         </p>
       </div>
 
       <GenerationModeSelector
+        availability={realGenerationCapability}
         feedbackTone={generationFeedback?.tone ?? null}
+        isRefreshingAvailability={isRefreshingAvailability}
         mode={generationMode}
         onModeChange={setGenerationMode}
+        onRefreshAvailability={handleRefreshGenerationAvailability}
       />
 
       <GenerateWorkflowStep
@@ -630,15 +718,11 @@ function ReviewScreen({
 
   return (
     <section className="grid gap-5">
-      <div className="phase-screen-intro">
+      <div className="phase-screen-intro phase-screen-intro-compact">
         <p className="phase-overline">Step 3</p>
-        <h1 className="mt-3 text-3xl font-bold tracking-[-0.04em] text-[color:var(--shell-ink)]">
-          Review generated rows inside the main workspace
-        </h1>
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-[color:var(--shell-muted)]">
-          This is the core Phase 1 surface: stay in the queue, make the
-          consultant decision quickly, and only open extra evidence when it
-          changes the judgment.
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-[color:var(--shell-muted)]">
+          Keep the current requirement in view, make the consultant decision
+          quickly, and let the queue stay secondary.
         </p>
       </div>
 
@@ -647,7 +731,6 @@ function ReviewScreen({
         approvedCount={approvedCount}
         currentRequirement={currentRequirement}
         generatedCount={generatedCount}
-        generatedReviewableCount={generatedReviewableRequirements.length}
         onGenerateDemoRows={async () => {
           const generated = await onGenerateDemoRows();
 
@@ -666,7 +749,6 @@ function ReviewScreen({
         }
         onSelectNext={handleSelectNextReviewRequirement}
         reviewQueue={reviewQueue}
-        selectedRequirementKeys={new Set()}
         showFrame={false}
       />
     </section>
@@ -674,70 +756,121 @@ function ReviewScreen({
 }
 
 function GenerationModeSelector({
+  availability,
   feedbackTone,
+  isRefreshingAvailability,
   mode,
   onModeChange,
+  onRefreshAvailability,
 }: {
+  availability: RequirementGenerationModeCapability;
   feedbackTone: "neutral" | "success" | "error" | null;
+  isRefreshingAvailability: boolean;
   mode: RequirementGenerationRouteMode;
   onModeChange: (mode: RequirementGenerationRouteMode) => void;
+  onRefreshAvailability: () => Promise<void>;
 }) {
-  return (
-    <section className="phase-screen-intro">
-      <p className="phase-overline">Generation mode</p>
-      <div className="mt-4 grid gap-3 lg:grid-cols-2">
-        <button
-          type="button"
-          onClick={() => onModeChange("mock")}
-          aria-pressed={mode === "mock"}
-          className={`focus-premium rounded-[1.25rem] border p-4 text-left transition ${
-            mode === "mock"
-              ? "theme-shell-card-brand"
-              : "theme-shell-card-soft hover:bg-[color:var(--shell-soft-surface-hover)]"
-          }`}
-        >
-          <p className="theme-shell-title text-base font-bold">
-            Prototype drafts
-          </p>
-          <p className="theme-shell-body mt-2 text-sm leading-6">
-            Best local default. Generates consultant-review drafts immediately
-            and keeps the demo workflow moving even when grounded real mode is
-            unavailable.
-          </p>
-        </button>
+  const realModeDisabled = !availability.available;
 
-        <button
-          type="button"
-          onClick={() => onModeChange("real")}
-          aria-pressed={mode === "real"}
-          className={`focus-premium rounded-[1.25rem] border p-4 text-left transition ${
-            mode === "real"
-              ? "theme-shell-card-slate"
-              : "theme-shell-card-soft hover:bg-[color:var(--shell-soft-surface-hover)]"
-          }`}
-        >
-          <p className="theme-shell-title text-base font-bold">
-            Grounded real generation
+  return (
+    <section className="theme-shell-card rounded-[1.35rem] p-4 sm:p-5">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="max-w-3xl">
+          <p className="phase-overline">Generation mode</p>
+          <p className="mt-2 text-sm leading-6 text-[color:var(--shell-muted)]">
+            Prototype mode is the default. Grounded real mode only matters when
+            the server path is actually reachable.
           </p>
-          <p className="theme-shell-body mt-2 text-sm leading-6">
-            Uses the server-side MCP + Bedrock path when available. If local
-            real access is not configured yet, the step returns a precise
-            unavailable message without blocking prototype mode.
-          </p>
-        </button>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => onModeChange("mock")}
+            aria-pressed={mode === "mock"}
+            className={`focus-premium rounded-full border px-4 py-2 text-sm font-bold transition ${
+              mode === "mock"
+                ? "theme-shell-card-brand"
+                : "theme-shell-card-soft hover:bg-[color:var(--shell-soft-surface-hover)]"
+            }`}
+          >
+            Prototype drafts
+          </button>
+          <button
+            type="button"
+            onClick={() => onModeChange("real")}
+            disabled={realModeDisabled}
+            aria-pressed={mode === "real"}
+            aria-disabled={realModeDisabled}
+            className={`focus-premium rounded-full border px-4 py-2 text-sm font-bold transition ${
+              mode === "real"
+                ? "theme-shell-card-slate"
+                : "theme-shell-card-soft hover:bg-[color:var(--shell-soft-surface-hover)]"
+            } disabled:cursor-not-allowed disabled:opacity-60`}
+          >
+            Grounded real mode
+          </button>
+        </div>
       </div>
 
-      <p className="mt-4 text-sm leading-6 text-[color:var(--shell-muted)]">
-        Current mode:{" "}
-        <span className="font-semibold text-[color:var(--shell-ink)]">
-          {mode === "mock" ? "Prototype drafts" : "Grounded real generation"}
-        </span>
-        {feedbackTone === "error" && mode === "real"
-          ? ". Real mode failed safely. You can switch back to prototype drafts and continue reviewing locally."
-          : "."}
-      </p>
+      <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+        <div className="theme-shell-card-soft rounded-[1.1rem] px-4 py-3">
+          <p className="text-sm leading-6 text-[color:var(--shell-muted)]">
+            Current mode:{" "}
+            <span className="font-semibold text-[color:var(--shell-ink)]">
+              {mode === "mock" ? "Prototype drafts" : "Grounded real generation"}
+            </span>
+            {feedbackTone === "error" && mode === "real"
+              ? ". Real mode failed safely, so prototype generation is still available."
+              : "."}
+          </p>
+          {!availability.available ? (
+            <p className="mt-2 text-sm leading-6 text-[color:var(--shell-muted)]">
+              {availability.message}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="flex items-center justify-start lg:justify-end">
+          {!availability.available ? (
+            <button
+              type="button"
+              onClick={() => void onRefreshAvailability()}
+              disabled={isRefreshingAvailability}
+              className="focus-premium theme-shell-button-secondary rounded-full border px-4 py-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isRefreshingAvailability ? "Rechecking..." : "Recheck real access"}
+            </button>
+          ) : (
+            <span className="theme-shell-card-brand rounded-full px-4 py-2 text-xs font-bold">
+              Real mode available
+            </span>
+          )}
+        </div>
+      </div>
     </section>
   );
+}
+
+function createFallbackRealCapability(): RequirementGenerationModeCapability {
+  return createUnavailableRealCapability(
+    "check-failed",
+    "Grounded real generation could not be confirmed right now. You can continue with prototype drafts and recheck later.",
+  );
+}
+
+function createUnavailableRealCapability(
+  reason: RequirementGenerationUnavailableReason,
+  message: string,
+  missingConfig?: string[],
+): RequirementGenerationModeCapability {
+  return {
+    available: false,
+    message,
+    missingConfig,
+    mode: "real",
+    status: reason,
+  };
 }
 
 function searchRequirements(

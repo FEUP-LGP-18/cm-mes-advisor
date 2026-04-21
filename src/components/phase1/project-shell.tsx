@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { phaseOneScope } from "@/lib/project-scope";
 import {
   getPhase1StepPath,
+  phase1WorkflowLabels,
   type Phase1NextAction,
   type Phase1WorkflowStep,
   type Phase1WorkflowStepState,
@@ -24,40 +24,46 @@ export default function Phase1ProjectShell({
   progress: Phase1WorkflowStepState[];
   project: Phase1ProjectRecord;
 }) {
+  const workflowFocus = describeWorkflowFocus(currentStep, nextAction);
+
   return (
     <main className="mesh-background min-h-screen overflow-x-hidden text-[color:var(--shell-ink)]">
-      <div className="mx-auto flex w-full max-w-[1560px] flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
+      <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
         <Phase1Topbar />
 
-        <header className="phase-topbar">
+        <header className="phase-shell-header">
           <div className="min-w-0">
-            <p className="phase-overline">Critical Manufacturing · Phase 1</p>
-            <div className="mt-2 flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               <Link href="/" className="phase-product-link">
-                {phaseOneScope.productName}
+                MES Demo Advisor
               </Link>
-              <span className="phase-divider" aria-hidden="true" />
-              <p className="truncate text-lg font-semibold text-[color:var(--shell-ink)]">
-                {project.projectName}
-              </p>
+              <span className="phase-shell-pill">Phase 1</span>
+              <span className="phase-shell-pill phase-shell-pill-muted">
+                {phase1WorkflowLabels[currentStep]}
+              </span>
             </div>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-[color:var(--shell-muted)]">
-              Current source:{" "}
-              <span className="font-semibold text-[color:var(--shell-ink)]">
+
+            <h1 className="mt-2 text-[1.9rem] font-bold tracking-[-0.05em] text-[color:var(--shell-ink)] sm:text-[2.2rem]">
+              {project.projectName}
+            </h1>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="phase-shell-pill phase-shell-pill-muted">
+                Active workbook
+              </span>
+              <span className="phase-shell-pill">
                 {project.workspaceState.source.sourceFilename}
               </span>
-              . Next up:{" "}
-              <span className="font-semibold text-[color:var(--shell-ink)]">
-                {nextAction.label}
-              </span>
-              .
+            </div>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-[color:var(--shell-muted)]">
+              Keep the main task on this route ahead of workflow chrome, then
+              move forward only when the work on this screen is actually done.
             </p>
           </div>
 
-          <div className="phase-status-strip">
+          <div className="phase-shell-stats">
             <PhaseStat label="Rows" value={project.snapshot.sourceRowCount} />
             <PhaseStat
-              label="Review"
+              label="Pending review"
               value={project.snapshot.generatedReviewableCount}
             />
             <PhaseStat
@@ -67,62 +73,79 @@ export default function Phase1ProjectShell({
           </div>
         </header>
 
-        <div className="grid gap-4 lg:grid-cols-[248px_minmax(0,1fr)]">
-          <aside className="phase-rail">
-            <p className="phase-overline">Workflow</p>
-            <nav aria-label="Phase 1 steps" className="mt-4 grid gap-2">
-              {progress.map((stepState, index) => {
-                const href = getPhase1StepPath(
-                  project.projectId,
-                  stepState.step,
-                );
-                const isActive = currentStep === stepState.step;
+        <section className="phase-shell-progress">
+          <div className="phase-shell-progress-copy">
+            <p className="phase-overline">Workflow status</p>
+            <p className="mt-2 text-lg font-semibold text-[color:var(--shell-ink)]">
+              {workflowFocus.title}
+            </p>
+            <p className="mt-2 text-sm leading-6 text-[color:var(--shell-muted)]">
+              {workflowFocus.body}
+            </p>
+          </div>
 
-                return (
-                  <Link
-                    key={stepState.step}
-                    href={href}
-                    aria-current={isActive ? "step" : undefined}
-                    className={`phase-step-link ${
-                      isActive
-                        ? "phase-step-link-active"
-                        : stepState.status === "blocked"
-                          ? "phase-step-link-blocked"
-                          : ""
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="phase-step-index">
-                        {String(index + 1).padStart(2, "0")}
-                      </span>
-                      <span className="phase-step-status">
-                        {stepState.status}
-                      </span>
-                    </div>
-                    <span className="mt-2 block text-sm font-semibold">
-                      {stepState.label}
+          <nav aria-label="Phase 1 steps" className="phase-progress-grid">
+            {progress.map((stepState, index) => {
+              const href = getPhase1StepPath(project.projectId, stepState.step);
+              const isActive = currentStep === stepState.step;
+
+              return (
+                <Link
+                  key={stepState.step}
+                  href={href}
+                  aria-current={isActive ? "step" : undefined}
+                  className={`phase-progress-link ${
+                    isActive
+                      ? "phase-progress-link-active"
+                      : stepState.status === "blocked"
+                        ? "phase-progress-link-blocked"
+                        : ""
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="phase-step-index">
+                      {String(index + 1).padStart(2, "0")}
                     </span>
-                  </Link>
-                );
-              })}
-            </nav>
+                    <span className="phase-step-status">
+                      {stepState.status}
+                    </span>
+                  </div>
+                  <span className="mt-2 block text-sm font-semibold">
+                    {stepState.label}
+                  </span>
+                </Link>
+              );
+            })}
+          </nav>
+        </section>
 
-            <div className="phase-rail-note">
-              <p className="phase-overline">Next action</p>
-              <p className="mt-2 text-sm font-semibold text-[color:var(--shell-ink)]">
-                {nextAction.label}
-              </p>
-              <p className="mt-2 text-sm leading-6 text-[color:var(--shell-muted)]">
-                {nextAction.helper}
-              </p>
-            </div>
-          </aside>
-
-          <section className="min-w-0">{children}</section>
-        </div>
+        <section className="min-w-0">{children}</section>
       </div>
     </main>
   );
+}
+
+function describeWorkflowFocus(
+  currentStep: Phase1WorkflowStep,
+  nextAction: Phase1NextAction,
+) {
+  if (currentStep === nextAction.step) {
+    return {
+      title: nextAction.label,
+      body: nextAction.helper,
+    };
+  }
+
+  return {
+    title:
+      currentStep === "script" || currentStep === "export"
+        ? `${phase1WorkflowLabels[nextAction.step]} still gates final completion`
+        : `${phase1WorkflowLabels[nextAction.step]} still needs attention`,
+    body:
+      currentStep === "script" || currentStep === "export"
+        ? `${phase1WorkflowLabels[currentStep]} is available for drafting, but ${lowercaseFirst(nextAction.helper)}`
+        : nextAction.helper,
+  };
 }
 
 function PhaseStat({ label, value }: { label: string; value: number }) {
@@ -134,4 +157,12 @@ function PhaseStat({ label, value }: { label: string; value: number }) {
       </p>
     </div>
   );
+}
+
+function lowercaseFirst(value: string) {
+  if (value.length === 0) {
+    return value;
+  }
+
+  return `${value.slice(0, 1).toLowerCase()}${value.slice(1)}`;
 }

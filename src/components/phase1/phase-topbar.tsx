@@ -28,7 +28,7 @@ export default function Phase1Topbar() {
 
         <div className="min-w-0">
           <p className="mono-label truncate text-[0.62rem] text-[color:var(--shell-subtle)]">
-            Critical Manufacturing · U.Porto LGP 18
+            Critical Manufacturing
           </p>
           <p className="truncate text-sm font-semibold text-[color:var(--shell-ink)]">
             MES Demo Advisor
@@ -36,37 +36,24 @@ export default function Phase1Topbar() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-end gap-2 text-xs font-semibold">
-        <div className="brand-endorsement">
-          <div className="brand-endorsement-logo">
-            <Image
-              alt="U.Porto"
-              className="theme-logo theme-logo-light h-4 w-auto sm:h-[1.1rem]"
-              height={68}
-              priority
-              src="/brand/uporto-mark-light.svg"
-              width={294}
-            />
-            <Image
-              alt="U.Porto"
-              className="theme-logo theme-logo-dark h-4 w-auto sm:h-[1.1rem]"
-              height={68}
-              priority
-              src="/brand/uporto-mark-dark.svg"
-              width={294}
-            />
-          </div>
-          <span className="mono-label text-[0.5rem] text-[color:var(--shell-subtle)]">
-            Academic context
-          </span>
+      <div className="header-actions">
+        <div className="uporto-lockup" aria-label="University of Porto">
+          <Image
+            alt="University of Porto"
+            className="theme-logo theme-logo-light uporto-logo"
+            height={118}
+            src="/brand/uporto-header-light.png"
+            width={533}
+          />
+          <Image
+            alt="University of Porto"
+            className="theme-logo theme-logo-dark uporto-logo"
+            height={118}
+            src="/brand/uporto-header-dark.png"
+            width={533}
+          />
         </div>
-
         <ThemeToggle />
-
-        <span className="shell-chip shell-chip-warn">Phase 1 MVP</span>
-        <span className="shell-chip shell-chip-neutral">
-          Prototype + grounded modes
-        </span>
       </div>
     </nav>
   );

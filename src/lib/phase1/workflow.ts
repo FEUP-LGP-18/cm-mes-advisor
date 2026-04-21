@@ -176,7 +176,11 @@ function getStepStatus(
 
       return snapshot.approvedStepCount > 0 ? "complete" : "available";
     case "export":
-      if (!snapshot.exportReady) {
+      if (
+        !snapshot.exportReady ||
+        snapshot.approvedCount === 0 ||
+        snapshot.generatedReviewableCount > 0
+      ) {
         return "blocked";
       }
 

@@ -301,7 +301,10 @@ export function summarizePhase1Workspace(
     approvedStepCount: demoScriptAssembly.approvedStepCount,
     selectedCount: 0,
     scriptVisited,
-    exportReady: !demoScriptAssembly.emptyState,
+    exportReady:
+      !demoScriptAssembly.emptyState &&
+      summary.approvedCount > 0 &&
+      generatedReviewableCount === 0,
     sourceFilename: workspaceState.source.sourceFilename,
     sourceKind: workspaceState.source.sourceKind,
     sourceLabel: workspaceState.source.sourceLabel,

@@ -52,14 +52,14 @@ export default function DemoScriptEditingPanel({
   const [selectedSectionKey, setSelectedSectionKey] = useState<string | null>(
     assembly.sections[0]?.key ?? null,
   );
+  const [selectedStepKey, setSelectedStepKey] = useState<string | null>(
+    assembly.sections[0]?.steps[0]?.key ?? null,
+  );
 
   const selectedSection =
     assembly.sections.find((section) => section.key === selectedSectionKey) ??
     assembly.sections[0] ??
     null;
-  const [selectedStepKey, setSelectedStepKey] = useState<string | null>(
-    selectedSection?.steps[0]?.key ?? null,
-  );
 
   const selectedStep =
     selectedSection?.steps.find((step) => step.key === selectedStepKey) ??
@@ -68,52 +68,60 @@ export default function DemoScriptEditingPanel({
 
   return (
     <section className="grid min-w-0 gap-5">
-      <div className="grid gap-3 md:grid-cols-4">
-        <ScriptSummaryCard
-          label="Approved rows"
-          value={assembly.approvedRequirementCount}
-          helper="Consultant-approved rows feeding the script."
-        />
-        <ScriptSummaryCard
-          label="Sections"
-          value={assembly.sections.length}
-          helper="Grouped story beats in the Phase 1 narrative."
-        />
-        <ScriptSummaryCard
-          label="Demo steps"
-          value={assembly.approvedStepCount}
-          helper="Ordered steps that can still be refined here."
-        />
-        <ScriptSummaryCard
-          label="Export readiness"
-          value={assembly.emptyState ? "Blocked" : "Ready"}
-          helper={
-            assembly.emptyState
-              ? "Resolve the blocker before finishing Phase 1."
-              : "The document can move to the final export step."
-          }
-        />
-      </div>
-
-      <div className="document-panel overflow-hidden rounded-[1.75rem] p-5 sm:p-7">
-        <div className="flex flex-col gap-5 border-b border-[color:var(--document-border)] pb-5 lg:flex-row lg:items-start lg:justify-between">
-          <div className="max-w-3xl">
+      <div className="document-panel overflow-hidden rounded-[1.5rem] p-4 sm:p-5">
+        <div className="flex flex-col gap-4 border-b border-[color:var(--document-border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 max-w-4xl flex-1">
             <p className="theme-doc-kicker mono-label text-[0.68rem]">
               Script editor
             </p>
-            <h3 className="theme-doc-title mt-3 text-3xl font-bold leading-tight tracking-[-0.05em] sm:text-4xl">
-              Shape the consultant-facing narrative
-            </h3>
-            <p className="theme-doc-body mt-3 text-sm leading-7">
-              Edit the narrative with a section-by-section workflow. Keep the
-              active section focused, and pull in evidence only when you need
-              it.
+            <div className="mt-2 grid gap-3 lg:grid-cols-[minmax(0,1fr)_240px]">
+              <label className="block">
+                <span className="theme-doc-subtle mono-label text-[0.58rem]">
+                  Script title
+                </span>
+                <input
+                  value={draft.title}
+                  onChange={(event) =>
+                    onDraftAction({
+                      type: "renameTitle",
+                      title: event.currentTarget.value,
+                    })
+                  }
+                  className="focus-premium theme-doc-input mt-2 w-full rounded-2xl px-4 py-3 text-lg font-bold transition sm:text-[1.45rem]"
+                />
+              </label>
+
+              <div className="theme-doc-card rounded-[1.15rem] px-4 py-3 text-sm leading-6 theme-doc-body">
+                <p className="theme-doc-subtle mono-label text-[0.58rem]">
+                  Ready for handoff
+                </p>
+                <p className="mt-2">
+                  <span className="theme-doc-title font-bold">
+                    {assembly.approvedRequirementCount}
+                  </span>{" "}
+                  approved rows across{" "}
+                  <span className="theme-doc-title font-bold">
+                    {assembly.sections.length}
+                  </span>{" "}
+                  section{assembly.sections.length === 1 ? "" : "s"}.
+                </p>
+                <p className="mt-2 break-all">
+                  Source:{" "}
+                  <span className="theme-doc-title font-bold">
+                    {projectMetadata.sourceFilename}
+                  </span>
+                </p>
+              </div>
+            </div>
+            <p className="theme-doc-body mt-2 max-w-3xl text-sm leading-6">
+              Shape the consultant-facing narrative, then keep the editing pass
+              focused on clarity, sequence, and traceability.
             </p>
           </div>
           <button
             type="button"
             onClick={onSwitchToReview}
-            className="focus-premium theme-doc-button-secondary rounded-2xl px-4 py-3 text-sm font-bold transition"
+            className="focus-premium theme-doc-button-secondary rounded-full px-4 py-2 text-sm font-bold transition"
           >
             Back to review
           </button>
@@ -127,48 +135,53 @@ export default function DemoScriptEditingPanel({
             titleEyebrow="Script blocked"
           />
         ) : (
-          <div className="mt-6 grid gap-5 xl:grid-cols-[280px_minmax(0,1fr)]">
-            <aside className="theme-doc-card-muted rounded-[1.5rem] p-4">
-              <div className="border-b border-[color:var(--document-border)] pb-4">
-                <p className="theme-doc-subtle mono-label text-[0.58rem]">
-                  Section outline
-                </p>
-                <p className="theme-doc-body mt-2 text-sm leading-6">
-                  Choose the section you want to refine. Only one section stays
-                  open at a time so the editing flow stays focused.
-                </p>
-              </div>
+          <div
+            className={`mt-6 grid gap-5 ${
+              assembly.sections.length > 1
+                ? "xl:grid-cols-[220px_minmax(0,1fr)]"
+                : ""
+            }`}
+          >
+            {assembly.sections.length > 1 ? (
+              <aside className="order-2 rounded-[1.25rem] theme-doc-card-muted p-3 xl:order-1">
+                <div className="border-b border-[color:var(--document-border)] pb-3">
+                  <p className="theme-doc-subtle mono-label text-[0.58rem]">
+                    Section outline
+                  </p>
+                  <p className="theme-doc-body mt-2 text-sm leading-6">
+                    Choose the section, then get back to the document.
+                  </p>
+                </div>
 
-              <div className="mt-4 grid gap-2">
-                {assembly.sections.map((section, index) => {
-                  const isActive = section.key === selectedSection?.key;
-                  return (
-                    <div
-                      key={section.key}
-                      className={`rounded-2xl border p-3 transition ${
-                        isActive
-                          ? "theme-doc-card theme-doc-title"
-                          : "theme-doc-card-muted theme-doc-body"
-                      }`}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedSectionKey(section.key);
-                          setSelectedStepKey(section.steps[0]?.key ?? null);
-                        }}
-                        className="focus-premium block w-full text-left"
+                <div className="mt-3 grid gap-2">
+                  {assembly.sections.map((section, index) => {
+                    const isActive = section.key === selectedSection?.key;
+                    return (
+                      <div
+                        key={section.key}
+                        className={`rounded-[1rem] border p-2.5 transition ${
+                          isActive
+                            ? "theme-doc-card theme-doc-title"
+                            : "theme-doc-card-muted theme-doc-body"
+                        }`}
                       >
-                        <p className="text-sm font-bold">
-                          {resolveSectionTitle(draft, section)}
-                        </p>
-                        <p className="theme-doc-subtle mt-1 text-xs">
-                          {section.sourceLabel} · {section.stepCount} steps
-                        </p>
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedSectionKey(section.key);
+                            setSelectedStepKey(section.steps[0]?.key ?? null);
+                          }}
+                          className="focus-premium block w-full text-left"
+                        >
+                          <p className="text-sm font-bold">
+                            {resolveSectionTitle(draft, section)}
+                          </p>
+                          <p className="theme-doc-subtle mt-1 text-xs">
+                            {section.stepCount} steps
+                          </p>
+                        </button>
 
-                      {assembly.sections.length > 1 ? (
-                        <div className="mt-3 flex gap-2">
+                        <div className="mt-2 flex gap-2">
                           <SectionOrderButton
                             direction="up"
                             disabled={index === 0}
@@ -198,60 +211,18 @@ export default function DemoScriptEditingPanel({
                             }
                           />
                         </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            </aside>
-
-            <div className="grid gap-4">
-              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
-                <label className="theme-doc-card block rounded-[1.5rem] p-4">
-                  <span className="theme-doc-subtle mono-label text-[0.62rem]">
-                    Script title
-                  </span>
-                  <input
-                    value={draft.title}
-                    onChange={(event) =>
-                      onDraftAction({
-                        type: "renameTitle",
-                        title: event.currentTarget.value,
-                      })
-                    }
-                    className="focus-premium theme-doc-input mt-2 w-full rounded-2xl px-4 py-3 text-sm font-bold transition"
-                  />
-                </label>
-
-                <div className="theme-doc-card rounded-[1.5rem] p-4 text-sm leading-6 theme-doc-body">
-                  <p className="theme-doc-subtle mono-label text-[0.58rem]">
-                    Script context
-                  </p>
-                  <p className="mt-2">
-                    Project:{" "}
-                    <span className="theme-doc-title font-bold">
-                      {projectMetadata.projectName}
-                    </span>
-                  </p>
-                  <p>
-                    Customer:{" "}
-                    <span className="theme-doc-title font-bold">
-                      {projectMetadata.customerName}
-                    </span>
-                  </p>
-                  <p className="break-all">
-                    Source:{" "}
-                    <span className="theme-doc-title font-bold">
-                      {projectMetadata.sourceFilename}
-                    </span>
-                  </p>
+                      </div>
+                    );
+                  })}
                 </div>
-              </div>
+              </aside>
+            ) : null}
 
+            <div className="order-1 grid gap-4 xl:order-2">
               {selectedSection ? (
                 <article className="theme-doc-card rounded-[1.75rem] p-4 sm:p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
+                    <div className="min-w-0">
                       <p className="theme-doc-kicker mono-label text-[0.58rem]">
                         {selectedSection.sourceLabel}
                       </p>
@@ -278,8 +249,8 @@ export default function DemoScriptEditingPanel({
                     </div>
                   </div>
 
-                  <div className="mt-5 overflow-x-auto pb-1">
-                    <div className="flex min-w-max gap-2">
+                  <div className="mt-4 overflow-x-auto pb-1">
+                    <div className="flex min-w-max gap-1.5">
                       {selectedSection.steps.map((step, index) => {
                         const isActive = step.key === selectedStep?.key;
                         return (
@@ -287,7 +258,7 @@ export default function DemoScriptEditingPanel({
                             key={step.key}
                             type="button"
                             onClick={() => setSelectedStepKey(step.key)}
-                            className={`focus-premium min-w-[180px] rounded-2xl border px-3 py-3 text-left transition ${
+                            className={`focus-premium min-w-[132px] rounded-[1rem] border px-3 py-2.5 text-left transition sm:min-w-[148px] ${
                               isActive
                                 ? "theme-doc-card-brand"
                                 : "theme-doc-card-muted hover:bg-[color:var(--document-soft-surface)]"
@@ -296,7 +267,7 @@ export default function DemoScriptEditingPanel({
                             <p className="theme-doc-subtle mono-label text-[0.5rem]">
                               Step {index + 1}
                             </p>
-                            <p className="mt-2 text-sm font-bold">
+                            <p className="mt-1.5 text-sm font-bold leading-5">
                               {resolveStepTitle(draft, step)}
                             </p>
                             <p className="theme-doc-subtle mt-1 text-xs">
@@ -336,29 +307,6 @@ export function DemoScriptExportPanel({
   if (assembly.emptyState) {
     return (
       <section className="grid min-w-0 gap-5">
-        <div className="grid gap-3 md:grid-cols-4">
-          <ScriptSummaryCard
-            label="Approved rows"
-            value={assembly.approvedRequirementCount}
-            helper="Rows approved into the draft script."
-          />
-          <ScriptSummaryCard
-            label="Demo steps"
-            value={assembly.approvedStepCount}
-            helper="Steps currently assembled from approved rows."
-          />
-          <ScriptSummaryCard
-            label="Sections"
-            value={assembly.sections.length}
-            helper="Story sections available for export."
-          />
-          <ScriptSummaryCard
-            label="Export status"
-            value="Blocked"
-            helper="Resolve the blocker before downloading."
-          />
-        </div>
-
         <EmptyDemoScriptState
           actionLabel="Back to review"
           emptyState={assembly.emptyState}
@@ -373,29 +321,6 @@ export function DemoScriptExportPanel({
 
   return (
     <section className="grid min-w-0 gap-5">
-      <div className="grid gap-3 md:grid-cols-4">
-        <ScriptSummaryCard
-          label="Approved rows"
-          value={assembly.approvedRequirementCount}
-          helper="Rows included in the final deliverable."
-        />
-        <ScriptSummaryCard
-          label="Demo steps"
-          value={assembly.approvedStepCount}
-          helper="Actionable MES demo steps in the document."
-        />
-        <ScriptSummaryCard
-          label="Sections"
-          value={assembly.sections.length}
-          helper="Grouped narrative sections ready for handoff."
-        />
-        <ScriptSummaryCard
-          label="Export status"
-          value="Ready"
-          helper="Markdown is available for download now."
-        />
-      </div>
-
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
         <section className="document-panel min-w-0 rounded-[1.75rem] p-5 sm:p-6">
           <div className="theme-doc-card rounded-[1.5rem] p-5">
@@ -414,7 +339,7 @@ export function DemoScriptExportPanel({
             <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(280px,0.9fr)]">
               <div className="theme-doc-card-contrast rounded-[1.4rem] p-5">
                 <p className="theme-shell-kicker mono-label text-[0.56rem]">
-                  Deliverable preview
+                  Deliverable
                 </p>
                 <h4 className="mt-4 text-3xl font-bold tracking-[-0.045em] text-[color:var(--document-contrast-ink)]">
                   {assembly.title || projectMetadata.projectName}
@@ -442,9 +367,10 @@ export function DemoScriptExportPanel({
 
               <div className="theme-doc-card-muted rounded-[1.4rem] p-5">
                 <p className="theme-doc-subtle mono-label text-[0.56rem]">
-                  Included in this handoff
+                  Readiness
                 </p>
                 <div className="mt-4 grid gap-2">
+                  <ExportPresencePill label="Approved rows" present />
                   <ExportPresencePill
                     label="Assumptions"
                     present={overview.hasAssumptions}
@@ -747,9 +673,9 @@ function SectionOrderButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="focus-premium theme-doc-button-secondary rounded-full px-3 py-1.5 text-[0.7rem] font-bold transition disabled:cursor-not-allowed disabled:opacity-40"
+      className="focus-premium theme-doc-button-secondary rounded-full px-2.5 py-1 text-[0.68rem] font-bold transition disabled:cursor-not-allowed disabled:opacity-40"
     >
-      Move {direction}
+      {direction === "up" ? "Up" : "Down"}
     </button>
   );
 }
@@ -764,7 +690,7 @@ function ScriptStepWorkbench({
   step: DemoScriptStep;
 }) {
   return (
-    <section className="theme-doc-card-muted mt-5 rounded-[1.5rem] p-4">
+    <section className="theme-doc-card-muted mt-4 rounded-[1.35rem] p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="max-w-3xl">
           <p className="theme-doc-subtle mono-label text-[0.58rem]">
@@ -785,7 +711,7 @@ function ScriptStepWorkbench({
               className="focus-premium theme-doc-title w-full rounded-xl border border-transparent bg-transparent px-0 py-0 text-lg font-bold transition focus:border-[color:var(--document-border)] focus:bg-[color:var(--document-soft-surface)] focus:px-3 focus:py-2"
             />
           </label>
-          <p className="theme-doc-subtle mt-2 text-sm leading-6">
+          <p className="theme-doc-subtle mt-1.5 text-sm leading-6">
             {step.traceability.requirementId} · Excel row{" "}
             {step.traceability.sourceRowNumber} ·{" "}
             {step.sourceDemoStep.reviewStatus}
@@ -796,7 +722,7 @@ function ScriptStepWorkbench({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-4">
+      <div className="mt-3 grid gap-3">
         <label className="block">
           <span className="theme-doc-subtle mono-label text-[0.58rem]">
             Step note
@@ -812,26 +738,26 @@ function ScriptStepWorkbench({
               })
             }
             placeholder="Add the consultant note for this step."
-            className="focus-premium theme-doc-input mt-2 min-h-24 w-full rounded-2xl p-3 text-sm leading-6"
+            className="focus-premium theme-doc-input mt-2 min-h-20 w-full rounded-2xl p-3 text-sm leading-6"
           />
         </label>
 
-        <div className="theme-doc-card rounded-[1.25rem] p-4">
+        <div className="theme-doc-card rounded-[1.1rem] p-3.5">
           <p className="theme-doc-subtle mono-label text-[0.58rem]">
             Demo instructions
           </p>
-          <ol className="theme-doc-title mt-3 list-decimal space-y-2 pl-5 text-sm leading-6">
+          <ol className="theme-doc-title mt-2.5 list-decimal space-y-1.5 pl-5 text-sm leading-6">
             {step.instructions.map((instruction) => (
               <li key={instruction}>{instruction}</li>
             ))}
           </ol>
         </div>
 
-        <details className="theme-doc-card rounded-[1.25rem] p-4">
+        <details className="theme-doc-card rounded-[1.1rem] p-3.5">
           <summary className="theme-doc-title cursor-pointer text-sm font-bold">
             Evidence and context
           </summary>
-          <div className="mt-4 grid gap-4">
+          <div className="mt-3 grid gap-3">
             <div>
               <p className="theme-doc-subtle mono-label text-[0.58rem]">
                 Current comment
@@ -873,7 +799,7 @@ function ScriptStepWorkbench({
                   {step.sourceReferences.map((reference) => (
                     <li
                       key={reference.id}
-                      className="theme-doc-card rounded-2xl p-3 text-sm leading-6 theme-doc-body"
+                      className="theme-doc-card rounded-[1rem] p-3 text-sm leading-6 theme-doc-body"
                     >
                       <span className="theme-doc-title font-bold">
                         {reference.kind}
@@ -903,26 +829,6 @@ function ScriptStepWorkbench({
         </details>
       </div>
     </section>
-  );
-}
-
-function ScriptSummaryCard({
-  helper,
-  label,
-  value,
-}: {
-  helper: string;
-  label: string;
-  value: number | string;
-}) {
-  return (
-    <div className="theme-shell-card-soft rounded-xl p-4">
-      <p className="theme-shell-subtle mono-label text-[0.56rem]">{label}</p>
-      <p className="theme-shell-title mt-2 text-3xl font-black tracking-[-0.05em]">
-        {value}
-      </p>
-      <p className="theme-shell-body mt-2 text-sm leading-6">{helper}</p>
-    </div>
   );
 }
 

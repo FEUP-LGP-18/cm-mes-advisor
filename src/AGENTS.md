@@ -12,5 +12,9 @@
 - Do not imply that Phase 2, broad document ingestion, or direct LibreChat UI is part of the current default product.
 - If you change user-visible workflow, scope, or setup expectations, update the canonical docs in the same PR.
 - Compare the requested outcome to the rendered result before signoff.
+- Treat shell-first layouts as UX failures when the workflow chrome outranks the actual task.
+- Treat conflicting step messaging or next-action language as a blocking UX issue.
+- On mobile task-heavy screens, keep the current task ahead of navigation chrome.
+- Do not repeat the same guidance across the page title, intro copy, and support cards.
 - Material UI work in this subtree is `NEEDS WORK` until desktop, mobile, and the key interaction for that surface are verified.
 - Do not call meaningful UI work in this subtree ready without browser evidence.

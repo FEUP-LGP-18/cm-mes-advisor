@@ -24,6 +24,7 @@ vi.mock("@aws-sdk/client-bedrock-runtime", () => ({
 import {
   BedrockRequestError,
   BedrockResponseFormatError,
+  classifyBedrockAvailabilityFailure,
   createBedrockRequirementGenerationClient,
 } from "./bedrock-client";
 
@@ -244,5 +245,54 @@ describe("bedrock requirement generation client", () => {
         mesBaseUrl: null,
       }),
     ).rejects.toBeInstanceOf(BedrockRequestError);
+  });
+
+  it("can run a lightweight Bedrock availability check", async () => {
+    sendMock.mockResolvedValue({
+      output: {
+        message: {
+          content: [{ text: "OK" }],
+        },
+      },
+    });
+
+    const client = createBedrockRequirementGenerationClient({
+      awsAccessKeyId: "example-access-key-id",
+      awsBearerTokenBedrock: null,
+      awsRegion: "eu-south-2",
+      awsSecretAccessKey: "example-secret-access-key",
+      awsSessionToken: null,
+      bedrockModelId: "example-bedrock-model-id",
+    });
+
+    await expect(client.checkAvailability()).resolves.toBeUndefined();
+    expect(sendMock).toHaveBeenCalledTimes(1);
+    expect(sendMock.mock.calls[0]?.[0]).toMatchObject({
+      inferenceConfig: {
+        maxTokens: 8,
+        temperature: 0,
+      },
+      messages: [
+        {
+          content: [{ text: "OK" }],
+        },
+      ],
+    });
+  });
+
+  it("classifies direct Bedrock permission errors as blocked", () => {
+    expect(
+      classifyBedrockAvailabilityFailure({
+        message:
+          "AccessDeniedException: User is not authorized to call bedrock:CallWithBearerToken",
+        name: "AccessDeniedException",
+      }),
+    ).toBe("blocked");
+  });
+
+  it("classifies unknown Bedrock failures as check-failed", () => {
+    expect(
+      classifyBedrockAvailabilityFailure(new Error("network unavailable")),
+    ).toBe("check-failed");
   });
 });

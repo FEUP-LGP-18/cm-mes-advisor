@@ -1,4 +1,7 @@
-import type { ParsedRequirement } from "../parser";
+import type {
+  RequirementGenerationUnavailableReason,
+} from "../generation-api";
+import type { ParsedRequirement } from "../types";
 import {
   createMockGeneratedRequirementDraft,
   type GeneratedRequirementDraft,
@@ -16,7 +19,7 @@ import {
 
 export interface RequirementGenerationUnavailableError {
   code: "real-generation-unavailable";
-  reason: "missing-config";
+  reason: RequirementGenerationUnavailableReason;
   message: string;
   missingConfig: string[];
 }
@@ -129,6 +132,19 @@ function createRealRequirementGenerationProvider(
           ),
         };
       } catch (error) {
+        if (error instanceof RequirementGenerationInfrastructureError) {
+          return {
+            ok: false,
+            providerMode: "real",
+            error: {
+              code: "real-generation-unavailable",
+              reason: error.reason,
+              message: error.message,
+              missingConfig: [],
+            },
+          };
+        }
+
         return {
           ok: false,
           providerMode: "real",

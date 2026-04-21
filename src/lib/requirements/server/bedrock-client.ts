@@ -8,7 +8,10 @@ import type {
   RequirementGenerationConfidenceLevel,
   RequirementSupportAssessment,
 } from "../generation";
-import type { ParsedRequirement } from "../parser";
+import type {
+  RequirementGenerationUnavailableReason,
+} from "../generation-api";
+import type { ParsedRequirement } from "../types";
 import type { McpDocumentationChunk } from "./mcp-client";
 
 const generatedDraftSchema = z.object({
@@ -45,6 +48,7 @@ export interface BedrockRequirementGenerationDraft {
 }
 
 export interface BedrockRequirementGenerationClient {
+  checkAvailability(): Promise<void>;
   generateDraft(input: {
     requirement: ParsedRequirement;
     assessment: RequirementSupportAssessment;
@@ -82,26 +86,48 @@ export function createBedrockRequirementGenerationClient({
   awsSessionToken: string | null;
   bedrockModelId: string;
 }): BedrockRequirementGenerationClient {
-  const client = new BedrockRuntimeClient(
-    awsBearerTokenBedrock !== null
-      ? {
-          authSchemePreference: ["httpBearerAuth"],
-          region: awsRegion,
-          token: {
-            token: awsBearerTokenBedrock,
-          },
-        }
-      : {
-          region: awsRegion,
-          credentials: {
-            accessKeyId: awsAccessKeyId!,
-            secretAccessKey: awsSecretAccessKey!,
-            sessionToken: awsSessionToken ?? undefined,
-          },
-        },
-  );
+  const client = createBedrockRuntimeClient({
+    awsAccessKeyId,
+    awsBearerTokenBedrock,
+    awsRegion,
+    awsSecretAccessKey,
+    awsSessionToken,
+  });
 
   return {
+    async checkAvailability() {
+      try {
+        await client.send(
+          new ConverseCommand({
+            modelId: bedrockModelId,
+            inferenceConfig: {
+              maxTokens: 8,
+              temperature: 0,
+            },
+            system: [
+              {
+                text: "Reply with OK.",
+              },
+            ],
+            messages: [
+              {
+                role: "user",
+                content: [
+                  {
+                    text: "OK",
+                  },
+                ],
+              },
+            ],
+          }),
+        );
+      } catch (error) {
+        throw new BedrockRequestError(
+          "Real requirement generation could not reach Bedrock.",
+          { cause: error },
+        );
+      }
+    },
     async generateDraft(input) {
       const command = new ConverseCommand({
         modelId: bedrockModelId,
@@ -149,6 +175,66 @@ export function createBedrockRequirementGenerationClient({
       return parsed.data;
     },
   };
+}
+
+export function classifyBedrockAvailabilityFailure(
+  cause: unknown,
+): Exclude<RequirementGenerationUnavailableReason, "missing-config"> {
+  const name = getErrorName(cause);
+  const message = getErrorMessage(cause).toLowerCase();
+
+  if (
+    name === "AccessDeniedException" ||
+    name === "UnrecognizedClientException" ||
+    name === "InvalidSignatureException" ||
+    name === "ExpiredTokenException" ||
+    name === "UnauthorizedException" ||
+    message.includes("accessdenied") ||
+    message.includes("access denied") ||
+    message.includes("callwithbearertoken") ||
+    message.includes("unrecognizedclient") ||
+    message.includes("invalid security token") ||
+    message.includes("security token included in the request is invalid") ||
+    message.includes("not authorized") ||
+    message.includes("unauthorized")
+  ) {
+    return "blocked";
+  }
+
+  return "check-failed";
+}
+
+function createBedrockRuntimeClient({
+  awsAccessKeyId,
+  awsBearerTokenBedrock,
+  awsRegion,
+  awsSecretAccessKey,
+  awsSessionToken,
+}: {
+  awsAccessKeyId: string | null;
+  awsBearerTokenBedrock: string | null;
+  awsRegion: string;
+  awsSecretAccessKey: string | null;
+  awsSessionToken: string | null;
+}) {
+  return new BedrockRuntimeClient(
+    awsBearerTokenBedrock !== null
+      ? {
+          authSchemePreference: ["httpBearerAuth"],
+          region: awsRegion,
+          token: {
+            token: awsBearerTokenBedrock,
+          },
+        }
+      : {
+          region: awsRegion,
+          credentials: {
+            accessKeyId: awsAccessKeyId!,
+            secretAccessKey: awsSecretAccessKey!,
+            sessionToken: awsSessionToken ?? undefined,
+          },
+        },
+  );
 }
 
 function buildSystemPrompt(): string {
@@ -349,4 +435,34 @@ function tryParseJson(value: string): unknown | null {
   } catch {
     return null;
   }
+}
+
+function getErrorName(value: unknown): string {
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "name" in value &&
+    typeof value.name === "string"
+  ) {
+    return value.name;
+  }
+
+  return "";
+}
+
+function getErrorMessage(value: unknown): string {
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "message" in value &&
+    typeof value.message === "string"
+  ) {
+    return value.message;
+  }
+
+  if (value instanceof Error) {
+    return value.message;
+  }
+
+  return "";
 }

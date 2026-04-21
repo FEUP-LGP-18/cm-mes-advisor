@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readRequirementGenerationServerConfig } from "./config";
+import { BedrockRequestError } from "./bedrock-client";
 import {
   createRequirementGenerationProvider,
   getRequirementGenerationAvailability,
@@ -128,6 +129,7 @@ describe("requirement generation provider", () => {
         },
         createModelClient() {
           return {
+            async checkAvailability() {},
             async generateDraft() {
               return {
                 generatedComment:
@@ -171,5 +173,67 @@ describe("requirement generation provider", () => {
         ],
       });
     }
+  });
+
+  it("surfaces blocked real access as an unavailable result instead of a generic failure", async () => {
+    const provider = createRequirementGenerationProvider(
+      readRequirementGenerationServerConfig({
+        GENERATION_MODE: "real",
+        MCP_SERVER_URL: "https://example.invalid/mcp",
+        BEDROCK_MODEL_ID: "example-bedrock-model-id",
+        AWS_REGION: "eu-south-2",
+        AWS_BEARER_TOKEN_BEDROCK: "ABSKexample-token",
+      }),
+      {
+        async createDocumentationClient() {
+          return {
+            async lookupRequirementDocumentation() {
+              return {
+                primaryChunks: [],
+                adjacentChunks: [],
+                allChunks: [
+                  {
+                    id: "chunk-1",
+                    title: "Electronic batch review",
+                    text: "Review by exception is configured from the batch review screen.",
+                    sourceUrl: "https://example.invalid/docs/review",
+                    docSource: "Documentation Portal",
+                    docVersion: "9.0",
+                    previousChunkId: null,
+                    nextChunkId: null,
+                  },
+                ],
+              };
+            },
+            async close() {},
+          };
+        },
+        createModelClient() {
+          return {
+            async checkAvailability() {},
+            async generateDraft() {
+              throw new BedrockRequestError("Blocked", {
+                cause: {
+                  message:
+                    "AccessDeniedException: User is not authorized to call bedrock:CallWithBearerToken",
+                  name: "AccessDeniedException",
+                },
+              });
+            },
+          };
+        },
+      },
+    );
+
+    const result = await provider.generate([parsedRequirement]);
+
+    expect(result).toMatchObject({
+      ok: false,
+      providerMode: "real",
+      error: {
+        code: "real-generation-unavailable",
+        reason: "blocked",
+      },
+    });
   });
 });

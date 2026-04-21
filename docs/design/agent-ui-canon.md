@@ -80,6 +80,9 @@ This document is the product-UI canon for Codex and other agents working on the 
 - Tables should optimize scanning and comparison, with row detail shown in an inspector or adjacent panel.
 - Progress rails are appropriate for setup, upload, processing, and staged review flows.
 - Export readiness, traceability, and review state should be visible before export actions.
+- Workflow shell chrome must stay subordinate to the current task; status framing should never outrank the artifact or action the user is here to complete.
+- On mobile task-heavy screens, show the current artifact or decision surface before navigation aids.
+- Avoid repeating the same instruction in the shell, the local intro, and the first support card.
 
 ## Acceptance Checklist
 

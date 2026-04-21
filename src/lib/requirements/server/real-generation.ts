@@ -9,11 +9,13 @@ import {
   type RequirementGenerationSourceReference,
   type RequirementSupportAssessment,
 } from "../generation";
-import type { ParsedRequirement } from "../parser";
+import type { RequirementGenerationUnavailableReason } from "../generation-api";
+import type { ParsedRequirement } from "../types";
 import type { RequirementGenerationServerConfig } from "./config";
 import {
   BedrockRequestError,
   BedrockResponseFormatError,
+  classifyBedrockAvailabilityFailure,
   createBedrockRequirementGenerationClient,
   type BedrockRequirementGenerationClient,
 } from "./bedrock-client";
@@ -37,9 +39,18 @@ export interface RealRequirementGenerationDependencies {
 }
 
 export class RequirementGenerationInfrastructureError extends Error {
-  constructor(message: string, options?: { cause?: unknown }) {
+  readonly reason: RequirementGenerationUnavailableReason;
+
+  constructor(
+    message: string,
+    options: {
+      cause?: unknown;
+      reason: RequirementGenerationUnavailableReason;
+    },
+  ) {
     super(message, options);
     this.name = "RequirementGenerationInfrastructureError";
+    this.reason = options.reason;
   }
 }
 
@@ -57,6 +68,9 @@ export async function generateRealRequirementDrafts(
   ) {
     throw new RequirementGenerationInfrastructureError(
       "Real requirement generation is missing required MCP or Bedrock configuration.",
+      {
+        reason: "missing-config",
+      },
     );
   }
 
@@ -83,7 +97,10 @@ export async function generateRealRequirementDrafts(
     (error) => {
       throw new RequirementGenerationInfrastructureError(
         "The MCP documentation client could not be initialized.",
-        { cause: error },
+        {
+          cause: error,
+          reason: "check-failed",
+        },
       );
     },
   );
@@ -171,7 +188,10 @@ async function generateDraftForRequirement({
     if (error instanceof BedrockRequestError) {
       throw new RequirementGenerationInfrastructureError(
         "Bedrock requirement generation is currently unavailable.",
-        { cause: error },
+        {
+          cause: error,
+          reason: classifyBedrockAvailabilityFailure(error.cause),
+        },
       );
     }
 

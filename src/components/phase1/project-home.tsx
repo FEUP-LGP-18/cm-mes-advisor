@@ -72,19 +72,19 @@ export default function Phase1ProjectHome({
 
   return (
     <main className="mesh-background min-h-screen overflow-x-hidden text-[color:var(--shell-ink)]">
-      <div className="mx-auto flex w-full max-w-[1460px] flex-col gap-5 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
+      <div className="mx-auto flex w-full max-w-[1460px] flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
         <Phase1Topbar />
 
         <header className="phase-home-header">
           <div className="max-w-4xl">
             <p className="phase-overline">Local Phase 1 workspace</p>
-            <h1 className="mt-3 text-3xl font-bold tracking-[-0.05em] text-[color:var(--shell-ink)] sm:text-5xl">
-              Projects first, then source, generate, review, script, and export.
+            <h1 className="mt-3 text-3xl font-bold tracking-[-0.05em] text-[color:var(--shell-ink)] sm:text-[2.8rem]">
+              Resume the project that still needs consultant work.
             </h1>
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-[color:var(--shell-muted)] sm:text-base">
-              {phaseOneScope.productName} is a consultant-facing Phase 1 flow.
-              Start from the local sample project, or reopen the last project
-              and continue where the review stopped.
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-[color:var(--shell-muted)] sm:text-base">
+              {phaseOneScope.productName} works best as a compact project queue.
+              Reopen the active project, or create a fresh local sample when you
+              want to test the full Phase 1 flow again.
             </p>
           </div>
 
@@ -137,79 +137,101 @@ export default function Phase1ProjectHome({
         </section>
 
         {projects.length > 0 ? (
-          <section
-            className={
-              projects.length === 1
-                ? "grid gap-4 lg:max-w-[720px]"
-                : "grid gap-4 lg:grid-cols-2"
-            }
-          >
-            {projects.map((project) => (
-              <article key={project.projectId} className="phase-project-card">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="phase-project-chip">
-                    {project.snapshot.sourceKind === "fixture"
-                      ? "Sample workbook"
-                      : "Uploaded workbook"}
-                  </span>
-                  <span className="phase-project-chip">
-                    {project.snapshot.generatedReviewableCount > 0
-                      ? "Needs review"
-                      : project.snapshot.exportReady
-                        ? "Export ready"
-                        : "In progress"}
-                  </span>
-                </div>
-
-                <h2 className="mt-4 text-2xl font-bold tracking-[-0.04em] text-[color:var(--shell-ink)]">
-                  {project.projectName}
+          <section className="phase-project-table-shell">
+            <div className="phase-project-table-header">
+              <div>
+                <p className="phase-overline">Open projects</p>
+                <h2 className="mt-2 text-2xl font-bold tracking-[-0.04em] text-[color:var(--shell-ink)]">
+                  Keep the home screen focused on resuming work
                 </h2>
-                <p className="mt-2 break-all text-sm leading-6 text-[color:var(--shell-muted)]">
-                  Source: {project.snapshot.sourceFilename}
-                </p>
-                <p className="mt-2 text-sm leading-6 text-[color:var(--shell-muted)]">
-                  Next route:{" "}
-                  <span className="font-semibold text-[color:var(--shell-ink)]">
-                    {project.currentStep}
-                  </span>
-                </p>
+              </div>
+              <p className="max-w-2xl text-sm leading-6 text-[color:var(--shell-muted)]">
+                The table below keeps source, review pressure, and project
+                status visible without turning the home route into a second
+                dashboard.
+              </p>
+            </div>
 
-                <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                  <PhaseHomeInlineStat
-                    label="Rows"
-                    value={project.snapshot.sourceRowCount}
-                  />
-                  <PhaseHomeInlineStat
-                    label="Review"
-                    value={project.snapshot.generatedReviewableCount}
-                  />
-                  <PhaseHomeInlineStat
-                    label="Approved"
-                    value={project.snapshot.approvedCount}
-                  />
-                </div>
+            <div className="phase-project-table">
+              <div className="phase-project-table-head">
+                <span>Project</span>
+                <span>Source</span>
+                <span>Status</span>
+                <span>Review</span>
+                <span>Approved</span>
+                <span>Action</span>
+              </div>
 
-                <div className="mt-5 flex flex-wrap gap-3">
-                  <Link
-                    href={getPhase1StepPath(
-                      project.projectId,
-                      project.currentStep,
-                    )}
-                    onClick={() => handleOpenProject(project)}
-                    className="focus-premium theme-button-primary rounded-2xl px-4 py-3 text-sm font-black transition"
-                  >
-                    Open project
-                  </Link>
-                  <Link
-                    href={getPhase1StepPath(project.projectId, "review")}
-                    onClick={() => handleOpenProject(project)}
-                    className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-bold transition"
-                  >
-                    Open review
-                  </Link>
-                </div>
-              </article>
-            ))}
+              <div className="grid gap-3">
+                {projects.map((project) => {
+                  const status = getProjectStatus(project);
+                  const projectHref = getPhase1StepPath(
+                    project.projectId,
+                    project.currentStep,
+                  );
+
+                  return (
+                    <article
+                      key={project.projectId}
+                      className="phase-project-row"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-base font-bold text-[color:var(--shell-ink)]">
+                          {project.projectName}
+                        </p>
+                        <p className="mt-1 text-sm leading-6 text-[color:var(--shell-muted)]">
+                          Next step:{" "}
+                          <span className="font-semibold text-[color:var(--shell-ink)]">
+                            {project.currentStep}
+                          </span>
+                        </p>
+                      </div>
+
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-[color:var(--shell-ink)]">
+                          {project.snapshot.sourceKind === "fixture"
+                            ? "Sample workbook"
+                            : "Uploaded workbook"}
+                        </p>
+                        <p className="mt-1 break-all text-sm leading-6 text-[color:var(--shell-muted)]">
+                          {project.snapshot.sourceFilename}
+                        </p>
+                      </div>
+
+                      <div>
+                        <span className={status.className}>{status.label}</span>
+                      </div>
+
+                      <ProjectMetric
+                        label="Pending review"
+                        value={project.snapshot.generatedReviewableCount}
+                      />
+                      <ProjectMetric
+                        label="Approved"
+                        value={project.snapshot.approvedCount}
+                      />
+
+                      <div className="flex flex-wrap gap-2">
+                        <Link
+                          href={projectHref}
+                          onClick={() => handleOpenProject(project)}
+                          className="focus-premium theme-button-primary rounded-2xl px-4 py-3 text-sm font-black transition"
+                        >
+                          Open project
+                        </Link>
+                        <Link
+                          href={getPhase1StepPath(project.projectId, "review")}
+                          onClick={() => handleOpenProject(project)}
+                          className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-bold transition"
+                        >
+                          Review
+                        </Link>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
           </section>
         ) : (
           <section className="phase-empty-state">
@@ -218,8 +240,8 @@ export default function Phase1ProjectHome({
               No local projects yet
             </h2>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-[color:var(--shell-muted)]">
-              Create a sample project to explore the full Phase 1 flow locally.
-              You can replace the workbook later inside the source step.
+              Create a sample project to walk through source, generation,
+              review, script, and export without adding any backend setup.
             </p>
             <button
               type="button"
@@ -246,19 +268,34 @@ function PhaseHomeStat({ label, value }: { label: string; value: number }) {
   );
 }
 
-function PhaseHomeInlineStat({
-  label,
-  value,
-}: {
-  label: string;
-  value: number;
-}) {
+function ProjectMetric({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-2xl border border-[color:var(--shell-border)] bg-[color:var(--shell-soft-surface)] px-3 py-3">
+    <div className="phase-project-row-metric">
       <p className="phase-overline">{label}</p>
       <p className="mt-2 text-sm font-semibold text-[color:var(--shell-ink)]">
         {value.toLocaleString("en-US")}
       </p>
     </div>
   );
+}
+
+function getProjectStatus(project: Phase1ProjectRecord) {
+  if (project.snapshot.generatedReviewableCount > 0) {
+    return {
+      className: "phase-project-chip",
+      label: "Needs review",
+    };
+  }
+
+  if (project.snapshot.exportReady) {
+    return {
+      className: "phase-project-chip phase-project-chip-ready",
+      label: "Export ready",
+    };
+  }
+
+  return {
+    className: "phase-project-chip phase-project-chip-muted",
+    label: "In progress",
+  };
 }
