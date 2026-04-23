@@ -129,6 +129,21 @@ Current status:
 - `pnpm format`
 - `pnpm format:check`
 
+## Deployment Automation
+
+This repo uses GitHub Actions plus Vercel CLI for automatic deployments.
+
+- Pushes to `main` trigger `.github/workflows/vercel-production.yml` and deploy to production.
+- Pull requests trigger `.github/workflows/vercel-preview.yml`, which creates a preview deployment and updates a PR comment with the latest preview URL.
+
+Required GitHub Actions repository secrets:
+
+- `VERCEL_TOKEN`
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`
+
+The Vercel project is currently configured with `GENERATION_MODE=mock` for both Preview and Production so review builds stay safe without partner credentials.
+
 ## Where To Read Next
 
 Canonical docs:
