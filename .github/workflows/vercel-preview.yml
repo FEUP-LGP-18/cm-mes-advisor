@@ -25,34 +25,57 @@ jobs:
   deploy-preview:
     name: Build and deploy preview
     runs-on: ubuntu-latest
-    if: ${{ env.VERCEL_TOKEN != '' && env.VERCEL_ORG_ID != '' && env.VERCEL_PROJECT_ID != '' }}
 
     steps:
+      - name: Check Vercel secrets
+        id: config
+        run: |
+          ready=true
+          for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+            if [ -z "${!name}" ]; then
+              ready=false
+            fi
+          done
+
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
+
+          if [ "$ready" != "true" ]; then
+            echo "Vercel preview deploy skipped because one or more required GitHub Actions secrets are missing." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Checkout
+        if: steps.config.outputs.ready == 'true'
         uses: actions/checkout@v4
 
       - name: Setup Node
+        if: steps.config.outputs.ready == 'true'
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: pnpm
 
       - name: Enable Corepack
+        if: steps.config.outputs.ready == 'true'
         run: corepack enable
 
       - name: Install dependencies
+        if: steps.config.outputs.ready == 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Install Vercel CLI
+        if: steps.config.outputs.ready == 'true'
         run: npm install --global vercel@latest
 
       - name: Pull Vercel preview settings
+        if: steps.config.outputs.ready == 'true'
         run: vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
 
       - name: Build preview artifacts
+        if: steps.config.outputs.ready == 'true'
         run: vercel build --token="$VERCEL_TOKEN"
 
       - name: Deploy preview artifacts
+        if: steps.config.outputs.ready == 'true'
         id: deploy
         run: |
           deployment_url="$(vercel deploy --prebuilt --archive=tgz --token="$VERCEL_TOKEN")"
@@ -60,6 +83,7 @@ jobs:
           echo "Preview URL: $deployment_url" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upsert PR preview comment
+        if: steps.config.outputs.ready == 'true'
         uses: actions/github-script@v7
         env:
           PREVIEW_URL: ${{ steps.deploy.outputs.url }}
