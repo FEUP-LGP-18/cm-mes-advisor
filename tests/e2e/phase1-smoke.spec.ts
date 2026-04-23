@@ -1,4 +1,5 @@
-import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
+import { themeStorageKey, type ThemeMode } from "../../src/app/theme";
 import {
   PHASE1_PROJECT_REGISTRY_STORAGE_KEY,
   createPhase1ProjectRegistry,
@@ -31,146 +32,227 @@ async function attachFullPageScreenshot(
 async function seedProjectRegistry(
   page: Page,
   registry: Phase1ProjectRegistry,
+  theme: ThemeMode,
 ) {
   await page.addInitScript(
-    ({ storageKey, value }) => {
+    ({ storageKey, themeStorageKey, theme, value }) => {
       window.localStorage.clear();
       window.localStorage.setItem(storageKey, JSON.stringify(value));
+      window.localStorage.setItem(themeStorageKey, theme);
+      document.documentElement.dataset.theme = theme;
+      document.documentElement.style.colorScheme = theme;
     },
     {
       storageKey: PHASE1_PROJECT_REGISTRY_STORAGE_KEY,
+      themeStorageKey,
+      theme,
       value: registry,
     },
   );
 }
 
-test("creates a sample project from the empty command desk", async ({
-  page,
-}, testInfo) => {
-  await seedProjectRegistry(page, createPhase1ProjectRegistry());
+async function assertNoHorizontalOverflow(page: Page) {
+  const { scrollWidth, viewportWidth } = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    viewportWidth: window.innerWidth,
+  }));
 
-  await page.goto("/");
+  expect(scrollWidth).toBeLessThanOrEqual(viewportWidth + 2);
+}
 
-  await expect(
-    page.getByRole("heading", {
-      name: /start with a sample project and walk the full phase 1 flow/i,
-    }),
-  ).toBeVisible();
-  await attachFullPageScreenshot(page, testInfo, "home-empty");
+async function assertScrollable(locator: Locator) {
+  const metrics = await locator.evaluate((node) => {
+    const element = node as HTMLElement;
+    const before = element.scrollTop;
+    element.scrollTop = before + 240;
 
-  await page.getByRole("button", { name: /start sample project/i }).click();
-
-  await expect(page).toHaveURL(/\/projects\/.+\/source$/);
-  await expect(
-    page.getByRole("heading", {
-      name: /choose the workbook for this run/i,
-    }),
-  ).toBeVisible();
-  await attachFullPageScreenshot(page, testInfo, "sample-project-source");
-
-  await page.getByRole("button", { name: /continue to generate/i }).click();
-
-  await expect(page).toHaveURL(/\/projects\/.+\/generate$/);
-  await expect(
-    page.getByRole("heading", { name: /run the recommended slice first/i }),
-  ).toBeVisible();
-  await attachFullPageScreenshot(page, testInfo, "sample-project-generate");
-});
-
-test("verifies populated home plus source, generate, and review surfaces", async ({
-  page,
-}, testInfo) => {
-  const registry = createPhase1UiFixtureRegistry({
-    currentStep: "review",
-    statusesByRequirementId: {
-      "01.01": "pending",
-      "01.02": "pending",
-    },
-  });
-  const project = createPhase1UiFixtureProjectRecord({
-    currentStep: "review",
-    statusesByRequirementId: {
-      "01.01": "pending",
-      "01.02": "pending",
-    },
+    return {
+      before,
+      after: element.scrollTop,
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+    };
   });
 
-  await seedProjectRegistry(page, registry);
+  expect(metrics.scrollHeight).toBeGreaterThan(metrics.clientHeight);
+  expect(metrics.after).toBeGreaterThan(metrics.before);
+}
 
-  await page.goto("/");
+async function expectLocatorAbove(upper: Locator, lower: Locator) {
+  await expect(upper).toBeVisible();
+  await expect(lower).toBeVisible();
 
-  await expect(
-    page.getByRole("heading", {
-      name: /pick up the right customer project quickly/i,
-    }),
-  ).toBeVisible();
-  await expect(page.getByRole("button", { name: /resume project/i })).toBeVisible();
-  await attachFullPageScreenshot(page, testInfo, "home-populated");
+  const upperBox = await upper.boundingBox();
+  const lowerBox = await lower.boundingBox();
 
-  await page.goto(`/projects/${project.projectId}/source`);
-  await expect(
-    page.getByRole("heading", {
-      name: /choose the workbook for this run/i,
-    }),
-  ).toBeVisible();
-  await attachFullPageScreenshot(page, testInfo, "source-studio");
+  expect(upperBox).not.toBeNull();
+  expect(lowerBox).not.toBeNull();
+  expect((upperBox?.y ?? 0) + 4).toBeLessThan(lowerBox?.y ?? 0);
+}
 
-  await page.goto(`/projects/${project.projectId}/generate`);
-  await expect(
-    page.getByRole("heading", { name: /run the recommended slice first/i }),
-  ).toBeVisible();
-  await attachFullPageScreenshot(page, testInfo, "generate-studio");
+const themes: ThemeMode[] = ["dark", "light"];
 
-  await page.goto(`/projects/${project.projectId}/review`);
-  await expect(
-    page.getByRole("heading", {
-      name: /review generated requirements/i,
-    }),
-  ).toBeVisible();
-  await expect(page.getByRole("button", { name: /approve/i }).first()).toBeVisible();
-  await attachFullPageScreenshot(page, testInfo, "review-studio");
-});
+for (const theme of themes) {
+  test(`${theme}: creates a sample project from the empty command desk`, async ({
+    page,
+  }, testInfo) => {
+    await seedProjectRegistry(page, createPhase1ProjectRegistry(), theme);
 
-test("verifies script and export surfaces, including direct export access when ready", async ({
-  page,
-}, testInfo) => {
-  const registry = createPhase1UiFixtureRegistry({
-    currentStep: "review",
-    statusesByRequirementId: {
-      "01.01": "approved",
-      "01.02": "approved",
-    },
-  });
-  const project = createPhase1UiFixtureProjectRecord({
-    currentStep: "review",
-    statusesByRequirementId: {
-      "01.01": "approved",
-      "01.02": "approved",
-    },
+    await page.goto("/");
+
+    await expect(
+      page.getByRole("heading", {
+        name: /start with a sample project and walk the full phase 1 flow/i,
+      }),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /sample project/i })).toHaveCount(1);
+    await assertNoHorizontalOverflow(page);
+    await attachFullPageScreenshot(page, testInfo, `${theme}-home-empty`);
+
+    const startButton = page.getByRole("button", {
+      name: /start sample project/i,
+    });
+    await expect(startButton).toBeEnabled();
+    await startButton.click();
+
+    await expect(page).toHaveURL(/\/projects\/.+\/source$/);
+    await expect(
+      page.getByRole("heading", {
+        name: /confirm the source for this run/i,
+      }),
+    ).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+    await attachFullPageScreenshot(page, testInfo, `${theme}-sample-project-source`);
+
   });
 
-  await seedProjectRegistry(page, registry);
+  test(`${theme}: verifies populated home plus source, generate, and review surfaces`, async ({
+    page,
+  }, testInfo) => {
+    const registry = createPhase1UiFixtureRegistry({
+      currentStep: "review",
+      statusesByRequirementId: {
+        "01.01": "pending",
+        "01.02": "pending",
+      },
+    });
+    const project = createPhase1UiFixtureProjectRecord({
+      currentStep: "review",
+      statusesByRequirementId: {
+        "01.01": "pending",
+        "01.02": "pending",
+      },
+    });
 
-  await page.goto(`/projects/${project.projectId}/script`);
-  await expect(
-    page.getByRole("heading", {
-      name: /shape the phase 1 handoff/i,
-    }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: /continue to export/i }),
-  ).toBeEnabled();
-  await attachFullPageScreenshot(page, testInfo, "script-studio");
+    await seedProjectRegistry(page, registry, theme);
 
-  await page.goto(`/projects/${project.projectId}/export`);
-  await expect(page).toHaveURL(new RegExp(`/projects/${project.projectId}/export$`));
-  await expect(
-    page.getByRole("heading", {
-      name: /download the phase 1 handoff/i,
-    }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: /download markdown/i }),
-  ).toBeEnabled();
-  await attachFullPageScreenshot(page, testInfo, "export-studio");
-});
+    await page.goto("/");
+
+    await expect(
+      page.getByRole("heading", {
+        name: /pick up the right customer project quickly/i,
+      }),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /resume project/i })).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+    await attachFullPageScreenshot(page, testInfo, `${theme}-home-populated`);
+
+    await page.goto(`/projects/${project.projectId}/source`);
+    await expect(
+      page.getByRole("heading", {
+        name: /confirm the source for this run/i,
+      }),
+    ).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+    await attachFullPageScreenshot(page, testInfo, `${theme}-source-studio`);
+
+    await page.goto(`/projects/${project.projectId}/generate`);
+    await expect(
+      page.getByRole("heading", { name: /run the recommended slice first/i }),
+    ).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+    await attachFullPageScreenshot(page, testInfo, `${theme}-generate-studio`);
+
+    await page.goto(`/projects/${project.projectId}/review`);
+    await expect(
+      page.getByRole("heading", {
+        name: /review generated requirements/i,
+      }),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /approve/i }).first()).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+
+    if (testInfo.project.name.includes("mobile")) {
+      await expectLocatorAbove(
+        page.getByText(/^Approve and next$/).first(),
+        page.getByText(/^Pending requirements$/).first(),
+      );
+    }
+
+    await attachFullPageScreenshot(page, testInfo, `${theme}-review-studio`);
+  });
+
+  test(`${theme}: verifies script and export surfaces, including direct export access when ready`, async ({
+    page,
+  }, testInfo) => {
+    const registry = createPhase1UiFixtureRegistry({
+      currentStep: "review",
+      statusesByRequirementId: {
+        "01.01": "approved",
+        "01.02": "approved",
+      },
+    });
+    const project = createPhase1UiFixtureProjectRecord({
+      currentStep: "review",
+      statusesByRequirementId: {
+        "01.01": "approved",
+        "01.02": "approved",
+      },
+    });
+
+    await seedProjectRegistry(page, registry, theme);
+
+    await page.goto(`/projects/${project.projectId}/script`);
+    await expect(
+      page.getByRole("heading", {
+        name: /shape the phase 1 handoff/i,
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /continue to export/i }),
+    ).toBeEnabled();
+    await assertNoHorizontalOverflow(page);
+
+    if (testInfo.project.name.includes("mobile")) {
+      await expectLocatorAbove(
+        page.getByText(/^Script editor$/).first(),
+        page.locator("summary").filter({ hasText: /^Section outline$/ }).first(),
+      );
+    } else {
+      await assertScrollable(page.locator(".phase-document-sidebar-scroll").first());
+    }
+
+    await attachFullPageScreenshot(page, testInfo, `${theme}-script-studio`);
+
+    await page.goto(`/projects/${project.projectId}/export`);
+    await expect(page).toHaveURL(new RegExp(`/projects/${project.projectId}/export$`));
+    await expect(
+      page.getByRole("heading", {
+        name: /download the phase 1 handoff/i,
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /download markdown/i }),
+    ).toBeEnabled();
+    await assertNoHorizontalOverflow(page);
+
+    if (testInfo.project.name.includes("mobile")) {
+      await expectLocatorAbove(
+        page.getByText(/^Download Markdown$/).first(),
+        page.locator("summary").filter({ hasText: /^Included sections$/ }).first(),
+      );
+    }
+
+    await attachFullPageScreenshot(page, testInfo, `${theme}-export-studio`);
+  });
+}

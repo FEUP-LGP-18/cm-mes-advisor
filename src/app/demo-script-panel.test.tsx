@@ -141,6 +141,7 @@ describe("demo script panels", () => {
     expect(markup).toContain("Script editor");
     expect(markup).toContain("Refine the structure, wording, and notes");
     expect(markup).toContain("Script title");
+    expect(markup).toContain("Source workbook");
     expect(markup).not.toContain("Download Markdown");
   });
 

@@ -26,6 +26,10 @@ export default function Phase1ProjectShell({
 }) {
   const currentStepMeta = phase1WorkflowMeta[currentStep];
   const exportState = project.snapshot.exportReady ? "Ready" : "Blocked";
+  const showExportState =
+    currentStep === "script" ||
+    currentStep === "export" ||
+    project.snapshot.exportReady;
 
   return (
     <main className="app-canvas min-h-screen text-[color:var(--shell-ink)]">
@@ -33,59 +37,77 @@ export default function Phase1ProjectShell({
         <Phase1Topbar />
 
         <header className="phase-shell-header">
-          <div className="phase-shell-breadcrumbs">
-            <Link href="/" className="phase-product-link">
-              Projects
-            </Link>
-            <span className="phase-shell-divider">/</span>
-            <span>{project.projectName}</span>
-          </div>
+          <div className="phase-shell-header-top">
+            <div className="phase-shell-breadcrumbs">
+              <Link href="/" className="phase-product-link">
+                Projects
+              </Link>
+              <span className="phase-shell-divider">/</span>
+              <span>{project.projectName}</span>
+            </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="phase-shell-pill">Phase 1</span>
-            <span className="phase-shell-pill phase-shell-pill-muted">
-              {currentStepMeta.label}
-            </span>
-            <span className="phase-shell-pill phase-shell-pill-muted">
-              {currentStepMeta.subtitle}
-            </span>
-            {project.snapshot.exportReady ? (
-              <span className="phase-shell-pill phase-shell-pill-ready">
-                Export ready
+            <div className="phase-shell-pill-row">
+              <span className="phase-shell-pill">Phase 1</span>
+              <span className="phase-shell-pill phase-shell-pill-muted">
+                {currentStepMeta.label}
               </span>
-            ) : null}
+              <span className="phase-shell-pill phase-shell-pill-muted">
+                {currentStepMeta.subtitle}
+              </span>
+              {project.snapshot.exportReady ? (
+                <span className="phase-shell-pill phase-shell-pill-ready">
+                  Export ready
+                </span>
+              ) : null}
+            </div>
           </div>
 
-          <div className="phase-shell-title-block">
-            <h1 className="text-[1.9rem] font-semibold tracking-[-0.05em] sm:text-[2.25rem]">
-              {project.projectName}
-            </h1>
-            <p className="mt-2 max-w-4xl text-sm leading-6 text-[color:var(--shell-muted)]">
-              {nextAction.helper}
-            </p>
-          </div>
+          <div className="phase-shell-header-main">
+            <div className="phase-shell-title-block">
+              <h1 className="phase-shell-title">{project.projectName}</h1>
+              <p className="phase-shell-helper">{nextAction.helper}</p>
+            </div>
 
-          <div className="phase-shell-strip">
-            <StripItem
-              label="Workbook"
-              value={project.snapshot.sourceFilename}
-              wide
-            />
-            <StripItem label="Next action" value={nextAction.label} emphasis />
-            <StripStat label="Rows" value={project.snapshot.sourceRowCount} />
-            <StripStat
-              label="Pending review"
-              value={project.snapshot.generatedReviewableCount}
-            />
-            <StripStat
-              label="Approved"
-              value={project.snapshot.approvedCount}
-            />
-            {(currentStep === "script" ||
-              currentStep === "export" ||
-              project.snapshot.exportReady) && (
-              <StripItem label="Export" value={exportState} />
-            )}
+            <div className="phase-shell-summary">
+              <div className="phase-shell-summary-main">
+                <SummaryItem
+                  label="Next action"
+                  value={nextAction.label}
+                  emphasis
+                />
+                <SummaryItem
+                  label="Workbook"
+                  value={project.snapshot.sourceFilename}
+                />
+              </div>
+
+              <div className="phase-shell-summary-stats">
+                <SummaryStat
+                  label="Rows"
+                  value={project.snapshot.sourceRowCount}
+                />
+                <SummaryStat
+                  label="Pending review"
+                  value={project.snapshot.generatedReviewableCount}
+                  tone={
+                    project.snapshot.generatedReviewableCount > 0
+                      ? "attention"
+                      : "default"
+                  }
+                />
+                <SummaryStat
+                  label="Approved"
+                  value={project.snapshot.approvedCount}
+                />
+                {showExportState ? (
+                  <SummaryStat
+                    label="Export"
+                    value={exportState}
+                    tone={project.snapshot.exportReady ? "positive" : "default"}
+                  />
+                ) : null}
+              </div>
+            </div>
           </div>
         </header>
 
@@ -109,7 +131,9 @@ export default function Phase1ProjectShell({
               >
                 <span className="phase-stage-eyebrow">{stepState.status}</span>
                 <span className="phase-stage-title">{stepState.label}</span>
-                <span className="phase-stage-subtitle">{stepState.subtitle}</span>
+                <span className="phase-stage-subtitle">
+                  {stepState.subtitle}
+                </span>
               </Link>
             );
           })}
@@ -121,34 +145,44 @@ export default function Phase1ProjectShell({
   );
 }
 
-function StripItem({
+function SummaryItem({
   emphasis = false,
   label,
   value,
-  wide = false,
 }: {
   emphasis?: boolean;
   label: string;
   value: string;
-  wide?: boolean;
 }) {
   return (
     <div
-      className={`phase-shell-strip-item ${
-        emphasis ? "phase-shell-strip-item-emphasis" : ""
-      } ${wide ? "phase-shell-strip-item-wide" : ""}`}
+      className={`phase-shell-summary-item ${
+        emphasis ? "phase-shell-summary-item-emphasis" : ""
+      }`}
     >
       <span>{label}</span>
-      <strong>{value}</strong>
+      <strong title={value}>{value}</strong>
     </div>
   );
 }
 
-function StripStat({ label, value }: { label: string; value: number }) {
+function SummaryStat({
+  label,
+  tone = "default",
+  value,
+}: {
+  label: string;
+  tone?: "attention" | "default" | "positive";
+  value: number | string;
+}) {
   return (
-    <div className="phase-shell-strip-item phase-shell-strip-item-stat">
+    <div
+      className={`phase-shell-summary-stat phase-shell-summary-stat-${tone}`}
+    >
       <span>{label}</span>
-      <strong>{value.toLocaleString("en-US")}</strong>
+      <strong title={String(value)}>
+        {typeof value === "number" ? value.toLocaleString("en-US") : value}
+      </strong>
     </div>
   );
 }

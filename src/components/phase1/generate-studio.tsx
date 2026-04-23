@@ -305,7 +305,7 @@ export default function GenerateStudio({
       </div>
 
       <aside className="phase-rail">
-        <section className="phase-rail-card">
+        <section className="phase-rail-card phase-generate-rail">
           <div className="phase-rail-header">
             <div>
               <p className="phase-overline">Generation rail</p>
@@ -399,7 +399,7 @@ export default function GenerateStudio({
             </div>
           ) : null}
 
-          <div className="phase-status-list">
+          <div className="phase-status-list phase-status-list-compact">
             {mockGenerationRun.stages.map((stage) => (
               <div key={stage.label} className="phase-status-item">
                 <span

@@ -101,7 +101,7 @@ export default function DemoScriptEditingPanel({
     null;
 
   return (
-    <section className="phase-document-workspace">
+    <section className="phase-document-workspace phase-document-workspace-script">
       <aside className="phase-document-sidebar">
         <div className="phase-document-sidebar-scroll">
           <div className="grid gap-4">
@@ -183,115 +183,41 @@ export default function DemoScriptEditingPanel({
             </section>
 
             {!assembly.emptyState && assembly.sections.length > 0 ? (
-              <section className="phase-sidebar-panel">
-                <div className="phase-sidebar-copy">
-                  <p className="phase-overline">Outline</p>
-                  <h3 className="phase-rail-title">Section order and focus</h3>
-                </div>
-
-                <div className="phase-sidebar-list">
-                  {assembly.sections.map((section, index) => {
-                    const isActive = section.key === selectedSection?.key;
-
-                    return (
-                      <div
-                        key={section.key}
-                        className={`rounded-[1rem] border p-3 transition ${
-                          isActive
-                            ? "theme-doc-card"
-                            : "theme-doc-card-muted"
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedSectionKey(section.key);
-                            setSelectedStepKey(section.steps[0]?.key ?? null);
-                          }}
-                          className="focus-premium block w-full text-left"
-                        >
-                          <p className="text-sm font-bold theme-doc-title">
-                            {resolveSectionTitle(draft, section)}
-                          </p>
-                          <p className="theme-doc-subtle mt-1 text-xs">
-                            {section.stepCount} steps
-                          </p>
-                        </button>
-
-                        <div className="phase-section-order-controls mt-3">
-                          <SectionOrderButton
-                            direction="up"
-                            disabled={index === 0}
-                            onClick={() =>
-                              onDraftAction({
-                                type: "setSectionOrder",
-                                sectionOrder: moveSection(
-                                  assembly.sections.map((item) => item.key),
-                                  section.key,
-                                  "up",
-                                ),
-                              })
-                            }
-                          />
-                          <SectionOrderButton
-                            direction="down"
-                            disabled={index === assembly.sections.length - 1}
-                            onClick={() =>
-                              onDraftAction({
-                                type: "setSectionOrder",
-                                sectionOrder: moveSection(
-                                  assembly.sections.map((item) => item.key),
-                                  section.key,
-                                  "down",
-                                ),
-                              })
-                            }
-                          />
-                        </div>
-                      </div>
+              <section className="phase-sidebar-panel phase-desktop-only">
+                <ScriptOutlineContent
+                  assembly={assembly}
+                  draft={draft}
+                  onDraftAction={onDraftAction}
+                  onSelectSection={(sectionKey) => {
+                    const nextSection = assembly.sections.find(
+                      (section) => section.key === sectionKey,
                     );
-                  })}
-                </div>
+
+                    setSelectedSectionKey(sectionKey);
+                    setSelectedStepKey(nextSection?.steps[0]?.key ?? null);
+                  }}
+                  selectedSectionKey={selectedSection?.key ?? null}
+                />
               </section>
             ) : null}
 
             {!assembly.emptyState && overview.sectionSummaries.length > 0 ? (
-              <section className="phase-sidebar-panel">
-                <div className="phase-sidebar-copy">
-                  <p className="phase-overline">Coverage</p>
-                  <h3 className="phase-rail-title">What the handoff includes</h3>
-                </div>
-
-                <div className="phase-coverage-list">
-                  {overview.sectionSummaries.map((section) => (
-                    <div key={section.key} className="phase-coverage-item">
-                      <div>
-                        <p className="phase-overlay-row-title">
-                          {section.title}
-                        </p>
-                        <p className="phase-overlay-row-body">
-                          {section.requirementCount} approved requirement
-                          {section.requirementCount === 1 ? "" : "s"}
-                        </p>
-                      </div>
-                      <span>{section.stepCount} steps</span>
-                    </div>
-                  ))}
-                </div>
+              <section className="phase-sidebar-panel phase-desktop-only">
+                <ScriptCoverageContent overview={overview} />
               </section>
             ) : null}
           </div>
         </div>
       </aside>
 
-      <div className="grid min-w-0 gap-5">
+      <div className="phase-document-main grid min-w-0 gap-5">
         <section className="document-panel overflow-hidden rounded-[1.5rem] p-4 sm:p-5">
-          <div className="flex flex-col gap-4 border-b border-[color:var(--document-border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="min-w-0 max-w-4xl flex-1">
+          <div className="border-b border-[color:var(--document-border)] pb-4">
+            <div className="min-w-0 max-w-4xl">
               <p className="theme-doc-kicker mono-label text-[0.68rem]">
                 Script editor
               </p>
-              <div className="mt-2 grid gap-3 lg:grid-cols-[minmax(0,1fr)_240px]">
+              <div className="mt-2 grid gap-3">
                 <label className="block">
                   <span className="theme-doc-subtle mono-label text-[0.58rem]">
                     Script title
@@ -308,24 +234,33 @@ export default function DemoScriptEditingPanel({
                   />
                 </label>
 
-                <div className="theme-doc-card rounded-[1.15rem] px-4 py-3 text-sm leading-6 theme-doc-body">
-                  <p className="theme-doc-subtle mono-label text-[0.58rem]">
-                    Active source
-                  </p>
-                  <p className="mt-2 break-all">
-                    <span className="theme-doc-title font-bold">
-                      {projectMetadata.sourceFilename}
-                    </span>
-                  </p>
-                  <p className="mt-2">
-                    {assembly.approvedRequirementCount} approved row
-                    {assembly.approvedRequirementCount === 1 ? "" : "s"} across{" "}
-                    {assembly.sections.length} section
-                    {assembly.sections.length === 1 ? "" : "s"}.
-                  </p>
+                <div className="theme-doc-card-muted rounded-[1.15rem] px-4 py-3">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <p className="theme-doc-subtle mono-label text-[0.58rem]">
+                        Source workbook
+                      </p>
+                      <p className="theme-doc-title mt-1.5 break-words text-sm font-bold leading-6">
+                        {projectMetadata.sourceFilename}
+                      </p>
+                    </div>
+
+                    <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[220px]">
+                      <DocumentHeaderMetric
+                        label="Approved"
+                        value={`${assembly.approvedRequirementCount} row${
+                          assembly.approvedRequirementCount === 1 ? "" : "s"
+                        }`}
+                      />
+                      <DocumentHeaderMetric
+                        label="Sections"
+                        value={`${assembly.sections.length} built`}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
-              <p className="theme-doc-body mt-2 max-w-3xl text-sm leading-6">
+              <p className="theme-doc-body mt-3 max-w-3xl text-sm leading-6">
                 Refine the structure, wording, and notes while keeping the
                 approved story easy to scan and defend.
               </p>
@@ -408,6 +343,41 @@ export default function DemoScriptEditingPanel({
             </article>
           ) : null}
         </section>
+
+        {!assembly.emptyState && assembly.sections.length > 0 ? (
+          <details className="phase-sidebar-panel phase-mobile-only">
+            <summary className="theme-shell-title cursor-pointer text-sm font-bold">
+              Section outline
+            </summary>
+            <div className="mt-4">
+              <ScriptOutlineContent
+                assembly={assembly}
+                draft={draft}
+                onDraftAction={onDraftAction}
+                onSelectSection={(sectionKey) => {
+                  const nextSection = assembly.sections.find(
+                    (section) => section.key === sectionKey,
+                  );
+
+                  setSelectedSectionKey(sectionKey);
+                  setSelectedStepKey(nextSection?.steps[0]?.key ?? null);
+                }}
+                selectedSectionKey={selectedSection?.key ?? null}
+              />
+            </div>
+          </details>
+        ) : null}
+
+        {!assembly.emptyState && overview.sectionSummaries.length > 0 ? (
+          <details className="phase-sidebar-panel phase-mobile-only">
+            <summary className="theme-shell-title cursor-pointer text-sm font-bold">
+              Coverage
+            </summary>
+            <div className="mt-4">
+              <ScriptCoverageContent overview={overview} />
+            </div>
+          </details>
+        ) : null}
       </div>
     </section>
   );
@@ -579,32 +549,14 @@ export function DemoScriptExportPanel({
               </div>
             </section>
 
-            <section className="phase-sidebar-panel">
-              <div className="phase-sidebar-copy">
-                <p className="phase-overline">Coverage</p>
-                <h3 className="phase-rail-title">Included sections</h3>
-              </div>
-
-              <div className="phase-coverage-list">
-                {overview.sectionSummaries.map((section) => (
-                  <div key={section.key} className="phase-coverage-item">
-                    <div>
-                      <p className="phase-overlay-row-title">{section.title}</p>
-                      <p className="phase-overlay-row-body">
-                        {section.requirementCount} approved requirement
-                        {section.requirementCount === 1 ? "" : "s"}
-                      </p>
-                    </div>
-                    <span>{section.stepCount} steps</span>
-                  </div>
-                ))}
-              </div>
+            <section className="phase-sidebar-panel phase-desktop-only">
+              <ExportCoverageContent overview={overview} />
             </section>
           </div>
         </div>
       </aside>
 
-      <section className="document-panel min-w-0 rounded-[1.75rem] p-5 sm:p-6">
+      <section className="phase-document-main document-panel min-w-0 rounded-[1.75rem] p-5 sm:p-6">
         <div className="theme-doc-card rounded-[1.5rem] p-5">
           <p className="theme-doc-kicker mono-label text-[0.68rem]">
             Export handoff
@@ -717,7 +669,177 @@ export function DemoScriptExportPanel({
           </div>
         </div>
       </section>
+
+      {overview.sectionSummaries.length > 0 ? (
+        <details className="phase-sidebar-panel phase-mobile-only">
+          <summary className="theme-shell-title cursor-pointer text-sm font-bold">
+            Included sections
+          </summary>
+          <div className="mt-4">
+            <ExportCoverageContent overview={overview} />
+          </div>
+        </details>
+      ) : null}
     </section>
+  );
+}
+
+function DocumentHeaderMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="theme-doc-card rounded-[1rem] px-3 py-2.5 text-left">
+      <p className="theme-doc-subtle mono-label text-[0.5rem]">{label}</p>
+      <p className="theme-doc-title mt-1.5 text-sm font-bold leading-5">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function ScriptOutlineContent({
+  assembly,
+  draft,
+  onDraftAction,
+  onSelectSection,
+  selectedSectionKey,
+}: {
+  assembly: DemoScriptAssembly;
+  draft: DemoScriptDraft;
+  onDraftAction: (action: DemoScriptDraftAction) => void;
+  onSelectSection: (sectionKey: string) => void;
+  selectedSectionKey: string | null;
+}) {
+  return (
+    <>
+      <div className="phase-sidebar-copy">
+        <p className="phase-overline">Outline</p>
+        <h3 className="phase-rail-title">Section order and focus</h3>
+      </div>
+
+      <div className="phase-sidebar-list">
+        {assembly.sections.map((section, index) => {
+          const isActive = section.key === selectedSectionKey;
+
+          return (
+            <div
+              key={section.key}
+              className={`rounded-[1rem] border p-3 transition ${
+                isActive ? "theme-doc-card" : "theme-doc-card-muted"
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => onSelectSection(section.key)}
+                className="focus-premium block w-full text-left"
+              >
+                <p className="text-sm font-bold theme-doc-title">
+                  {resolveSectionTitle(draft, section)}
+                </p>
+                <p className="theme-doc-subtle mt-1 text-xs">
+                  {section.stepCount} steps
+                </p>
+              </button>
+
+              <div className="phase-section-order-controls mt-3">
+                <SectionOrderButton
+                  direction="up"
+                  disabled={index === 0}
+                  onClick={() =>
+                    onDraftAction({
+                      type: "setSectionOrder",
+                      sectionOrder: moveSection(
+                        assembly.sections.map((item) => item.key),
+                        section.key,
+                        "up",
+                      ),
+                    })
+                  }
+                />
+                <SectionOrderButton
+                  direction="down"
+                  disabled={index === assembly.sections.length - 1}
+                  onClick={() =>
+                    onDraftAction({
+                      type: "setSectionOrder",
+                      sectionOrder: moveSection(
+                        assembly.sections.map((item) => item.key),
+                        section.key,
+                        "down",
+                      ),
+                    })
+                  }
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+function ScriptCoverageContent({
+  overview,
+}: {
+  overview: DemoScriptExportOverview;
+}) {
+  return (
+    <>
+      <div className="phase-sidebar-copy">
+        <p className="phase-overline">Coverage</p>
+        <h3 className="phase-rail-title">What the handoff includes</h3>
+      </div>
+
+      <div className="phase-coverage-list">
+        {overview.sectionSummaries.map((section) => (
+          <div key={section.key} className="phase-coverage-item">
+            <div>
+              <p className="phase-overlay-row-title">{section.title}</p>
+              <p className="phase-overlay-row-body">
+                {section.requirementCount} approved requirement
+                {section.requirementCount === 1 ? "" : "s"}
+              </p>
+            </div>
+            <span>{section.stepCount} steps</span>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function ExportCoverageContent({
+  overview,
+}: {
+  overview: DemoScriptExportOverview;
+}) {
+  return (
+    <>
+      <div className="phase-sidebar-copy">
+        <p className="phase-overline">Coverage</p>
+        <h3 className="phase-rail-title">Included sections</h3>
+      </div>
+
+      <div className="phase-coverage-list">
+        {overview.sectionSummaries.map((section) => (
+          <div key={section.key} className="phase-coverage-item">
+            <div>
+              <p className="phase-overlay-row-title">{section.title}</p>
+              <p className="phase-overlay-row-body">
+                {section.requirementCount} approved requirement
+                {section.requirementCount === 1 ? "" : "s"}
+              </p>
+            </div>
+            <span>{section.stepCount} steps</span>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 

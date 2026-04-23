@@ -15,6 +15,7 @@ const meta = {
   component: ProjectCommandDesk,
   tags: ["autodocs"],
   args: {
+    canCreateSampleProject: true,
     onCreateSampleProject: () => undefined,
     onOpenProject: () => undefined,
     onQueryChange: () => undefined,

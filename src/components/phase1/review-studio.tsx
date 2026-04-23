@@ -301,7 +301,7 @@ export default function ReviewStudio({
                   stickyOnDesktop={false}
                 />
 
-                <section className="phase-sidebar-panel hidden xl:grid">
+                <section className="phase-sidebar-panel phase-desktop-only">
                   <ReviewInventoryContent
                     explorerFilter={explorerFilter}
                     explorerQuery={explorerQuery}
@@ -317,7 +317,7 @@ export default function ReviewStudio({
               </div>
             </div>
 
-            <details className="phase-sidebar-panel xl:hidden">
+            <details className="phase-sidebar-panel phase-mobile-only">
               <summary className="theme-shell-title cursor-pointer text-sm font-bold">
                 Filters and full inventory
               </summary>
@@ -337,7 +337,7 @@ export default function ReviewStudio({
             </details>
           </aside>
 
-          <div className="grid gap-6">
+          <div className="phase-review-main grid gap-6">
             <GuidedReviewCard
               onReviewAction={handleGuidedReviewAction}
               onSelectNext={handleSelectNextReviewRequirement}

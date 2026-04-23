@@ -57,11 +57,11 @@ export default function SourceStudio({
       <section className="phase-section-card">
         <div className="phase-section-copy">
           <p className="phase-overline">Source</p>
-          <h2 className="phase-section-title">Choose the workbook for this run</h2>
+          <h2 className="phase-section-title">Confirm the source for this run</h2>
           <p className="phase-section-body">
-            Upload the working workbook first, keep the sample file secondary,
-            and verify the file, row counts, and parsed preview before you move
-            on to generation.
+            Use the project workbook whenever you have it. Keep the sample file
+            secondary, confirm the parsed rows, and move on to generation only
+            after the source looks right.
           </p>
         </div>
       </section>

@@ -39,6 +39,7 @@ describe("phase 1 redesigned surfaces", () => {
     const html = render(
       <ProjectCommandDesk
         activeProject={null}
+        canCreateSampleProject
         onCreateSampleProject={vi.fn()}
         onOpenProject={vi.fn()}
         onQueryChange={vi.fn()}
@@ -67,6 +68,7 @@ describe("phase 1 redesigned surfaces", () => {
     const html = render(
       <ProjectCommandDesk
         activeProject={project}
+        canCreateSampleProject
         onCreateSampleProject={vi.fn()}
         onOpenProject={vi.fn()}
         onQueryChange={vi.fn()}
@@ -130,10 +132,10 @@ describe("phase 1 redesigned surfaces", () => {
       />,
     );
 
-    expect(html).toContain("Choose the workbook for this run");
+    expect(html).toContain("Upload the workbook for this run");
     expect(html).toContain("Upload .xlsx workbook");
     expect(html).toContain("Continue to Generate");
-    expect(html).toContain("Validation checklist");
+    expect(html).toContain("Before you continue");
     expect(html).toContain("Parsed preview");
   });
 

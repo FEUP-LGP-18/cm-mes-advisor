@@ -2315,17 +2315,14 @@ export function WorkspaceSourcePanel({
     : "Uploaded workbook";
   const previewCount = previewRows.length;
   const sourceStatus = isFixtureSource
-    ? "The sample workbook is active right now. Upload the project workbook when you are ready to switch to the real source."
+    ? "The sample workbook is active right now. Upload the project workbook as soon as you are ready to switch to the real source."
     : "The uploaded workbook is active and ready for generation.";
-  const sourceHint = isFixtureSource
-    ? "Use the sample workbook only when you want a quick demo path."
-    : "Restore the sample workbook only when you need a fallback demo source.";
 
   return (
-    <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.08fr)_360px]">
+    <section className="grid min-w-0 gap-4">
       <article className="theme-shell-card rounded-[1.5rem] p-5 sm:p-6">
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(240px,0.85fr)]">
-          <section className="theme-shell-card-brand rounded-[1.35rem] p-4 sm:p-5">
+        <section className="theme-shell-card-brand rounded-[1.35rem] p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <p className="theme-shell-subtle mono-label text-[0.56rem]">
                 Workbook selection
@@ -2334,111 +2331,185 @@ export function WorkspaceSourcePanel({
                 Primary action
               </span>
             </div>
-            <h3 className="theme-shell-title mt-2 text-xl font-bold tracking-[-0.03em] sm:text-2xl">
-              Upload the workbook for this project
-            </h3>
-            <p className="theme-shell-body mt-2 text-sm leading-6">
-              Start with the real workbook whenever you have it. The sample file
-              stays available as a fallback for walkthroughs and demos.
-            </p>
+            <span className="tone-neutral-subtle rounded-full border px-3 py-1 text-[0.65rem] font-bold">
+              {sourceKindLabel}
+            </span>
+          </div>
 
-            <div className="mt-4 flex flex-wrap gap-3">
-              <label className="focus-premium theme-button-primary inline-flex cursor-pointer justify-center rounded-2xl px-4 py-3 text-sm font-bold transition">
-                Upload .xlsx workbook
-                <input
-                  accept=".xlsx"
-                  type="file"
-                  onChange={onUploadWorkbook}
-                  className="sr-only"
-                />
-              </label>
+          <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.08fr)_minmax(240px,0.92fr)]">
+            <div className="min-w-0">
+              <h3 className="theme-shell-title text-xl font-bold tracking-[-0.03em] sm:text-2xl">
+                Upload the workbook for this run
+              </h3>
+              <p className="theme-shell-body mt-2 max-w-2xl text-sm leading-6">
+                Start with the real workbook whenever you have it. Keep the
+                sample file only as a fallback for walkthroughs and quick demos.
+              </p>
 
-              {!isFixtureSource ? (
-                <button
-                  type="button"
-                  onClick={onRestoreFixtureSource}
-                  className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-bold transition"
+              <div className="mt-4 flex flex-wrap gap-3">
+                <label className="focus-premium theme-button-primary inline-flex cursor-pointer justify-center rounded-2xl px-4 py-3 text-sm font-bold transition">
+                  Upload .xlsx workbook
+                  <input
+                    accept=".xlsx"
+                    type="file"
+                    onChange={onUploadWorkbook}
+                    className="sr-only"
+                  />
+                </label>
+
+                {!isFixtureSource ? (
+                  <button
+                    type="button"
+                    onClick={onRestoreFixtureSource}
+                    className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-bold transition"
+                  >
+                    Restore sample workbook
+                  </button>
+                ) : null}
+              </div>
+
+              <ul className="mt-4 grid gap-2 text-sm leading-6 text-[color:var(--shell-muted)]">
+                <li>Uploading replaces the sample source for this run.</li>
+                <li>Check the parsed rows before generation becomes the main job.</li>
+                <li>Continue only when the file and row mix look right.</li>
+              </ul>
+
+              {feedback ? (
+                <div
+                  className={`mt-4 rounded-[1.1rem] border px-4 py-3 text-sm leading-6 ${
+                    feedback.tone === "success"
+                      ? "tone-positive"
+                      : feedback.tone === "error"
+                        ? "tone-warning"
+                        : "tone-neutral"
+                  }`}
+                  role="status"
+                  aria-live="polite"
                 >
-                  Use sample workbook
-                </button>
+                  {feedback.message}
+                </div>
               ) : null}
             </div>
 
-            {feedback ? (
-              <div
-                className={`mt-4 rounded-[1.1rem] border px-4 py-3 text-sm leading-6 ${
-                  feedback.tone === "success"
-                    ? "tone-positive"
-                    : feedback.tone === "error"
-                      ? "tone-warning"
-                      : "tone-neutral"
-                }`}
-                role="status"
-                aria-live="polite"
-              >
-                {feedback.message}
+            <section className="theme-shell-card rounded-[1.2rem] p-4 sm:p-5">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="theme-shell-subtle mono-label text-[0.56rem]">
+                  Current source
+                </p>
+                <span className="tone-neutral-subtle rounded-full border px-3 py-1 text-[0.65rem] font-bold">
+                  {sourceKindLabel}
+                </span>
               </div>
-            ) : null}
-          </section>
-
-          <section className="theme-shell-card-soft rounded-[1.35rem] p-4 sm:p-5">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="theme-shell-subtle mono-label text-[0.56rem]">
-                Active workbook
-              </p>
-              <span className="tone-neutral-subtle rounded-full border px-3 py-1 text-[0.65rem] font-bold">
-                {sourceKindLabel}
-              </span>
-            </div>
-            <h3 className="theme-shell-title mt-2 text-lg font-bold tracking-[-0.03em]">
-              {sourceMetadata.sourceLabel}
-            </h3>
-            <p className="theme-shell-body mt-2 text-sm leading-6">
-              {sourceStatus}
-            </p>
-            <p className="theme-shell-subtle mt-2 break-all text-xs leading-5">
-              {sourceMetadata.sourceFilename}
-            </p>
-
-            <div className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-              <SourceMeta label="Rows" value={sourceRowCount.toLocaleString()} />
-              <SourceMeta label="Demo" value={demoCount.toLocaleString()} />
-              <SourceMeta label="MVP" value={mvpCount.toLocaleString()} />
-            </div>
-          </section>
-        </div>
-
-        <div className="mt-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="max-w-3xl">
-              <p className="theme-shell-kicker mono-label text-[0.58rem]">
-                Parsed preview
-              </p>
-              <h4 className="theme-shell-title mt-2 text-lg font-bold">
-                Check the workbook before you move on
+              <h4 className="theme-shell-title mt-2 text-lg font-bold tracking-[-0.03em]">
+                {sourceMetadata.sourceLabel}
               </h4>
               <p className="theme-shell-body mt-2 text-sm leading-6">
-                The first rows should look credible before generation becomes
-                the main job. Keep this preview visible, then continue only when
-                the row mix feels right.
+                {sourceStatus}
               </p>
+              <p className="theme-shell-subtle mt-3 break-words text-xs leading-5">
+                {sourceMetadata.sourceFilename}
+              </p>
+
+              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                <SourceMeta label="Rows" value={sourceRowCount.toLocaleString()} />
+                <SourceMeta label="Demo" value={demoCount.toLocaleString()} />
+                <SourceMeta label="MVP" value={mvpCount.toLocaleString()} />
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="max-w-3xl">
+                <p className="theme-shell-kicker mono-label text-[0.58rem]">
+                  Parsed preview
+                </p>
+                <h4 className="theme-shell-title mt-2 text-lg font-bold">
+                  Check the workbook before you move on
+                </h4>
+                <p className="theme-shell-body mt-2 text-sm leading-6">
+                  Keep the preview visible until the first rows look credible.
+                  Generation should start only after the file, counts, and row
+                  mix all feel right.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={onTogglePreview}
+                className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-bold transition"
+                aria-expanded={sourcePreviewExpanded}
+              >
+                {sourcePreviewExpanded ? "Hide preview" : "Show preview"}
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={onTogglePreview}
-              className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-bold transition"
-              aria-expanded={sourcePreviewExpanded}
-            >
-              {sourcePreviewExpanded ? "Hide preview" : "Show preview"}
-            </button>
+
+            {sourcePreviewExpanded ? (
+              <SourceWorkbookPreview
+                previewRows={previewRows}
+                sourceRowCount={sourceRowCount}
+              />
+            ) : null}
           </div>
 
-          {sourcePreviewExpanded ? (
-            <SourceWorkbookPreview
-              previewRows={previewRows}
-              sourceRowCount={sourceRowCount}
-            />
-          ) : null}
+          <aside className="grid gap-4">
+            <section className="theme-shell-card-soft rounded-[1.35rem] p-4 sm:p-5">
+              <p className="theme-shell-kicker mono-label text-[0.58rem]">
+                Before you continue
+              </p>
+              <ul className="mt-3 grid gap-2 text-sm leading-6 text-[color:var(--shell-muted)]">
+                <li>Project and customer names match the workbook you expect.</li>
+                <li>Row counts feel plausible for the selected source.</li>
+                <li>Demo and MVP flags line up with the slice you plan to generate.</li>
+              </ul>
+            </section>
+
+            <section className="theme-shell-card-soft rounded-[1.35rem] p-4 sm:p-5">
+              <button
+                type="button"
+                onClick={onToggleDetails}
+                className="focus-premium flex w-full items-center justify-between gap-3 rounded-2xl text-left transition"
+                aria-expanded={sourceDetailsExpanded}
+              >
+                <div>
+                  <p className="theme-shell-title text-sm font-bold">
+                    Workbook details
+                  </p>
+                  <p className="theme-shell-body mt-1 text-sm leading-6">
+                    Keep the extra metadata secondary until you need to confirm
+                    the source identity.
+                  </p>
+                </div>
+                <span className="theme-shell-subtle text-xs font-bold">
+                  {sourceDetailsExpanded ? "Hide" : "Show"}
+                </span>
+              </button>
+
+              {sourceDetailsExpanded ? (
+                <div className="mt-4 grid gap-3">
+                  <dl className="grid gap-3">
+                    <SourceDetailRow
+                      label="Project"
+                      value={sourceMetadata.projectName}
+                    />
+                    <SourceDetailRow
+                      label="Customer"
+                      value={sourceMetadata.customerName}
+                    />
+                    <SourceDetailRow
+                      label="Source label"
+                      value={sourceMetadata.sourceLabel}
+                    />
+                    <SourceDetailRow
+                      label="Filename"
+                      value={sourceMetadata.sourceFilename}
+                    />
+                  </dl>
+                </div>
+              ) : null}
+            </section>
+          </aside>
         </div>
 
         <GuidedStepFooter
@@ -2450,90 +2521,6 @@ export function WorkspaceSourcePanel({
           onClick={onContinue}
         />
       </article>
-
-      <aside className="grid gap-4">
-        <section className="theme-shell-card-soft rounded-[1.35rem] p-4 sm:p-5">
-          <p className="theme-shell-kicker mono-label text-[0.58rem]">
-            Validation checklist
-          </p>
-          <div className="mt-3 grid gap-2 text-sm leading-6 text-[color:var(--shell-muted)]">
-            <p>Project and customer names match the current workbook.</p>
-            <p>Row counts feel plausible for the selected source.</p>
-            <p>Demo and MVP flags line up with the slice you expect to generate.</p>
-          </div>
-        </section>
-
-        <section className="theme-shell-card-soft rounded-[1.35rem] p-4 sm:p-5">
-          <button
-            type="button"
-            onClick={onToggleDetails}
-            className="focus-premium flex w-full items-center justify-between gap-3 rounded-2xl text-left transition"
-            aria-expanded={sourceDetailsExpanded}
-          >
-            <div>
-              <p className="theme-shell-title text-sm font-bold">
-                Workbook details
-              </p>
-              <p className="theme-shell-body mt-1 text-sm leading-6">
-                Keep the extra metadata secondary until you need to confirm the
-                source identity.
-              </p>
-            </div>
-            <span className="theme-shell-subtle text-xs font-bold">
-              {sourceDetailsExpanded ? "Hide" : "Show"}
-            </span>
-          </button>
-
-          {sourceDetailsExpanded ? (
-            <div className="mt-4 grid gap-3">
-              <dl className="grid gap-3">
-                <SourceDetailRow
-                  label="Project"
-                  value={sourceMetadata.projectName}
-                />
-                <SourceDetailRow
-                  label="Customer"
-                  value={sourceMetadata.customerName}
-                />
-                <SourceDetailRow
-                  label="Source label"
-                  value={sourceMetadata.sourceLabel}
-                />
-                <SourceDetailRow
-                  label="Filename"
-                  value={sourceMetadata.sourceFilename}
-                />
-              </dl>
-            </div>
-          ) : null}
-        </section>
-
-        <section className="theme-shell-card-soft rounded-[1.35rem] p-4 sm:p-5">
-          <p className="theme-shell-subtle mono-label text-[0.56rem]">
-            Sample fallback
-          </p>
-          <h4 className="theme-shell-title mt-2 text-lg font-bold">
-            Keep the sample workbook secondary
-          </h4>
-          <p className="theme-shell-body mt-2 text-sm leading-6">
-            {sourceHint}
-          </p>
-
-          {!isFixtureSource ? (
-            <button
-              type="button"
-              onClick={onRestoreFixtureSource}
-              className="focus-premium theme-shell-button-secondary mt-4 rounded-2xl px-4 py-3 text-sm font-bold transition"
-            >
-              Restore sample workbook
-            </button>
-          ) : (
-            <div className="tone-neutral rounded-[1.1rem] border px-4 py-3 text-sm leading-6">
-              The sample workbook is active for this run.
-            </div>
-          )}
-        </section>
-      </aside>
     </section>
   );
 }
@@ -2548,11 +2535,11 @@ function SourceMeta({
   value: string;
 }) {
   return (
-    <div className="theme-shell-card-soft min-w-0 rounded-2xl p-3">
+    <div className="min-w-0 rounded-[0.95rem] border border-[color:var(--shell-border)] bg-[color:var(--shell-soft-surface)] px-3 py-2.5">
       <p className="theme-shell-subtle mono-label text-[0.56rem]">{label}</p>
       <p
-        className={`theme-shell-title mt-2 text-sm font-bold ${
-          breakWords ? "break-all" : "truncate"
+        className={`theme-shell-title mt-1.5 text-sm font-bold ${
+          breakWords ? "break-words" : "truncate"
         }`}
       >
         {value}
@@ -2567,7 +2554,7 @@ function SourceDetailRow({ label, value }: { label: string; value: string }) {
       <dt className="theme-shell-subtle text-xs font-semibold uppercase tracking-[0.16em]">
         {label}
       </dt>
-      <dd className="theme-shell-title break-all text-right text-sm font-bold">
+      <dd className="theme-shell-title break-words text-right text-sm font-bold">
         {value}
       </dd>
     </div>

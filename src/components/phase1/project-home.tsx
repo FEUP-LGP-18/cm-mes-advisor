@@ -117,6 +117,7 @@ export default function Phase1ProjectHome({
 
         <ProjectCommandDesk
           activeProject={activeProject}
+          canCreateSampleProject={registry !== null}
           onCreateSampleProject={handleCreateSampleProject}
           onOpenProject={handleOpenProject}
           onQueryChange={setQuery}
@@ -132,6 +133,7 @@ export default function Phase1ProjectHome({
 
 export function ProjectCommandDesk({
   activeProject,
+  canCreateSampleProject,
   onCreateSampleProject,
   onOpenProject,
   onQueryChange,
@@ -141,6 +143,7 @@ export function ProjectCommandDesk({
   sort,
 }: {
   activeProject: Phase1ProjectRecord | null;
+  canCreateSampleProject: boolean;
   onCreateSampleProject: () => void;
   onOpenProject: (project: Phase1ProjectRecord, step?: Phase1ProjectRecord["currentStep"]) => void;
   onQueryChange: (query: string) => void;
@@ -157,6 +160,7 @@ export function ProjectCommandDesk({
     (total, project) => total + project.snapshot.approvedCount,
     0,
   );
+  const hasProjects = projects.length > 0;
 
   return (
     <section className="grid gap-6">
@@ -172,15 +176,18 @@ export function ProjectCommandDesk({
             decisions, shape the script, and export a clean Phase 1 handoff.
           </p>
         </div>
-        <div className="phase-command-actions">
-          <button
-            type="button"
-            onClick={onCreateSampleProject}
-            className="focus-premium theme-button-primary rounded-2xl px-5 py-3 text-sm font-semibold transition"
-          >
-            Create sample project
-          </button>
-        </div>
+        {hasProjects ? (
+          <div className="phase-command-actions">
+            <button
+              type="button"
+              onClick={onCreateSampleProject}
+              disabled={!canCreateSampleProject}
+              className="focus-premium theme-shell-button-secondary rounded-2xl px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Create sample project
+            </button>
+          </div>
+        ) : null}
       </section>
 
       {activeProject ? (
@@ -247,7 +254,7 @@ export function ProjectCommandDesk({
           <input
             value={query}
             onChange={(event) => onQueryChange(event.currentTarget.value)}
-            placeholder="Search project, customer, workbook, or stage..."
+            placeholder="Search projects, customer, workbook, or stage..."
             className="focus-premium theme-shell-input rounded-2xl px-4 py-3 text-sm"
           />
           <label className="phase-select-wrap">
@@ -350,7 +357,8 @@ export function ProjectCommandDesk({
             <button
               type="button"
               onClick={onCreateSampleProject}
-              className="focus-premium theme-button-primary mt-5 rounded-2xl px-5 py-3 text-sm font-semibold transition"
+              disabled={!canCreateSampleProject}
+              className="focus-premium theme-button-primary mt-5 rounded-2xl px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
             >
               Start sample project
             </button>

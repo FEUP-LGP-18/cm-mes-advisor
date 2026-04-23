@@ -46,7 +46,7 @@ export default function Phase1ProjectStepRedirect({
           Loading the right project step
         </h1>
         <p className="mt-3 text-sm leading-7 text-[color:var(--shell-muted)]">
-          The local workflow state is loading so this route can reopen the most
+          The saved workflow state is loading so this route can reopen the most
           useful stage for the current project.
         </p>
       </div>
