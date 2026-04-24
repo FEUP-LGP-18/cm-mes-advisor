@@ -666,6 +666,22 @@ textarea {
   width: 0.98rem;
 }
 
+.theme-toggle-glyph-light {
+  display: none;
+}
+
+.theme-toggle-glyph-dark {
+  display: block;
+}
+
+:root[data-theme="dark"] .theme-toggle-glyph-light {
+  display: block;
+}
+
+:root[data-theme="dark"] .theme-toggle-glyph-dark {
+  display: none;
+}
+
 .theme-toggle-icon:hover {
   border-color: color-mix(
     in srgb,

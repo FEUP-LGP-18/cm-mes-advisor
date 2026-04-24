@@ -33,12 +33,18 @@ Default UI priorities:
 The product theme uses a `data-theme` attribute and the storage key:
 
 ```text
-cm-mes-advisor:theme
+cm-mes-advisor:theme:v2
 ```
 
-The default theme is dark.
+The default theme is light.
 
-The docs site uses Fumadocs theme handling for the docs layout. Keep product theme behavior and docs theme behavior separate unless there is a deliberate reason to unify them.
+The docs site uses Fumadocs theme handling for the docs layout with the storage key:
+
+```text
+cm-mes-advisor:docs-theme:v2
+```
+
+Fumadocs updates both the `class` and `data-theme` attributes. Keep those attributes synchronized so the docs UI and product theme tokens do not fight each other.
 
 ## Phase 1 Components
 

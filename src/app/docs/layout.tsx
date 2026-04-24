@@ -11,9 +11,10 @@ export default function DocumentationLayout({
   return (
     <RootProvider
       theme={{
-        defaultTheme: "dark",
+        attribute: ["class", "data-theme"],
+        defaultTheme: "light",
         enableSystem: false,
-        storageKey: "cm-mes-advisor:docs-theme",
+        storageKey: "cm-mes-advisor:docs-theme:v2",
       }}
     >
       <DocsLayout tree={source.pageTree} {...baseOptions()}>

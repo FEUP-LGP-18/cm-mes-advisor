@@ -1,12 +1,12 @@
 export type ThemeMode = "dark" | "light";
 
-export const themeStorageKey = "cm-mes-advisor:theme";
-export const defaultTheme: ThemeMode = "dark";
+export const themeStorageKey = "cm-mes-advisor:theme:v2";
+export const defaultTheme: ThemeMode = "light";
 
 export function normalizeThemeMode(
   value: string | null | undefined,
 ): ThemeMode {
-  return value === "light" ? "light" : "dark";
+  return value === "dark" ? "dark" : "light";
 }
 
 export const themeInitScript = `
