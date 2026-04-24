@@ -1,0 +1,20 @@
+{
+  "title": "Codebase Guide",
+  "pages": [
+    "index",
+    "---Orientation---",
+    "product-scope",
+    "local-setup",
+    "discovery-workspace",
+    "---Application---",
+    "architecture",
+    "phase-1-flow",
+    "requirements-pipeline",
+    "real-generation",
+    "---Delivery---",
+    "ui-system",
+    "testing-quality",
+    "deployment-ci",
+    "maintenance"
+  ]
+}

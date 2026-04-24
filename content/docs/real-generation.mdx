@@ -1,0 +1,149 @@
+---
+title: "Real Generation"
+description: "How MCP and Bedrock generation is wired, what it needs, and what is currently blocked."
+---
+
+## Current Status
+
+Real generation is implemented behind the server route boundary, but live partner validation is still blocked by Bedrock access.
+
+Use mock mode for normal teammate onboarding and local QA.
+
+Do not describe real mode as validated end to end unless the repo has a newer validation note that proves it.
+
+## Server Boundary
+
+The browser does not talk directly to MCP, Bedrock, AWS, or MES. It calls:
+
+```text
+POST /api/requirements/generate
+GET /api/requirements/generation-availability
+```
+
+Those routes live in:
+
+```text
+src/app/api/requirements/generate/route.ts
+src/app/api/requirements/generation-availability/route.ts
+```
+
+## Main Server Files
+
+| File                                             | Purpose                                            |
+| ------------------------------------------------ | -------------------------------------------------- |
+| `src/lib/requirements/server/config.ts`          | Reads and validates generation environment config  |
+| `src/lib/requirements/server/provider.ts`        | Chooses mock or real provider                      |
+| `src/lib/requirements/server/availability.ts`    | Checks whether real generation is currently usable |
+| `src/lib/requirements/server/real-generation.ts` | Orchestrates MCP lookup plus Bedrock generation    |
+| `src/lib/requirements/server/mcp-client.ts`      | Calls MCP tools and normalizes returned chunks     |
+| `src/lib/requirements/server/bedrock-client.ts`  | Calls Bedrock and validates JSON responses         |
+| `src/lib/requirements/server/request.ts`         | Validates incoming generation request payloads     |
+
+## Configuration
+
+Real mode requires:
+
+- `GENERATION_MODE=real`
+- `MCP_SERVER_URL`
+- `BEDROCK_MODEL_ID`
+- `AWS_REGION`
+- either `AWS_BEARER_TOKEN_BEDROCK` or AWS access key credentials
+
+Optional:
+
+- `MCP_USER_ACCOUNT`
+- `AWS_SESSION_TOKEN`
+- Bedrock-specific AWS variable aliases listed in `.env.example`
+
+Variable names are safe to document. Actual values are not.
+
+## Availability Flow
+
+`src/lib/requirements/server/availability.ts` checks real mode in two stages:
+
+1. MCP availability
+2. Bedrock availability
+
+The result is cached briefly so the UI can refresh status without hammering services.
+
+Common unavailable states:
+
+- missing config
+- access blocked
+- check failed
+- provider not in real mode
+
+The generate studio uses this status to avoid suggesting real generation when the backend is not ready.
+
+## MCP Lookup
+
+`mcp-client.ts` uses the MCP streamable HTTP client.
+
+Required MCP tool:
+
+```text
+search_documentation
+```
+
+Optional MCP tool:
+
+```text
+get_adjacent_chunks
+```
+
+The client builds a search query from requirement fields, calls the tool, normalizes different chunk shapes, deduplicates results, and sends the best evidence to Bedrock.
+
+If the MCP server returns no chunks or a lookup fails in a recoverable way, real generation should degrade safely instead of inventing evidence.
+
+## Bedrock Generation
+
+`bedrock-client.ts` uses `@aws-sdk/client-bedrock-runtime` and `ConverseCommand`.
+
+It supports:
+
+- bearer token auth through `AWS_BEARER_TOKEN_BEDROCK`
+- SigV4-style AWS credentials
+- JSON-only model responses
+- Zod validation of generated draft shape
+- error classification for blocked access vs other check failures
+
+The prompt is intentionally conservative. It asks the model to stay evidence-grounded, avoid invention, and surface workaround or consultant-review situations.
+
+## Provider Behavior
+
+`provider.ts` exposes a single generation-provider interface to the API route.
+
+Mock provider:
+
+- always available
+- deterministic
+- local-development friendly
+
+Real provider:
+
+- requires config
+- checks MCP and Bedrock availability
+- returns drafts with `generator: "bedrock-mcp"`
+- includes documentation source references when available
+
+## Testing
+
+Real-generation tests are server-side and mocked:
+
+- `config.test.ts`
+- `provider.test.ts`
+- `availability.test.ts`
+- `mcp-client.test.ts`
+- `bedrock-client.test.ts`
+- `real-generation.test.ts`
+- API route tests under `src/app/api/requirements/`
+
+Do not add tests that require real partner credentials.
+
+## Troubleshooting Checklist
+
+1. Confirm `GENERATION_MODE=real`.
+2. Confirm the server has all required env vars.
+3. Open the availability endpoint with `refresh=1`.
+4. Check whether failure is config, MCP, Bedrock access, or response validation.
+5. Fall back to mock mode for UI and workflow QA.

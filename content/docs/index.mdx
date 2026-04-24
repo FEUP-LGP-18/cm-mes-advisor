@@ -1,0 +1,106 @@
+---
+title: "Codebase Onboarding Guide"
+description: "The starting point for teammates joining the CM MES Demo Advisor project."
+---
+
+## What This Repo Is
+
+This app is a consultant-facing Phase 1 workspace for Critical Manufacturing MES demos. A teammate starts with a customer requirements Excel workbook, generates draft MES comments and demo guidance, reviews the output, shapes a demo script, and exports a Markdown handoff document.
+
+Think of the app as a guided workbench, not a chatbot shell, dashboard, or marketing site.
+
+## 5-Minute Orientation
+
+1. Run the full local stack from the workspace root with `./start.sh`.
+2. Open the app at `http://localhost:3000`.
+3. Use the project home to open or create a Phase 1 project.
+4. Follow the routed workflow: `source -> generate -> review -> script -> export`.
+5. Use mock generation for normal development. Real generation exists, but live validation is still blocked by partner Bedrock access.
+
+## Where Do I Go For X?
+
+Start with the job you are trying to do:
+
+### Get Oriented
+
+- **Run the app locally:** [Local Setup](/docs/local-setup)
+- **Understand product scope:** [Product Scope](/docs/product-scope)
+- **Know which old files to trust:** [Discovery Workspace](/docs/discovery-workspace)
+
+### Work In The App
+
+- **Find the main routes and folders:** [Architecture](/docs/architecture)
+- **Understand the Phase 1 screens:** [Phase 1 Flow](/docs/phase-1-flow)
+- **Trace Excel rows into comments and exports:** [Requirements Pipeline](/docs/requirements-pipeline)
+- **Work on MCP or Bedrock generation:** [Real Generation](/docs/real-generation)
+
+### Ship Safely
+
+- **Change UI safely:** [UI System](/docs/ui-system)
+- **Run tests and QA:** [Testing And Quality](/docs/testing-quality)
+- **Deploy and understand CI:** [Deployment And CI](/docs/deployment-ci)
+- **Keep these docs updated:** [Maintenance](/docs/maintenance)
+
+## Codebase Map
+
+The outer workspace is a discovery and support folder. The active app is `cm-mes-advisor/`.
+
+Inside the app:
+
+- **`src/app/`**: Next.js App Router pages, layouts, API routes, and older shared workspace components.
+- **`src/app/projects/[projectId]/`**: Current routed Phase 1 workflow pages.
+- **`src/components/phase1/`**: Project home, workflow shell, topbar, step route, and Phase 1 studios.
+- **`src/lib/phase1/`**: Project registry, local workflow state, step rules, and UI fixtures.
+- **`src/lib/requirements/`**: Excel parsing, generation, validation, review, script assembly, and export logic.
+- **`src/lib/requirements/server/`**: Server-only MCP, Bedrock, provider, config, and availability checks.
+- **`fixtures/`**: Committed Customer X sample workbook used for onboarding and QA.
+- **`tests/e2e/`**: Playwright smoke and screenshot-oriented route coverage.
+- **`docs/`**: Existing Markdown notes, discovery context, design rules, and Codex setup docs.
+- **`content/docs/`**: This Fumadocs onboarding site.
+
+## Tooling, Assets, And Agent Workflows
+
+These folders are not the product workflow, but they matter for day-to-day development:
+
+- **`.github/`**: CI plus Vercel deployment workflow files. CI should stay green before pushing.
+- **`.storybook/`**: Storybook configuration for isolated Phase 1 UI states.
+- **`.agents/`**: Repo-scoped Codex skills for product UI, flow, visual QA, and Figma-informed work.
+- **`.codex/`**: Repo-safe Codex configuration only. Do not put secrets here.
+- **`public/brand/`**: Critical Manufacturing and U.Porto brand assets used by the app chrome.
+- **`scripts/codex/`**: Stable local helper scripts for dev, lint, typecheck, tests, Storybook, e2e, and full UI review.
+- **Config files**: `next.config.mjs`, `source.config.ts`, `tsconfig.json`, `vitest.config.ts`, `playwright.config.ts`, `.storybook/main.ts`, and `postcss.config.mjs` define how the app, docs, tests, and styles run.
+
+## The Product Truth
+
+Phase 1 is Excel-first and human-reviewed. The current shipped workflow produces requirement-level comments, demo guidance, and a Markdown demo script. Phase 2 Master Data generation is later scope, not required for this Phase 1 product.
+
+The app must not expose Bedrock, AWS, MCP, MES, or partner credentials in the browser.
+
+## Daily Development Loop
+
+From `cm-mes-advisor/`:
+
+```bash
+pnpm dev
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+For a full frontend pass, use:
+
+```bash
+./scripts/codex/review-ui.sh
+```
+
+For the full local support stack, run `./start.sh` from the workspace root, one level above `cm-mes-advisor/`.
+
+## Things To Remember
+
+- The project unit is the local Phase 1 project, not a single global workbook page.
+- The current route flow is canonical: `source -> generate -> review -> script -> export`.
+- Mock mode is the default and safe path for teammate onboarding.
+- Real mode is implemented behind server routes, but should not be described as partner-validated yet.
+- Do not treat local duplicate files with ` 2` in the filename as canonical source files.
+- Do not commit generated exports, uploads, raw partner artifacts, `.env` files, or secrets.

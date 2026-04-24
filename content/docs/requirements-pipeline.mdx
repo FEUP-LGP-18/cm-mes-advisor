@@ -1,0 +1,199 @@
+---
+title: "Requirements Pipeline"
+description: "How workbook rows become reviewed comments, demo script steps, and Markdown exports."
+---
+
+## Pipeline Summary
+
+The requirements pipeline is the heart of the app:
+
+```text
+Excel workbook
+  -> parsed requirements
+  -> generated drafts
+  -> consultant review state
+  -> approved demo requirements
+  -> demo script assembly
+  -> Markdown export
+```
+
+Most pipeline code lives in `src/lib/requirements/`.
+
+## Excel Parsing
+
+Main files:
+
+```text
+src/lib/requirements/parser.ts
+src/lib/requirements/parser-node.ts
+src/lib/requirements/types.ts
+```
+
+The parser expects a sheet named `Requirements`.
+
+Important workbook assumptions:
+
+- header row is row 2
+- data starts on row 3
+- the parser preserves the original Excel row number
+- uploaded files must be `.xlsx`
+
+Important columns include:
+
+- `#`
+- `Requirement description`
+- `L2 process`
+- `L3 process`
+- `Operation`
+- `Demo`
+- `Detail  description & motivation`
+- `Prio EMS`
+- `Prio CWS`
+- `MVP`
+- `Availability`
+- `Availability CM`
+- `Description availability`
+- `Supported %`
+- `Comment`
+
+The Excel `Comment` column is treated as a source comment, not as generated output.
+
+## Source And Workspace State
+
+Main files:
+
+```text
+src/lib/requirements/source.ts
+src/lib/requirements/workspace-state.ts
+src/lib/requirements/workbook-file.ts
+```
+
+The source layer tracks where the workbook came from. The built-in fixture and uploads are both normalized into workspace state.
+
+Uploaded source IDs are derived from filename and bytes so the app can keep state tied to a source.
+
+Workspace state records parsed requirements, generated drafts, review state, active source metadata, and migration details for older local storage formats.
+
+## Draft Generation
+
+Main files:
+
+```text
+src/lib/requirements/generation.ts
+src/lib/requirements/generation-api.ts
+src/lib/requirements/server/provider.ts
+src/app/api/requirements/generate/route.ts
+```
+
+The browser calls `POST /api/requirements/generate`. The route validates the request, chooses a provider, and returns generated drafts.
+
+Mock generation is deterministic. It uses requirement fields and simple heuristics to create draft comments, confidence, assumptions, warnings, and source references.
+
+Real generation uses MCP documentation lookup and Bedrock. See [Real Generation](/docs/real-generation).
+
+## Validation
+
+Main file:
+
+```text
+src/lib/requirements/validation.ts
+```
+
+Validation flags rows that need care before approval. Examples include:
+
+- missing requirement description
+- partial or custom support
+- unclear availability
+- consultant review needed
+- workaround-first situations
+
+Severity values are:
+
+```text
+safe
+attention
+review
+```
+
+Validation is guidance. It does not replace consultant judgment.
+
+## Review State
+
+Main files:
+
+```text
+src/lib/requirements/review.ts
+src/lib/requirements/review-storage.ts
+```
+
+Review statuses are:
+
+```text
+pending
+review
+approved
+skipped
+```
+
+Review actions include approve, flag, skip, reset to draft, store mock draft, and edit.
+
+The review key is based on source row number and requirement ID so generated output can stay traceable to the workbook.
+
+## Demo Script Assembly
+
+Main files:
+
+```text
+src/lib/requirements/demo-script.ts
+src/app/demo-script-panel.tsx
+```
+
+Only approved generated rows become demo script candidates.
+
+The assembler groups steps by process, operation, screen, or general fallback. It supports:
+
+- draft title
+- section order
+- section edits
+- step edits
+- empty states when no generated or approved rows exist
+
+## Markdown Export
+
+Main file:
+
+```text
+src/lib/requirements/demo-script-export.ts
+```
+
+The export serializer produces a Markdown document with:
+
+- project context
+- summary
+- sections
+- demo steps
+- assumptions
+- warnings
+- source references
+
+Filenames are sanitized and end in:
+
+```text
+*-demo-script.md
+```
+
+## Testing Coverage
+
+Pipeline tests live beside the pipeline files:
+
+- `parser.test.ts`
+- `source.test.ts`
+- `workspace-state.test.ts`
+- `generation.test.ts`
+- `validation.test.ts`
+- `review.test.ts`
+- `review-storage.test.ts`
+- `demo-script.test.ts`
+- `demo-script-export.test.ts`
+
+When changing the pipeline, update or add tests close to the file you touched.

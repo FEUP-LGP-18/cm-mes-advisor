@@ -64,6 +64,7 @@ These are not part of current Phase 1 completion unless the task explicitly chan
 
 When the product behavior, setup story, or scope boundaries change, update the canonical docs in the same change:
 
+- `content/docs/`
 - `README.md`
 - `AGENTS.md`
 - `docs/discovery/project-context.md`

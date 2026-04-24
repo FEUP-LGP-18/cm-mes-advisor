@@ -1,0 +1,82 @@
+---
+title: "Discovery Workspace"
+description: "How the outer folder, archived artifacts, and app repo fit together."
+---
+
+## Two Layers
+
+The full workspace has two layers:
+
+| Layer               | Path                 | Meaning                                                                    |
+| ------------------- | -------------------- | -------------------------------------------------------------------------- |
+| Discovery workspace | `../`                | Project notes, partner context, startup script, archived support artifacts |
+| Active app          | `../cm-mes-advisor/` | The Next.js application teammates edit and ship                            |
+
+Most code changes happen in `cm-mes-advisor/`. The outer workspace explains why the app exists and how to run the support stack.
+
+## Root Files To Know
+
+| Path                                          | Why It Matters                                           |
+| --------------------------------------------- | -------------------------------------------------------- |
+| `../00_START_HERE.md`                         | Fast orientation for the whole FEUP LGP discovery folder |
+| `../README.md`                                | Workspace-level startup and support-stack notes          |
+| `../disocvery.md`                             | Current synthesis of scope and partner context           |
+| `../start.sh`                                 | Preferred full local startup script                      |
+| `../02_partner-conversation/`                 | Rui's scope message, answers, and timeline notes         |
+| `../03_review-meeting/ui-ux-decisions.md`     | Product flow and UX decisions                            |
+| `../09_phase-1-planning/phase-1-epic-plan.md` | Historical Phase 1 plan and sequencing                   |
+
+## Archived Support Stack
+
+The local LibreChat and MCP package lives under:
+
+```text
+../98_archive/large-artifacts/LGP2026
+```
+
+The root `./start.sh` restarts this stack when running the full environment. The app does not expose the stack as the product UI.
+
+Files in that folder are operational support artifacts. Do not copy secrets from `.env` files, local setup files, YAML, screenshots, or partner-provided packages into docs or commits.
+
+## What To Trust First
+
+When docs disagree, use this priority order:
+
+1. partner scope and answers in `../02_partner-conversation/`
+2. current app behavior in `cm-mes-advisor/src/`
+3. app README and this docs site
+4. design and discovery docs under `cm-mes-advisor/docs/`
+5. archived or older materials
+
+Older MVP docs can be helpful background, but they should not override the Excel-first Phase 1 direction.
+
+## Important Archive Folders
+
+| Path                                  | Use                                                     |
+| ------------------------------------- | ------------------------------------------------------- |
+| `../98_archive/duplicates/`           | Recovery-only duplicate files                           |
+| `../98_archive/older-versions/`       | Superseded older versions                               |
+| `../98_archive/legacy-scope/`         | Historical scope that may conflict with current Phase 1 |
+| `../98_archive/large-artifacts/`      | Large support packages, including LibreChat/MCP         |
+| `../98_archive/low-confidence-notes/` | Notes that currently add little reliable context        |
+
+## App Docs Already In The Repo
+
+These app-level docs remain useful:
+
+- `README.md`
+- `AGENTS.md`
+- `CONTRIBUTING.md`
+- `docs/discovery/project-context.md`
+- `docs/frontend-ui-quality-workflow.md`
+- `docs/design/phase1-design-system-guidelines.md`
+- `docs/design/phase1-visual-system.md`
+- `docs/design/agent-ui-canon.md`
+
+This docs site is the onboarding front door. Those Markdown files are deeper references.
+
+## Duplicate File Caution
+
+The app worktree currently contains many untracked local duplicates with ` 2` in the filename, such as `src/app/theme 2.ts` or `docs/design/agent-ui-canon 2.md`.
+
+Treat those as local clutter unless a human explicitly says otherwise. Do not document them as canonical and do not clean them up unless asked.

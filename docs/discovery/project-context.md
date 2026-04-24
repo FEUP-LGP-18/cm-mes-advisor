@@ -78,6 +78,7 @@ Reference:
 
 ## Repo Truths Before Coding
 
+- Open `http://localhost:3000/docs` after startup for the searchable codebase onboarding guide.
 - Read `README.md` for setup and doc map.
 - Use the root `start.sh` script as the preferred local startup path; it always starts the full local stack and safely restarts the known local services before launching the app.
 - Read `AGENTS.md` for coding and scope guardrails.

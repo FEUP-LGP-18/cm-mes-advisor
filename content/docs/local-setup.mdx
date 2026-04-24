@@ -1,0 +1,130 @@
+---
+title: "Local Setup"
+description: "How to start the app, support stack, and generation modes."
+---
+
+## Recommended Path
+
+Run the full local stack from the workspace root:
+
+```bash
+./start.sh
+```
+
+The workspace root is one level above the app directory:
+
+```text
+/Users/mahmoudali/Documents/LGP project dicovery
+```
+
+This is the preferred teammate entrypoint because it handles both the app and the archived support stack.
+
+## What `./start.sh` Does
+
+The root script:
+
+- reads the app Node version from `cm-mes-advisor/.nvmrc`
+- expects Node `20.19.0`
+- enables Corepack and pnpm
+- installs app dependencies only when needed
+- safely handles port `3000`
+- refuses to kill unrelated processes on required ports
+- restarts the archived partner support stack from `98_archive/large-artifacts/LGP2026`
+- starts the Next.js app on `http://localhost:3000`
+
+The support stack includes LibreChat, RAG, ClickHouse, FerretDB, and Postgres. Those services support the local partner package; the main app still defaults to mock generation.
+
+## App-Only Fallback
+
+If you only need the Next.js app:
+
+```bash
+cd cm-mes-advisor
+corepack enable
+pnpm install
+pnpm dev
+```
+
+Then open:
+
+```text
+http://localhost:3000
+```
+
+Use this path for routine UI and code work when the archived support stack is not needed.
+
+## Environment Modes
+
+Default:
+
+```text
+GENERATION_MODE=mock
+```
+
+Mock mode is deterministic and works without partner credentials.
+
+Real mode:
+
+```text
+GENERATION_MODE=real
+```
+
+Real mode requires server-side configuration. The expected variable names are documented in `.env.example`.
+
+Important real-mode variables include:
+
+- `MCP_SERVER_URL`
+- `BEDROCK_MODEL_ID`
+- `AWS_REGION`
+- `AWS_BEARER_TOKEN_BEDROCK` or AWS access key credentials
+- `MCP_USER_ACCOUNT` when the MCP server expects a user account header
+
+Do not copy actual values into docs, commits, prompts, screenshots, or generated exports.
+
+## Useful Commands
+
+Run these from `cm-mes-advisor/`:
+
+```bash
+pnpm dev
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm storybook
+pnpm storybook:build
+pnpm test:e2e
+pnpm format
+pnpm format:check
+```
+
+Full frontend verification:
+
+```bash
+./scripts/codex/review-ui.sh
+```
+
+## Common Problems
+
+If port `3000` is already used, prefer the root `./start.sh` because it checks whether the existing process belongs to this app before stopping it.
+
+If real generation is unavailable, first check `GET /api/requirements/generation-availability?refresh=1`. The UI also reads this availability route.
+
+If TypeScript cannot find `collections/server`, run:
+
+```bash
+pnpm docs:source
+```
+
+That generates the local Fumadocs `.source` folder used by the docs site. The folder is generated and ignored by git.
+
+## What Not To Commit
+
+Never commit:
+
+- `.env` files
+- passwords, tokens, API keys, or AWS credentials
+- raw partner PDFs or ZIPs
+- generated exports
+- uploaded workbooks
+- extra partner workbooks unless explicitly reviewed

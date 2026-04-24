@@ -1,0 +1,130 @@
+---
+title: "Maintenance"
+description: "How to keep onboarding documentation accurate as the app changes."
+---
+
+## Documentation Rule
+
+If a change affects setup, product scope, routes, workflow state, generation behavior, deployment, or teammate onboarding, update this docs site in the same change.
+
+This site should be the first place a new teammate goes. Existing Markdown files remain deeper references.
+
+## Where Docs Live
+
+- `content/docs/`: Fumadocs MDX onboarding pages.
+- `content/docs/meta.json`: sidebar order and sections.
+- `src/app/docs/[[...slug]]/page.tsx`: docs page renderer.
+- `src/app/docs/layout.tsx`: docs layout and provider.
+- `src/app/api/search/route.ts`: docs search endpoint.
+- `src/lib/docs/source.ts`: Fumadocs content source.
+- `source.config.ts`: Fumadocs MDX collection config.
+
+## Update Checklist
+
+When changing the app, ask:
+
+- Did the route map change?
+- Did the Phase 1 flow change?
+- Did local setup change?
+- Did an env var change?
+- Did generation behavior change?
+- Did storage keys or persistence change?
+- Did test commands or CI change?
+- Did design or verification rules change?
+- Did product scope change?
+
+If yes, update the matching docs page.
+
+## Content Standards
+
+Good onboarding docs:
+
+- put the fastest successful path first
+- name exact files and commands
+- explain jargon in simple terms
+- distinguish current behavior from future scope
+- describe blockers honestly
+- avoid repeating secrets or partner data
+- link to deeper docs only after the core path is clear
+
+## Adding A New Page
+
+1. Add a new `.mdx` file in `content/docs/`.
+2. Include frontmatter:
+
+```mdx
+---
+title: "Page Title"
+description: "Short purpose sentence."
+---
+```
+
+3. Add the page slug to `content/docs/meta.json`.
+4. Run:
+
+```bash
+pnpm docs:source
+pnpm typecheck
+pnpm build
+```
+
+5. Verify `/docs` and the new page in the browser.
+
+## Generated Files
+
+Fumadocs generates:
+
+```text
+.source/
+```
+
+That folder is ignored by git. Do not edit it by hand.
+
+## Duplicate Local Files
+
+The worktree currently has untracked duplicate files with ` 2` in their filenames. They are not part of the canonical source unless a human explicitly says otherwise.
+
+Do not:
+
+- document them as real source
+- clean them up during unrelated work
+- copy content from them without checking the canonical tracked file first
+
+## Secret And Artifact Safety
+
+Never add these to docs:
+
+- `.env` values
+- passwords
+- Bedrock tokens
+- AWS keys
+- MCP credentials
+- MES credentials
+- raw partner PDFs
+- raw partner ZIPs
+- generated exports
+- uploaded workbooks
+
+Variable names and path names are fine. Actual values are not.
+
+## Keeping Scope Honest
+
+Before documenting a feature as supported, check the code and tests.
+
+Use "implemented but not partner-validated" for real generation until there is a newer validation note.
+
+Use "later scope" for Phase 2 Master Data generation until the app ships that workflow.
+
+Use "historical context" for older broad-ingestion docs unless partner scope changes.
+
+## Review Path For Docs Changes
+
+Minimum checks:
+
+```bash
+pnpm docs:source
+pnpm typecheck
+pnpm build
+```
+
+For visual docs layout changes, also verify desktop and mobile in the browser.

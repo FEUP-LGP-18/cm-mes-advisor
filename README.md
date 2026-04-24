@@ -79,6 +79,7 @@ The root `start.sh` script is the preferred local entrypoint for teammates and a
 After startup:
 
 - app: [http://localhost:3000](http://localhost:3000)
+- onboarding docs: [http://localhost:3000/docs](http://localhost:3000/docs)
 - LibreChat: [http://localhost:3080](http://localhost:3080)
 
 ## Manual App-Only Fallback
@@ -131,12 +132,13 @@ Current status:
 
 ## Deployment Automation
 
-This repo uses GitHub Actions plus Vercel CLI for automatic deployments.
+This repo uses Vercel Git Integration as the primary deployment path, with GitHub Actions kept for CI and token-based Vercel fallback workflows.
 
-- Pushes to `main` trigger `.github/workflows/vercel-production.yml` and deploy to production.
-- Pull requests trigger `.github/workflows/vercel-preview.yml`, which creates a preview deployment and updates a PR comment with the latest preview URL.
+- Pushes to `main` deploy to production when the Vercel project is connected to `FEUP-LGP-18/cm-mes-advisor`.
+- Pull requests create Vercel preview deployments when Git Integration is connected.
+- `.github/workflows/vercel-preview.yml` and `.github/workflows/vercel-production.yml` remain available as token-based fallbacks and skip gracefully when secrets are missing.
 
-Required GitHub Actions repository secrets:
+Optional GitHub Actions repository secrets for the fallback workflows:
 
 - `VERCEL_TOKEN`
 - `VERCEL_ORG_ID`
@@ -148,6 +150,7 @@ The Vercel project is currently configured with `GENERATION_MODE=mock` for both 
 
 Canonical docs:
 
+- [http://localhost:3000/docs](http://localhost:3000/docs): searchable codebase onboarding guide
 - [AGENTS.md](AGENTS.md): agent instructions and coding guardrails
 - [docs/codex-frontend-setup-macos.md](docs/codex-frontend-setup-macos.md): repo-specific Codex setup on macOS
 - [docs/frontend-ui-quality-workflow.md](docs/frontend-ui-quality-workflow.md): frontend execution and verification playbook

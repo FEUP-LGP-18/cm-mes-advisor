@@ -1,0 +1,142 @@
+---
+title: "Phase 1 Flow"
+description: "How the five routed workflow steps work together."
+---
+
+## The Five Steps
+
+The current workflow is:
+
+```text
+source -> generate -> review -> script -> export
+```
+
+The workflow definition lives in `src/lib/phase1/workflow.ts`.
+
+Each step is rendered through `src/components/phase1/step-route.tsx`, which chooses the right studio and redirects when a step is not available yet.
+
+## Shared Project Shell
+
+`src/components/phase1/project-shell.tsx` renders the route chrome around each step:
+
+- topbar
+- breadcrumbs
+- project title
+- stage navigation
+- project summary numbers
+- next-action helper
+- workbook and export readiness details
+
+On mobile, the current task should stay ahead of navigation chrome. That is a repo UX rule, not just a style preference.
+
+## Project Home
+
+File:
+
+```text
+src/components/phase1/project-home.tsx
+```
+
+The home screen lets a teammate:
+
+- see local Phase 1 projects
+- filter and sort project records
+- open the active or priority project
+- create a sample Customer X project
+- start from the committed fixture workbook
+
+The home page route is `src/app/page.tsx`.
+
+## Step 1: Source
+
+Main file:
+
+```text
+src/components/phase1/source-studio.tsx
+```
+
+The source step confirms the active workbook. It shows workbook metadata, parsed row counts, and a preview of requirements. It can restore the sample fixture or upload a replacement `.xlsx` workbook.
+
+The source step should answer: "Are we using the right workbook before generating anything?"
+
+## Step 2: Generate
+
+Main file:
+
+```text
+src/components/phase1/generate-studio.tsx
+```
+
+The generate step lets a teammate choose rows and create draft comments. It supports:
+
+- mock or real generation mode
+- generation availability refresh
+- demo slice generation
+- MVP row generation
+- selected row generation
+- row search and filtering
+
+Mock generation is the normal local path. Real mode should show clear availability state and not pretend to work when credentials or partner access are missing.
+
+## Step 3: Review
+
+Main file:
+
+```text
+src/components/phase1/review-studio.tsx
+```
+
+The review step is a queue-detail workspace for consultant review. A teammate can:
+
+- approve generated output
+- flag it for review
+- skip it
+- reset it to draft
+- edit generated comments
+- add consultant notes
+- search and filter the queue
+
+Review selection, query, and filter state are persisted per project in browser storage.
+
+Keyboard shortcuts exist for queue work, including previous, next, approve, flag, skip, and reset actions.
+
+## Step 4: Script
+
+Main files:
+
+```text
+src/components/phase1/script-studio.tsx
+src/app/demo-script-panel.tsx
+```
+
+The script step turns approved generated rows into a consultant-facing demo narrative. It supports title edits, section shaping, step edits, and notes.
+
+The script should only use approved generated output. If there are no approved rows, the workflow should guide the teammate back to review.
+
+## Step 5: Export
+
+Main files:
+
+```text
+src/components/phase1/export-studio.tsx
+src/lib/requirements/demo-script-export.ts
+```
+
+The export step downloads a Markdown handoff. The export includes project context, summary data, sections, demo steps, assumptions, warnings, and source references.
+
+The export is separate from the customer workbook. The app should not overwrite source artifacts.
+
+## Workflow Gates
+
+The workflow rules are intentionally simple:
+
+- generate is blocked without parsed rows
+- review is blocked without generated drafts
+- script is blocked without approved drafts
+- export is blocked until the script is export-ready
+
+When a step is blocked, `Phase1ProjectStepRoute` sends the user to the best allowed step instead of leaving them in a dead end.
+
+## Product Copy Rule
+
+Keep step copy operational. The user is working, not reading a landing page. Prefer labels such as "Generate selected rows" or "Approve draft" over broad claims about AI or automation.

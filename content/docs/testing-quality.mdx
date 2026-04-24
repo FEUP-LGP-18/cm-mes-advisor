@@ -1,0 +1,145 @@
+---
+title: "Testing And Quality"
+description: "The test layers, scripts, CI expectations, and QA workflow."
+---
+
+## Quality Layers
+
+The repo uses several quality layers:
+
+| Layer           | Command                        | Purpose                                        |
+| --------------- | ------------------------------ | ---------------------------------------------- |
+| ESLint          | `pnpm lint`                    | Static code and Next.js rules                  |
+| TypeScript      | `pnpm typecheck`               | No-emit type checking                          |
+| Vitest          | `pnpm test`                    | Unit, server, parser, state, and surface tests |
+| Next build      | `pnpm build`                   | Production build verification                  |
+| Storybook build | `pnpm storybook:build`         | Component/story build verification             |
+| Playwright      | `pnpm test:e2e`                | Browser smoke and responsive checks            |
+| Full UI review  | `./scripts/codex/review-ui.sh` | Standard frontend verification sequence        |
+
+## Vitest
+
+Config:
+
+```text
+vitest.config.ts
+```
+
+Vitest includes tests under `src/**/*.test.ts` and `src/**/*.test.tsx`, while excluding Playwright e2e tests.
+
+Main tested areas:
+
+- Excel parser
+- source metadata
+- workspace state
+- project registry
+- workflow gating
+- generation
+- validation
+- review actions and storage
+- demo script assembly
+- Markdown export
+- server config/provider/availability
+- MCP and Bedrock clients
+- API routes
+- Phase 1 surfaces
+
+## Playwright
+
+Config:
+
+```text
+playwright.config.ts
+```
+
+Main spec:
+
+```text
+tests/e2e/phase1-smoke.spec.ts
+```
+
+The smoke test seeds localStorage with fixture-backed project state and checks major routes across desktop and mobile.
+
+It covers:
+
+- project home
+- source
+- generate
+- review
+- script
+- export
+- dark and light theme paths
+- no horizontal overflow
+- mobile ordering expectations
+- screenshots and artifacts
+
+## Storybook
+
+Config:
+
+```text
+.storybook/main.ts
+.storybook/preview.tsx
+```
+
+Run:
+
+```bash
+pnpm storybook
+pnpm storybook:build
+```
+
+Use Storybook for focused UI states, especially project home, generate studio, and review studio.
+
+## Codex Scripts
+
+The stable helper scripts live in:
+
+```text
+scripts/codex/
+```
+
+Important scripts:
+
+- `dev.sh`
+- `lint.sh`
+- `typecheck.sh`
+- `test.sh`
+- `e2e.sh`
+- `storybook.sh`
+- `review-ui.sh`
+
+`review-ui.sh` runs the standard frontend sequence and is the best "one command before handoff" check for UI-heavy changes.
+
+## Docs Source Generation
+
+This docs site uses Fumadocs MDX. The generated `.source` folder is ignored by git.
+
+Run manually if needed:
+
+```bash
+pnpm docs:source
+```
+
+`pnpm typecheck` runs this first so TypeScript can resolve `collections/server`.
+
+## Recommended Verification By Change Type
+
+| Change Type              | Minimum Verification                                                   |
+| ------------------------ | ---------------------------------------------------------------------- |
+| Parser or pipeline logic | `pnpm test`, `pnpm typecheck`                                          |
+| Server generation        | relevant server tests, API route tests, `pnpm typecheck`               |
+| Route or workflow gating | `pnpm test`, `pnpm test:e2e`                                           |
+| UI surface               | `pnpm lint`, `pnpm typecheck`, `pnpm test`, browser desktop/mobile     |
+| Docs site                | `pnpm docs:source`, `pnpm typecheck`, `pnpm build`, browser docs check |
+| Shared styles            | browser desktop/mobile plus Playwright when practical                  |
+
+## Discovery Caveat
+
+During the original codebase discovery pass, `pnpm test` was started but did not complete before it was stopped. Do not treat that as a passing or failing signal for current work.
+
+When signing off a change, rerun tests and record the actual result.
+
+## CI Expectations
+
+GitHub Actions run the core checks for pull requests. UI changes should still include local browser evidence because CI cannot tell whether the experience is clear or visually coherent.

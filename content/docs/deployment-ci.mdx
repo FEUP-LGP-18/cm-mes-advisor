@@ -1,0 +1,105 @@
+---
+title: "Deployment And CI"
+description: "How GitHub Actions, Vercel Git Integration, and build checks are wired."
+---
+
+## Deployment Model
+
+The production deployment path is Vercel Git Integration connected to the GitHub repo.
+
+Production deployments run from the `main` branch. Preview deployments are created from pull requests or non-production branches when the Vercel project is connected to GitHub.
+
+The app is configured to keep Vercel builds safe with mock generation by default.
+
+## GitHub And Vercel Files
+
+- `.github/workflows/ci.yml`: pull request lint, typecheck, tests, build, Storybook build, and Playwright smoke.
+- `.github/workflows/vercel-preview.yml`: token-based Vercel preview fallback for PRs.
+- `.github/workflows/vercel-production.yml`: token-based Vercel production fallback from `main`.
+- `.vercel/project.json`: local Vercel project link. Keep `.vercel/` out of commits.
+
+The Vercel workflow files skip gracefully when required token secrets are not configured. They are not the primary deployment path when Vercel Git Integration is connected.
+
+## Vercel Git Integration
+
+The expected production setup is:
+
+- Vercel project: `cm-mes-advisor`
+- GitHub repo: `FEUP-LGP-18/cm-mes-advisor`
+- production branch: `main`
+- root directory: `.`
+
+After Git Integration is connected, pushing `main` triggers the production deployment in Vercel.
+
+## Optional GitHub Actions Secrets
+
+The token-based workflow fallback needs these GitHub repository secrets:
+
+- `VERCEL_TOKEN`
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`
+
+Do not commit these values. Do not paste them into docs, issue comments, screenshots, prompts, or generated exports.
+
+## Environment Policy
+
+Vercel preview and production are expected to use:
+
+```text
+GENERATION_MODE=mock
+```
+
+This keeps review deployments usable without partner credentials.
+
+Real mode should only be enabled when server-side MCP and Bedrock credentials are available and the team intentionally wants to validate that path.
+
+## Pull Request Flow
+
+Expected PR behavior:
+
+1. CI validates code and build health.
+2. Vercel Git Integration creates a preview deployment when connected.
+3. The token-based preview workflow can also comment a preview URL when its secrets exist.
+4. Reviewers use the preview plus local evidence for UI and workflow checks.
+
+## Production Flow
+
+Pushes to `main` trigger Vercel production through Git Integration. Production should not require partner credentials while the app remains in mock mode.
+
+## What CI Does Not Prove
+
+CI can prove that commands pass. It cannot prove:
+
+- the UI is clear
+- mobile hierarchy is good
+- next-action language is coherent
+- a consultant can understand the workflow
+- real Bedrock access is partner-validated
+
+For UI-heavy changes, include browser verification notes even when CI is green.
+
+## Build And Docs Interaction
+
+The docs site is built as part of the Next.js app. Fumadocs generates `.source` during docs source generation and build.
+
+If build or typecheck fails with missing docs collection imports, run:
+
+```bash
+pnpm docs:source
+```
+
+Then rerun:
+
+```bash
+pnpm typecheck
+pnpm build
+```
+
+## Deployment Safety Rules
+
+- Keep raw partner artifacts out of commits.
+- Keep generated exports out of commits.
+- Keep credentials server-side only.
+- Keep `GENERATION_MODE=mock` for review deployments unless the team explicitly switches modes.
+- Stage files explicitly so local duplicate `* 2` files, `.source`, `.vercel`, test artifacts, and `.env` files do not slip into commits.
+- Do not mark real mode complete without a new validation record.

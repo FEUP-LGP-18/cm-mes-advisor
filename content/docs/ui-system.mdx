@@ -1,0 +1,131 @@
+---
+title: "UI System"
+description: "How the product UI is organized, themed, verified, and kept consistent."
+---
+
+## Product UI Direction
+
+The app is a calm, utility-first consultant workspace. It should feel like a workbench for repeated review and editing, not a landing page.
+
+Default UI priorities:
+
+1. task clarity
+2. route and state clarity
+3. readable tables and review queues
+4. strong empty and blocked states
+5. mobile usability
+6. visual restraint
+
+## Main UI Files
+
+| File Or Folder                            | Purpose                                   |
+| ----------------------------------------- | ----------------------------------------- |
+| `src/app/globals.css`                     | Global styles and product surface classes |
+| `src/app/theme-tokens.css`                | Light and dark CSS variables              |
+| `src/app/theme.ts`                        | Theme storage key and early init script   |
+| `src/app/theme-toggle.tsx`                | Product theme toggle                      |
+| `src/components/phase1/phase-topbar.tsx`  | Brand topbar and theme toggle             |
+| `src/components/phase1/project-shell.tsx` | Workflow shell around project steps       |
+| `src/components/phase1/*-studio.tsx`      | Step-specific product workspaces          |
+
+## Theme
+
+The product theme uses a `data-theme` attribute and the storage key:
+
+```text
+cm-mes-advisor:theme
+```
+
+The default theme is dark.
+
+The docs site uses Fumadocs theme handling for the docs layout. Keep product theme behavior and docs theme behavior separate unless there is a deliberate reason to unify them.
+
+## Phase 1 Components
+
+Key components:
+
+- `Phase1ProjectHome`
+- `Phase1Topbar`
+- `Phase1ProjectShell`
+- `Phase1ProjectProvider`
+- `Phase1ProjectStepRoute`
+- `SourceStudio`
+- `GenerateStudio`
+- `ReviewStudio`
+- `ScriptStudio`
+- `ExportStudio`
+
+The provider owns most state transitions. The studios should stay focused on the step interaction.
+
+## Existing Storybook Coverage
+
+Storybook stories exist for:
+
+- `project-home.stories.tsx`
+- `generate-studio.stories.tsx`
+- `review-studio.stories.tsx`
+
+Use Storybook when changing shared UI surfaces or when a state is easier to inspect outside the full app route.
+
+## UI Rules From The Repo
+
+Follow `AGENTS.md` and `src/AGENTS.md` for frontend work.
+
+Important rules:
+
+- classify the surface before editing
+- state the user job and dominant action
+- avoid generic card mosaics for product workspaces
+- avoid decorative gradients on routine product surfaces
+- keep copy operational and scannable
+- do not add a second design system
+- verify desktop and mobile before calling UI work done
+
+## Surface Types
+
+Most app screens are `product workspace` surfaces.
+
+The docs site is an `empty/onboarding` surface because the user job is orientation and navigation.
+
+Settings/admin, wizard/form, and landing/marketing patterns should not be imported into the Phase 1 workbench unless the task truly requires that surface type.
+
+## Empty, Blocked, And Error States
+
+Important states to check when editing UI:
+
+- no projects yet
+- no parsed workbook rows
+- generation unavailable
+- no generated drafts
+- no approved rows
+- no script steps
+- export not ready
+- mobile overflow
+- long requirement text
+- storage failures
+
+The routed workflow should guide teammates to the next useful step instead of leaving them on a broken or misleading screen.
+
+## Browser Verification
+
+For meaningful UI changes, verify:
+
+- desktop route rendering
+- mobile route rendering
+- no horizontal overflow
+- current task is visible before navigation on mobile
+- theme still works
+- no conflicting next-action copy
+- the requested outcome is visible in the browser, not only in code
+
+The Playwright smoke test is in `tests/e2e/phase1-smoke.spec.ts`.
+
+## Design References
+
+Use these when you need deeper UI context:
+
+- `docs/design/phase1-design-system-guidelines.md`
+- `docs/design/phase1-visual-system.md`
+- `docs/design/agent-ui-canon.md`
+- `docs/design/phase1-ui-audit-2026-04-21.md`
+- `docs/frontend-ui-quality-workflow.md`
