@@ -4,6 +4,15 @@ import Image from "next/image";
 import ThemeToggle from "@/app/theme-toggle";
 
 export default function Phase1Topbar() {
+  async function handleSignOut() {
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    }
+    window.location.assign("/login");
+  }
+
   return (
     <nav aria-label="Product" className="top-shell animate-enter">
       <div className="top-shell-brand">
@@ -56,7 +65,15 @@ export default function Phase1Topbar() {
         </div>
       </div>
 
-      <div className="top-shell-toggle">
+      <div className="top-shell-toggle" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+        <button
+          type="button"
+          onClick={handleSignOut}
+          className="focus-premium theme-shell-button-secondary rounded-xl px-3 py-2 text-xs font-semibold transition"
+          aria-label="Sign out"
+        >
+          Sign out
+        </button>
         <ThemeToggle />
       </div>
     </nav>

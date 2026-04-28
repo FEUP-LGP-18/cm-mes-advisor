@@ -8,6 +8,22 @@ import type {
 } from "../../../../lib/requirements/generation-api";
 
 export async function POST(request: Request) {
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    const { createClient } = await import("../../../../lib/supabase/server");
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      const body: RequirementGenerationRouteErrorBody = {
+        ok: false,
+        error: { code: "invalid-request", message: "Authentication required." },
+      };
+      return NextResponse.json(body, { status: 401 });
+    }
+  }
+
   let rawBody: unknown;
 
   try {

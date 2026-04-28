@@ -92,6 +92,19 @@ pnpm install
 pnpm dev
 ```
 
+## Authentication
+
+The app uses Supabase Auth (email/password). To enable it, set these variables in your `.env.local`:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
+
+If these variables are absent, the middleware skips auth entirely. Mock generation mode continues to work locally without a Supabase project.
+
+Auth routes: `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/auth/callback`
+
 ## Environment Modes
 
 Default local mode:

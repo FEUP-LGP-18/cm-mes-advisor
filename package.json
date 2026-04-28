@@ -21,6 +21,8 @@
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1032.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "@supabase/ssr": "^0.10.2",
+    "@supabase/supabase-js": "^2.105.1",
     "exceljs": "^4.4.0",
     "fumadocs-core": "^16.8.3",
     "fumadocs-mdx": "^14.3.1",
