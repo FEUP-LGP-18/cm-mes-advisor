@@ -9,6 +9,15 @@ export async function GET(request: Request) {
   const next =
     rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/";
 
+  if (
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+  ) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("error", "auth-not-configured");
+    return NextResponse.redirect(loginUrl);
+  }
+
   if (code) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
