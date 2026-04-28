@@ -34,7 +34,13 @@ export async function proxy(request: NextRequest) {
       "next",
       request.nextUrl.pathname + request.nextUrl.search,
     );
-    return NextResponse.redirect(loginUrl);
+
+    const redirectResponse = NextResponse.redirect(loginUrl);
+    for (const cookie of supabaseResponse.cookies.getAll()) {
+      redirectResponse.cookies.set(cookie);
+    }
+
+    return redirectResponse;
   }
 
   return supabaseResponse;
