@@ -12,12 +12,17 @@ const AUTH_ROUTES = new Set([
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  console.log("[proxy] running for:", pathname);
+  console.log("[proxy] SUPABASE_URL present:", !!process.env.NEXT_PUBLIC_SUPABASE_URL);
+  console.log("[proxy] SUPABASE_KEY present:", !!process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
+
   // If Supabase is not configured (e.g. local mock-only dev without a Supabase
   // project), skip auth entirely so mock mode continues to work.
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
   ) {
+    console.log("[proxy] Supabase not configured — skipping auth");
     return NextResponse.next();
   }
 
