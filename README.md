@@ -98,7 +98,7 @@ The app uses Supabase Auth (email/password). To enable it, set these variables i
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your-key-here
 ```
 
 If these variables are absent, the middleware skips auth entirely. Mock generation mode continues to work locally without a Supabase project.

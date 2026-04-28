@@ -9,14 +9,14 @@ const AUTH_ROUTES = new Set([
   "/reset-password",
 ]);
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // If Supabase is not configured (e.g. local mock-only dev without a Supabase
   // project), skip auth entirely so mock mode continues to work.
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
   ) {
     return NextResponse.next();
   }
