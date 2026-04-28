@@ -9,7 +9,10 @@ import AuthShell from "@/components/auth/auth-shell";
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") ?? "/";
+  const rawNext = searchParams.get("next") ?? "/";
+  // Restrict to same-origin relative paths to prevent open redirect.
+  const next =
+    rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

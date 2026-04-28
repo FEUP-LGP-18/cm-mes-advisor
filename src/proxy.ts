@@ -30,7 +30,10 @@ export async function proxy(request: NextRequest) {
 
   if (!user) {
     const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("next", pathname);
+    loginUrl.searchParams.set(
+      "next",
+      request.nextUrl.pathname + request.nextUrl.search,
+    );
     return NextResponse.redirect(loginUrl);
   }
 
@@ -39,7 +42,9 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Skip Next.js internals, static assets, and image files.
-    "/((?!_next/static|_next/image|favicon.ico|brand/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    // Skip Next.js internals, static assets, image files, and API routes.
+    // API routes handle their own 401 responses — a redirect to /login would
+    // break JSON clients expecting a status code.
+    "/((?!api/|_next/static|_next/image|favicon.ico|brand/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

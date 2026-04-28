@@ -5,7 +5,10 @@ import ThemeToggle from "@/app/theme-toggle";
 
 export default function Phase1Topbar() {
   async function handleSignOut() {
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    if (
+      process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+    ) {
       const { createClient } = await import("@/lib/supabase/client");
       const supabase = createClient();
       await supabase.auth.signOut();

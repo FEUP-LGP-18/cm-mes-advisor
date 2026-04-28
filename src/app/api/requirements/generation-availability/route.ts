@@ -5,7 +5,10 @@ import { getRequirementGenerationAvailabilitySnapshot } from "../../../../lib/re
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+  if (
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+  ) {
     const { createClient } = await import("../../../../lib/supabase/server");
     const supabase = await createClient();
     const {

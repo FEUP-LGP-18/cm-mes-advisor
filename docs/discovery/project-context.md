@@ -46,7 +46,7 @@ Out of scope unless explicitly requested:
 - App framework: Next.js App Router
 - Auth: Supabase Auth (`@supabase/ssr`); email/password only; PKCE callback flow
 - Auth pages: `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/auth/callback`
-- Route protection: `middleware.ts` at repo root; gracefully skips when `NEXT_PUBLIC_SUPABASE_URL` is unset (local mock mode stays functional)
+- Route protection: `src/proxy.ts` via the Next.js 16 `proxy` export; gracefully skips when `NEXT_PUBLIC_SUPABASE_URL` is unset (local mock mode stays functional)
 - Supabase helpers: `src/lib/supabase/` — `client.ts` (browser), `server.ts` (server components / route handlers), `middleware.ts` (session refresh)
 - Home screen: project home that creates or reopens local Phase 1 projects
 - Routed workflow: `src/app/projects/[projectId]/`
@@ -73,7 +73,7 @@ What is effectively present in the repo:
 - server-backed generation route with `mock` and `real` modes
 - demo script assembly and Markdown download
 - Supabase Auth flows: login, signup, forgot/reset password, PKCE callback, logout
-- middleware-based route protection for all non-auth surfaces
+- proxy-based route protection for all non-auth surfaces (`src/proxy.ts`)
 
 What is still blocked:
 
