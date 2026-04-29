@@ -3,7 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { AUTH_NOT_CONFIGURED_MESSAGE } from "@/lib/supabase/auth-messages";
+import {
+  AUTH_NOT_CONFIGURED_MESSAGE,
+  mapPasswordResetError,
+} from "@/lib/supabase/auth-messages";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import AuthShell from "@/components/auth/auth-shell";
 
@@ -34,7 +37,7 @@ export default function ForgotPasswordPage() {
     );
 
     if (authError) {
-      setError("Could not send a reset link. Check the email address and try again.");
+      setError(mapPasswordResetError(authError.message));
       setLoading(false);
       return;
     }

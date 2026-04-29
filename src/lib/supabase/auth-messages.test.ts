@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   AUTH_NOT_CONFIGURED_MESSAGE,
   getAuthRedirectErrorMessage,
+  mapPasswordResetError,
   mapSignInError,
   mapSignUpError,
   sanitizeAuthNextPath,
@@ -36,6 +37,12 @@ describe("auth message helpers", () => {
     );
     expect(mapSignUpError("User already exists")).toContain(
       "already exists",
+    );
+    expect(mapSignUpError("email rate limit exceeded")).toContain(
+      "Too many attempts",
+    );
+    expect(mapPasswordResetError("email rate limit exceeded")).toContain(
+      "Too many reset emails",
     );
   });
 });

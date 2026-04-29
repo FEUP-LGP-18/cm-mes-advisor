@@ -31,7 +31,7 @@ export function mapSignInError(message: string): string {
   if (lower.includes("email not confirmed")) {
     return "Check your email and confirm your account before signing in.";
   }
-  if (lower.includes("too many requests")) {
+  if (lower.includes("too many requests") || lower.includes("rate limit")) {
     return "Too many sign-in attempts. Wait a moment and try again.";
   }
   return "Sign-in failed. Please check your details and try again.";
@@ -51,8 +51,16 @@ export function mapSignUpError(message: string): string {
   if (lower.includes("password") && lower.includes("6")) {
     return "Password must be at least 6 characters.";
   }
-  if (lower.includes("too many requests")) {
+  if (lower.includes("too many requests") || lower.includes("rate limit")) {
     return "Too many attempts. Wait a moment and try again.";
   }
   return "Could not create account. Check your details and try again.";
+}
+
+export function mapPasswordResetError(message: string): string {
+  const lower = message.toLowerCase();
+  if (lower.includes("too many requests") || lower.includes("rate limit")) {
+    return "Too many reset emails. Wait a moment and try again.";
+  }
+  return "Could not send a reset link. Check the email address and try again.";
 }
