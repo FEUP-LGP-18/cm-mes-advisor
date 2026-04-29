@@ -1,18 +1,14 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { sanitizeAuthNextPath } from "@/lib/supabase/auth-messages";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
-  const rawNext = url.searchParams.get("next") ?? "/";
-  // Restrict to same-origin relative paths to prevent open redirect.
-  const next =
-    rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/";
+  const next = sanitizeAuthNextPath(url.searchParams.get("next"));
 
-  if (
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-  ) {
+  if (!isSupabaseConfigured()) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("error", "auth-not-configured");
     return NextResponse.redirect(loginUrl);

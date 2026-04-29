@@ -2,17 +2,18 @@
 
 import Image from "next/image";
 import ThemeToggle from "@/app/theme-toggle";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 export default function Phase1Topbar() {
   async function handleSignOut() {
-    if (
-      process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-    ) {
-      const { createClient } = await import("@/lib/supabase/client");
-      const supabase = createClient();
-      await supabase.auth.signOut();
+    if (!isSupabaseConfigured()) {
+      window.location.assign("/");
+      return;
     }
+
+    const { createClient } = await import("@/lib/supabase/client");
+    const supabase = createClient();
+    await supabase.auth.signOut();
     window.location.assign("/login");
   }
 

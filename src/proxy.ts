@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 // Routes that are always public — no session required.
 const AUTH_ROUTES = new Set([
@@ -14,10 +15,7 @@ export async function proxy(request: NextRequest) {
 
   // If Supabase is not configured (e.g. local mock-only dev without a Supabase
   // project), skip auth entirely so mock mode continues to work.
-  if (
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-  ) {
+  if (!isSupabaseConfigured()) {
     return NextResponse.next();
   }
 

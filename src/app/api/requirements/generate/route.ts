@@ -2,16 +2,14 @@ import { NextResponse } from "next/server";
 import { readRequirementGenerationServerConfig } from "../../../../lib/requirements/server/config";
 import { createRequirementGenerationProvider } from "../../../../lib/requirements/server/provider";
 import { parseRequirementGenerationRequestBody } from "../../../../lib/requirements/server/request";
+import { isSupabaseConfigured } from "../../../../lib/supabase/config";
 import type {
   RequirementGenerationRouteErrorBody,
   RequirementGenerationRouteSuccessBody,
 } from "../../../../lib/requirements/generation-api";
 
 export async function POST(request: Request) {
-  if (
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-  ) {
+  if (isSupabaseConfigured()) {
     const { createClient } = await import("../../../../lib/supabase/server");
     const supabase = await createClient();
     const {

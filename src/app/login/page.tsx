@@ -4,15 +4,23 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import {
+  AUTH_NOT_CONFIGURED_MESSAGE,
+  getAuthRedirectErrorMessage,
+  mapSignInError,
+  sanitizeAuthNextPath,
+} from "@/lib/supabase/auth-messages";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import AuthShell from "@/components/auth/auth-shell";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const rawNext = searchParams.get("next") ?? "/";
-  // Restrict to same-origin relative paths to prevent open redirect.
-  const next =
-    rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/";
+  const next = sanitizeAuthNextPath(searchParams.get("next"));
+  const supabaseConfigured = isSupabaseConfigured();
+  const setupMessage = supabaseConfigured
+    ? getAuthRedirectErrorMessage(searchParams.get("error"))
+    : AUTH_NOT_CONFIGURED_MESSAGE;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,6 +30,12 @@ function LoginForm() {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+
+    if (!supabaseConfigured) {
+      setError(AUTH_NOT_CONFIGURED_MESSAGE);
+      return;
+    }
+
     setLoading(true);
 
     const supabase = createClient();
@@ -100,6 +114,15 @@ function LoginForm() {
               />
             </div>
 
+            {setupMessage ? (
+              <div
+                role="alert"
+                className="phase-feedback phase-feedback-error rounded-2xl text-sm"
+              >
+                {setupMessage}
+              </div>
+            ) : null}
+
             {error ? (
               <div
                 role="alert"
@@ -111,40 +134,35 @@ function LoginForm() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !supabaseConfigured}
               className="focus-premium theme-button-primary w-full rounded-2xl px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? "Signing in…" : "Sign in"}
             </button>
           </form>
 
-          <p className="text-center text-sm text-[color:var(--shell-muted)]">
-            No account?{" "}
+          {!supabaseConfigured ? (
             <Link
-              href="/signup"
-              className="font-semibold text-[color:var(--shell-ink)] hover:text-[color:var(--brand-accent-soft)] transition-colors"
+              href="/"
+              className="focus-premium theme-shell-button-secondary w-full rounded-2xl px-5 py-3 text-sm font-semibold text-center transition"
             >
-              Sign up
+              Continue in mock mode
             </Link>
-          </p>
+          ) : (
+            <p className="text-center text-sm text-[color:var(--shell-muted)]">
+              No account?{" "}
+              <Link
+                href="/signup"
+                className="font-semibold text-[color:var(--shell-ink)] hover:text-[color:var(--brand-accent-soft)] transition-colors"
+              >
+                Sign up
+              </Link>
+            </p>
+          )}
         </div>
       </div>
     </AuthShell>
   );
-}
-
-function mapSignInError(message: string): string {
-  const lower = message.toLowerCase();
-  if (lower.includes("invalid login credentials") || lower.includes("invalid email or password")) {
-    return "Invalid email or password. Please try again.";
-  }
-  if (lower.includes("email not confirmed")) {
-    return "Check your email and confirm your account before signing in.";
-  }
-  if (lower.includes("too many requests")) {
-    return "Too many sign-in attempts. Wait a moment and try again.";
-  }
-  return "Sign-in failed. Please check your details and try again.";
 }
 
 export default function LoginPage() {
