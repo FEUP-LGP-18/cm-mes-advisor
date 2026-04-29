@@ -1,6 +1,6 @@
 # Phase 1 Roadmap And Status
 
-Last updated: `2026-04-21`
+Last updated: `2026-04-28`
 
 This file is the current roadmap/status view for Phase 1. It replaces the older epic-by-epic build diary as the main planning reference for the repo.
 
@@ -24,6 +24,7 @@ Phase 1 should be understood as a consultant-reviewed, Excel-first workflow that
 - Mock mode as the default teammate-safe path
 - Real generation path behind the server provider boundary
 - Demo script assembly and Markdown export
+- Supabase Auth: login, signup, forgot/reset password, PKCE callback, logout, and middleware-based route protection
 
 ## Current Direction
 
@@ -58,7 +59,7 @@ These are not part of current Phase 1 completion unless the task explicitly chan
 - broader heterogeneous document ingestion
 - alternative export formats such as PDF or Word
 - production-grade backend persistence replacing the current local prototype storage
-- authentication, team collaboration, or settings/template systems beyond what the repo already contains
+- team collaboration or settings/template systems beyond what the repo already contains
 
 ## Delivery Rule
 

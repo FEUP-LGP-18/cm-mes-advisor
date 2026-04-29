@@ -2,12 +2,29 @@ import { NextResponse } from "next/server";
 import { readRequirementGenerationServerConfig } from "../../../../lib/requirements/server/config";
 import { createRequirementGenerationProvider } from "../../../../lib/requirements/server/provider";
 import { parseRequirementGenerationRequestBody } from "../../../../lib/requirements/server/request";
+import { isSupabaseConfigured } from "../../../../lib/supabase/config";
 import type {
   RequirementGenerationRouteErrorBody,
   RequirementGenerationRouteSuccessBody,
 } from "../../../../lib/requirements/generation-api";
 
 export async function POST(request: Request) {
+  if (isSupabaseConfigured()) {
+    const { createClient } = await import("../../../../lib/supabase/server");
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      const body: RequirementGenerationRouteErrorBody = {
+        ok: false,
+        error: { code: "invalid-request", message: "Authentication required." },
+      };
+      return NextResponse.json(body, { status: 401 });
+    }
+  }
+
   let rawBody: unknown;
 
   try {

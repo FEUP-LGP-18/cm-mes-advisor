@@ -1,6 +1,6 @@
 # Project Context
 
-Last updated: `2026-04-21`
+Last updated: `2026-04-28`
 
 This is the current-state source of truth for the GitHub repo. Use this before relying on older discovery notes.
 
@@ -31,6 +31,7 @@ In scope now:
 - server-side generation boundary for mock and real mode
 - consultant review before final output
 - Markdown export for the Phase 1 handoff
+- Supabase Auth (email/password) with full auth flows and route protection
 
 Out of scope unless explicitly requested:
 
@@ -43,6 +44,10 @@ Out of scope unless explicitly requested:
 ## Current Architecture
 
 - App framework: Next.js App Router
+- Auth: Supabase Auth (`@supabase/ssr`); email/password only; PKCE callback flow
+- Auth pages: `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/auth/callback`
+- Route protection: `src/proxy.ts` via the Next.js 16 `proxy` export; gracefully skips when `NEXT_PUBLIC_SUPABASE_URL` is unset (local mock mode stays functional)
+- Supabase helpers: `src/lib/supabase/` — `client.ts` (browser), `server.ts` (server components / route handlers), `middleware.ts` (session refresh)
 - Home screen: project home that creates or reopens local Phase 1 projects
 - Routed workflow: `src/app/projects/[projectId]/`
 - Project state: local registry and workflow snapshot helpers in `src/lib/phase1/`
@@ -67,6 +72,8 @@ What is effectively present in the repo:
 - consultant review and local persistence
 - server-backed generation route with `mock` and `real` modes
 - demo script assembly and Markdown download
+- Supabase Auth flows: login, signup, forgot/reset password, PKCE callback, logout
+- proxy-based route protection for all non-auth surfaces (`src/proxy.ts`)
 
 What is still blocked:
 
