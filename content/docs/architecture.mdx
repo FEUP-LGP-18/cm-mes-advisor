@@ -7,7 +7,10 @@ description: "The main runtime structure, routes, state model, and data flow."
 
 The app is a Next.js App Router application with React, TypeScript, Tailwind CSS, Vitest, Playwright, and Storybook.
 
-There is no app database for Phase 1 project state. Prototype project data is stored in the browser with `localStorage`. Server routes are used for generation and availability boundaries.
+The app now has a Supabase project collaboration schema for persisted project
+ownership, membership, invites, files, phase-keyed state, and activity. The
+current UI still uses browser storage for Phase 1 workflow state until the
+server repository work connects the app to these tables.
 
 ## Runtime Layers
 
@@ -51,6 +54,8 @@ The state model has two related pieces:
 
 - workbook/review state in `src/lib/requirements/workspace-state.ts`
 - project registry state in `src/lib/phase1/project-registry.ts`
+- persisted project collaboration state in Supabase migrations under
+  `supabase/migrations/`
 
 The project registry stores local Phase 1 records under the browser key:
 
@@ -59,6 +64,10 @@ cm-mes-advisor:phase1-project-registry:v3
 ```
 
 Review state and active source data also use browser storage keys. Storage failures should not crash the UI; the code catches storage errors and falls back to in-memory behavior where possible.
+
+Supabase persistence is intentionally project-scoped. See
+[Project Collaboration Schema](/docs/project-collaboration-schema) for the
+tables, roles, and RLS contract that future repository code should use.
 
 ## Main Data Flow
 

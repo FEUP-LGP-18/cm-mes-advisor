@@ -1,0 +1,123 @@
+---
+title: "Project Collaboration Schema"
+description: "The project-level tables, roles, and RLS contract."
+---
+
+## Scope
+
+The collaboration model is project-level, not organization-level. A project is
+the access boundary for persisted workbook data, Phase 1 state, future Phase 2
+state, files, invites, memberships, and activity.
+
+Schema migration:
+
+```text
+supabase/migrations/20260430180000_core_project_collaboration_schema.sql
+```
+
+## Tables
+
+The core tables are:
+
+| Table                     | Purpose                                               |
+| ------------------------- | ----------------------------------------------------- |
+| `projects`                | Project metadata, status, owner-created audit fields  |
+| `project_memberships`     | User membership and project role                      |
+| `project_invites`         | Invite records for later invite UI/email flows        |
+| `project_phase_states`    | Phase-keyed JSON state for Phase 1 and future Phase 2 |
+| `project_files`           | Persisted workbook/file metadata and storage path     |
+| `project_activity_events` | Project-scoped audit/activity timeline                |
+
+`project_phase_states.phase_key` is intentionally generic so Phase 1 and future
+Phase 2 state can coexist without adding one table per workflow step.
+
+## Roles
+
+Project roles are stored as the `project_role` enum:
+
+```text
+viewer
+editor
+owner
+```
+
+Permission contract:
+
+| Permission area                         | Viewer | Editor | Owner |
+| --------------------------------------- | ------ | ------ | ----- |
+| Read project metadata                   | Yes    | Yes    | Yes   |
+| Read phase state                        | Yes    | Yes    | Yes   |
+| Read files                              | Yes    | Yes    | Yes   |
+| Read team list                          | Yes    | Yes    | Yes   |
+| Upload source workbook / persisted file | No     | Yes    | Yes   |
+| Save phase state                        | No     | Yes    | Yes   |
+| Edit project settings                   | No     | No     | Yes   |
+| Manage members and invites              | No     | No     | Yes   |
+| Archive/delete project                  | No     | No     | Yes   |
+
+## RLS Helpers
+
+The migration defines security-definer helper functions so policies can check
+membership without recursive RLS reads:
+
+```text
+current_project_role(project_id)
+can_view_project(project_id)
+can_edit_project(project_id)
+can_manage_project(project_id)
+```
+
+Use the same meanings in server-side repository code:
+
+- `can_view_project`: any member
+- `can_edit_project`: `editor` or `owner`
+- `can_manage_project`: `owner`
+
+## RLS Contract
+
+RLS is enabled on every project table.
+
+Non-members cannot read or mutate project rows directly.
+
+Members can read:
+
+- project metadata
+- phase state
+- files
+- team list
+- activity events
+
+Editors and owners can insert/update phase state and upload file metadata.
+
+Owners can:
+
+- update project metadata/status
+- delete projects
+- add, update, and remove memberships
+- create, update, revoke, and delete invites
+- delete files and phase state records
+
+## Owner Safety
+
+Every project gets an initial owner membership from `projects.created_by`.
+
+The database blocks deleting or demoting the last owner through
+`prevent_last_project_owner_removal()`. To transfer ownership, add or promote a
+second owner first, then demote/remove the previous owner.
+
+Project deletion is still allowed for owners; the last-owner guard skips child
+membership rows removed by project cascade delete.
+
+## Audit Fields
+
+Triggers populate or update audit fields from `auth.uid()` where possible:
+
+- `projects.created_by`
+- `projects.updated_by`
+- `project_phase_states.updated_by`
+- `project_files.uploaded_by`
+- `project_activity_events.actor_id`
+
+Repository code should still pass explicit user context and validate intended
+actions before writing. RLS is the final database boundary, not the whole
+application permission layer.
