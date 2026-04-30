@@ -1,0 +1,117 @@
+---
+title: "Supabase Foundation"
+description: "Auth helpers, environment variables, and migration workflow."
+---
+
+## What Exists Now
+
+Supabase is currently used for authentication foundation, not app persistence.
+
+Implemented pieces:
+
+- browser client helper: `src/lib/supabase/client.ts`
+- server client helper: `src/lib/supabase/server.ts`
+- middleware/session refresh helper: `src/lib/supabase/middleware.ts`
+- client-safe public config helper: `src/lib/supabase/config.ts`
+- server-side config checks: `src/lib/supabase/server-config.ts`
+- route protection: `src/proxy.ts`
+- auth pages: `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/auth/callback`
+
+The Phase 1 project/review state still uses browser storage. Product tables,
+roles, and RLS policies are part of the schema work, not this foundation layer.
+
+## Environment Variables
+
+For normal auth-enabled local development:
+
+```text
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your-key-here
+```
+
+For local mock-only development, leave those variables unset and auth is skipped.
+
+Only set this variable for explicit server-only admin tasks:
+
+```text
+SUPABASE_SERVICE_ROLE_KEY=sb_secret_your-service-role-key-here
+```
+
+Do not put the service-role key in client components or any `NEXT_PUBLIC_*`
+variable.
+
+## Config Helpers
+
+Use `src/lib/supabase/config.ts` from client-safe code when you only need to know
+whether public Supabase auth config exists.
+
+Use `src/lib/supabase/server-config.ts` from server-only repository or API code
+when missing config should produce an actionable error.
+
+Prefer:
+
+```ts
+requireSupabaseServerConfig("Project repository");
+```
+
+Only use:
+
+```ts
+requireSupabaseServiceRoleConfig("Admin maintenance task");
+```
+
+when bypassing user-scoped RLS is explicitly required and reviewed.
+
+## Migration Directory
+
+Migration files belong in:
+
+```text
+supabase/migrations/
+```
+
+Issue #13 keeps this directory intentionally empty apart from `.gitkeep`. The
+first real schema migration should come from #16.
+
+## Local Migration Workflow
+
+Install and authenticate the Supabase CLI outside the repo, then link this
+checkout:
+
+```bash
+supabase login
+supabase link --project-ref <project-ref>
+```
+
+Create a migration:
+
+```bash
+supabase migration new <short_description>
+```
+
+Test local migrations:
+
+```bash
+supabase start
+supabase db reset
+pnpm test
+```
+
+`supabase db reset` rebuilds the local database and applies all files in
+`supabase/migrations/`.
+
+## Production Migration Workflow
+
+Until dedicated database deployment automation exists, production database
+changes are separate from Vercel app deploys.
+
+Before applying remote migrations:
+
+1. Pull the latest `main`.
+2. Review every SQL file in `supabase/migrations/`.
+3. Run `supabase db reset` locally.
+4. Run the relevant tests.
+5. Apply to the linked project with `supabase db push`.
+
+If schema is changed in the Supabase Dashboard, capture it in a migration with
+`supabase db pull` before continuing local work.

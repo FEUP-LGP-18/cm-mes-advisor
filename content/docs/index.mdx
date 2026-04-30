@@ -30,6 +30,7 @@ Start with the job you are trying to do:
 ### Work In The App
 
 - **Find the main routes and folders:** [Architecture](/docs/architecture)
+- **Work with auth and migrations:** [Supabase Foundation](/docs/supabase-foundation)
 - **Understand the Phase 1 screens:** [Phase 1 Flow](/docs/phase-1-flow)
 - **Trace Excel rows into comments and exports:** [Requirements Pipeline](/docs/requirements-pipeline)
 - **Work on MCP or Bedrock generation:** [Real Generation](/docs/real-generation)
@@ -53,6 +54,8 @@ Inside the app:
 - **`src/lib/phase1/`**: Project registry, local workflow state, step rules, and UI fixtures.
 - **`src/lib/requirements/`**: Excel parsing, generation, validation, review, script assembly, and export logic.
 - **`src/lib/requirements/server/`**: Server-only MCP, Bedrock, provider, config, and availability checks.
+- **`src/lib/supabase/`**: Supabase auth clients, session middleware, and server config helpers.
+- **`supabase/`**: Source-controlled migration scaffold for future schema and RLS work.
 - **`fixtures/`**: Committed Customer X sample workbook used for onboarding and QA.
 - **`tests/e2e/`**: Playwright smoke and screenshot-oriented route coverage.
 - **`docs/`**: Existing Markdown notes, discovery context, design rules, and Codex setup docs.

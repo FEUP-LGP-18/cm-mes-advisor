@@ -105,6 +105,35 @@ If these variables are absent, the middleware skips auth entirely. Mock generati
 
 Auth routes: `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/auth/callback`
 
+Server-side Supabase helpers live in `src/lib/supabase/`. Use `server-config.ts`
+for actionable server-only config checks. `SUPABASE_SERVICE_ROLE_KEY` is optional
+and should only be set for explicit server-only admin operations; never expose it
+through `NEXT_PUBLIC_*` variables.
+
+## Supabase Migrations
+
+The migration scaffold lives in `supabase/`. Issue #13 only establishes the
+workflow; product tables, roles, and RLS policies belong to #16.
+
+Use the Supabase CLI for local schema work:
+
+```bash
+supabase login
+supabase link --project-ref <project-ref>
+supabase migration new <short_description>
+supabase start
+supabase db reset
+```
+
+Apply reviewed migrations to the linked remote project deliberately with:
+
+```bash
+supabase db push
+```
+
+See [supabase/README.md](supabase/README.md) for the local and production
+migration workflow.
+
 ## Environment Modes
 
 Default local mode:

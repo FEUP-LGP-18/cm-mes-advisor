@@ -53,6 +53,44 @@ http://localhost:3000
 
 Use this path for routine UI and code work when the archived support stack is not needed.
 
+## Supabase Auth Setup
+
+Auth is optional for local mock-only development. To enable Supabase Auth, add
+these values to `.env.local` or `.env`:
+
+```text
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your-key-here
+```
+
+Leave them unset when you want the app to skip auth entirely for local mock mode.
+
+Only add `SUPABASE_SERVICE_ROLE_KEY` for reviewed server-only admin operations.
+Do not expose it through `NEXT_PUBLIC_*`.
+
+## Supabase Migration Workflow
+
+Supabase migrations are stored in `supabase/migrations/`.
+
+Local flow:
+
+```bash
+supabase login
+supabase link --project-ref <project-ref>
+supabase migration new <short_description>
+supabase start
+supabase db reset
+```
+
+Remote flow after review:
+
+```bash
+supabase db push
+```
+
+See `supabase/README.md` and [Supabase Foundation](/docs/supabase-foundation)
+before creating schema migrations.
+
 ## Environment Modes
 
 Default:
