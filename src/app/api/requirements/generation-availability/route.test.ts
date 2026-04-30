@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createClient } from "../../../../lib/supabase/server";
+import { requireUser } from "../../../../lib/projects/permissions.server";
 import { GET } from "./route";
 
-vi.mock("../../../../lib/supabase/server", () => ({
-  createClient: vi.fn(),
+vi.mock("../../../../lib/projects/permissions.server", () => ({
+  requireUser: vi.fn(),
 }));
 
-const createClientMock = vi.mocked(createClient);
+const requireUserMock = vi.mocked(requireUser);
 
 describe("GET /api/requirements/generation-availability", () => {
   afterEach(() => {
@@ -65,11 +65,11 @@ describe("GET /api/requirements/generation-availability", () => {
   it("returns 401 when Supabase auth is configured without a user", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
-    createClientMock.mockResolvedValueOnce({
-      auth: {
-        getUser: vi.fn().mockResolvedValue({ data: { user: null } }),
-      },
-    } as unknown as Awaited<ReturnType<typeof createClient>>);
+    requireUserMock.mockResolvedValueOnce({
+      message: "Authentication required.",
+      ok: false,
+      status: "not_authenticated",
+    });
 
     const response = await GET(
       new Request("http://localhost/api/requirements/generation-availability"),

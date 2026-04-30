@@ -41,6 +41,28 @@ describe("proxy auth routing", () => {
     ).toBe(true);
   });
 
+  it("does not require a session for the public command desk home", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
+
+    const response = await proxy(new NextRequest("http://localhost/"));
+
+    expect(response.status).toBe(200);
+    expect(updateSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("does not require a session for public Phase 1 mock project routes", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
+
+    const response = await proxy(
+      new NextRequest("http://localhost/projects/demo/source"),
+    );
+
+    expect(response.status).toBe(200);
+    expect(updateSessionMock).not.toHaveBeenCalled();
+  });
+
   it("skips auth entirely when Supabase is not configured", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "");
@@ -62,11 +84,11 @@ describe("proxy auth routing", () => {
     });
 
     const response = await proxy(
-      new NextRequest("http://localhost/projects/demo/source?row=2"),
+      new NextRequest("http://localhost/docs/architecture?row=2"),
     );
 
     expect(getRedirectUrl(response)).toBe(
-      "http://localhost/login?next=%2Fprojects%2Fdemo%2Fsource%3Frow%3D2",
+      "http://localhost/login?next=%2Fdocs%2Farchitecture%3Frow%3D2",
     );
   });
 

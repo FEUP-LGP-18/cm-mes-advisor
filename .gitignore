@@ -44,6 +44,7 @@ yarn-error.log*
 /local-data/
 /uploads/
 /exports/
+/tasks/
 
 # raw partner artifacts are intentionally excluded from this repo
 *.pdf
