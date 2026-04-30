@@ -1,0 +1,4 @@
+# Local Supabase CLI state. Do not commit linked-project or temp metadata.
+.branches/
+.temp/
+.env
