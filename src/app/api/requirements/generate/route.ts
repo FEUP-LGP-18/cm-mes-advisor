@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireUser } from "../../../../lib/projects/permissions.server";
 import { readRequirementGenerationServerConfig } from "../../../../lib/requirements/server/config";
 import { createRequirementGenerationProvider } from "../../../../lib/requirements/server/provider";
 import { parseRequirementGenerationRequestBody } from "../../../../lib/requirements/server/request";
@@ -10,16 +11,11 @@ import type {
 
 export async function POST(request: Request) {
   if (isSupabaseConfigured()) {
-    const { createClient } = await import("../../../../lib/supabase/server");
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    const userResult = await requireUser();
+    if (!userResult.ok) {
       const body: RequirementGenerationRouteErrorBody = {
         ok: false,
-        error: { code: "invalid-request", message: "Authentication required." },
+        error: { code: "invalid-request", message: userResult.message },
       };
       return NextResponse.json(body, { status: 401 });
     }

@@ -1,6 +1,7 @@
 import { createFromSource } from "fumadocs-core/search/server";
 import { NextResponse } from "next/server";
 import { source } from "@/lib/docs/source";
+import { requireUser } from "@/lib/projects/permissions.server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 const { GET: searchDocs } = createFromSource(source, {
@@ -9,15 +10,10 @@ const { GET: searchDocs } = createFromSource(source, {
 
 export async function GET(request: Request) {
   if (isSupabaseConfigured()) {
-    const { createClient } = await import("@/lib/supabase/server");
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    const userResult = await requireUser();
+    if (!userResult.ok) {
       return NextResponse.json(
-        { ok: false, error: "Authentication required." },
+        { ok: false, error: userResult.message },
         { status: 401 },
       );
     }
