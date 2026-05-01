@@ -49,6 +49,7 @@ describe("project repository", () => {
     requireUserMock.mockResolvedValueOnce({
       data: {
         email: "editor@example.com",
+        emailConfirmedAt: "2026-05-01T12:00:00.000Z",
         id: userId,
       },
       ok: true,
@@ -57,6 +58,7 @@ describe("project repository", () => {
     requireProjectCapabilityMock.mockResolvedValueOnce({
       data: {
         email: "editor@example.com",
+        emailConfirmedAt: "2026-05-01T12:00:00.000Z",
         id: userId,
       },
       ok: true,
