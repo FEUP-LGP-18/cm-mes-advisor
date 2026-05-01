@@ -137,7 +137,7 @@ describe("POST /api/requirements/generate", () => {
       },
     });
   });
-  
+
   it("rejects missing projectId with a safe 400 response", async () => {
     const response = await POST(
       new Request("http://localhost/api/requirements/generate", {

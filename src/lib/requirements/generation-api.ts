@@ -17,7 +17,12 @@ export interface RequirementGenerationRequestBody {
 }
 
 export interface RequirementGenerationRouteError {
-  code: "invalid-request" | "real-generation-unavailable" | "generation-failed" | "unauthorized" | "forbidden";
+  code:
+    | "invalid-request"
+    | "real-generation-unavailable"
+    | "generation-failed"
+    | "unauthorized"
+    | "forbidden";
   message: string;
   reason?: RequirementGenerationUnavailableReason;
   missingConfig?: string[];
