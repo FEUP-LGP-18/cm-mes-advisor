@@ -106,6 +106,10 @@ export async function requireProjectCapability(
   projectId: string,
   action: ProjectCapability,
 ): Promise<ProjectResult<CurrentUser>> {
+  if (!isUuid(projectId)) {
+    return failure("forbidden", "Project access denied.");
+  }
+
   const userResult = await requireUser();
   if (!userResult.ok) {
     return userResult;
