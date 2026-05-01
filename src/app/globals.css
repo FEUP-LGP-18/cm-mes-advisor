@@ -1,7 +1,15 @@
-@import "tailwindcss";
 @import "fumadocs-ui/css/neutral.css";
-@import "fumadocs-ui/css/preset.css";
+@import "fumadocs-ui/css/lib/base.css";
+@import "fumadocs-ui/css/lib/shiki.css";
+@import "fumadocs-ui/css/generated/docs.css";
+@import "fumadocs-ui/css/generated/home.css";
+@import "fumadocs-ui/css/generated/notebook.css";
+@import "fumadocs-ui/css/generated/flux.css";
+@import "fumadocs-ui/css/generated/shared.css";
 @import "./theme-tokens.css";
+@import "tailwindcss";
+
+@plugin "../../node_modules/fumadocs-ui/dist/tailwind/typography.js";
 
 * {
   box-sizing: border-box;
@@ -2008,9 +2016,6 @@ textarea {
 }
 
 .phase-mobile-review-bar {
-  position: sticky;
-  bottom: 0.85rem;
-  z-index: 20;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.6rem;
   border: 1px solid var(--shell-border);
