@@ -2,6 +2,14 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
+const acceptRpcMigration = readFileSync(
+  join(
+    process.cwd(),
+    "supabase/migrations/20260501000000_accept_project_invite_rpc.sql",
+  ),
+  "utf8",
+);
+
 const migration = readFileSync(
   join(
     process.cwd(),
@@ -61,6 +69,16 @@ describe("project collaboration schema migration", () => {
     );
     expect(migration).toContain("Cannot remove the last project owner");
     expect(migration).toContain("Cannot demote the last project owner");
+  });
+
+  it("defines the accept_project_invite RPC with a pending status guard", () => {
+    expect(acceptRpcMigration).toContain(
+      "create or replace function public.accept_project_invite",
+    );
+    expect(acceptRpcMigration).toContain("and pi.status = 'pending'");
+    expect(acceptRpcMigration).toContain(
+      "revoke all on function public.accept_project_invite",
+    );
   });
 
   it("keeps mutating policies aligned with viewer, editor, and owner roles", () => {

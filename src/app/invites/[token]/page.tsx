@@ -2,12 +2,36 @@ import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/projects/permissions.server";
 import { acceptInvite, getInviteDetails } from "@/lib/projects/invites.server";
 
+function InvalidInvitationPanel({ message }: { message: string }) {
+  return (
+    <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="max-w-md w-full p-8 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-center">
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
+          Invalid Invitation
+        </h1>
+        <p className="text-gray-600 dark:text-gray-400">{message}</p>
+        <div className="mt-8">
+          <a
+            href="/"
+            className="inline-flex justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500"
+          >
+            Return to Dashboard
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default async function InvitePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ token: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const token = (await params).token;
+  const { error: acceptError } = await searchParams;
   const userResult = await requireUser();
 
   if (!userResult.ok) {
@@ -17,26 +41,14 @@ export default async function InvitePage({
   const detailsResult = await getInviteDetails(token);
 
   if (!detailsResult.ok) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-md w-full p-8 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-center">
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
-            Invalid Invitation
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            {detailsResult.message}
-          </p>
-          <div className="mt-8">
-            <a
-              href="/"
-              className="inline-flex justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500"
-            >
-              Return to Dashboard
-            </a>
-          </div>
-        </div>
-      </div>
-    );
+    return <InvalidInvitationPanel message={detailsResult.message} />;
+  }
+
+  if (
+    !userResult.data.email ||
+    detailsResult.data.email.toLowerCase() !== userResult.data.email.toLowerCase()
+  ) {
+    return <InvalidInvitationPanel message="This invite was sent to a different email address." />;
   }
 
   const handleAccept = async () => {
@@ -59,6 +71,12 @@ export default async function InvitePage({
           You have been invited to join a project as a <strong>{detailsResult.data.role}</strong>.
         </p>
         
+        {acceptError ? (
+          <p className="mb-6 rounded-md bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-400">
+            {decodeURIComponent(acceptError)}
+          </p>
+        ) : null}
+
         <form action={handleAccept}>
           <button
             type="submit"
@@ -67,7 +85,6 @@ export default async function InvitePage({
             Accept Invitation
           </button>
         </form>
-        
       </div>
     </div>
   );
