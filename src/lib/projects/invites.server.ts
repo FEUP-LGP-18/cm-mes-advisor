@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { z } from "zod";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { requireProjectCapability, requireUser } from "./permissions.server";
 import { recordProjectActivity } from "./repository.server";
@@ -10,6 +11,8 @@ import {
   type ProjectResult,
   type ProjectRole,
 } from "./types";
+
+const emailSchema = z.string().email();
 
 const INVITE_EXPIRY_DAYS = 7;
 
@@ -65,8 +68,12 @@ export async function createInvite(
   const userId = userResult.data.id;
 
   const normalizedEmail = email.trim().toLowerCase();
-  if (!normalizedEmail || !normalizedEmail.includes("@")) {
-    return failure("validation_error", "Valid email is required.");
+  if (!emailSchema.safeParse(normalizedEmail).success) {
+    return failure("validation_error", "A valid email address is required.");
+  }
+
+  if (role !== "viewer" && role !== "editor" && role !== "owner") {
+    return failure("validation_error", "Role must be viewer, editor, or owner.");
   }
 
   const accessResult = await requireProjectCapability(
@@ -117,8 +124,16 @@ export async function createInvite(
     .single();
 
   if (error) {
-    return failure("validation_error", "Failed to create invite.");
+    return failure("internal_error", "Failed to create invite.");
   }
+
+  // Record activity
+  await recordProjectActivity(
+    projectId,
+    "invite_created",
+    { email: normalizedEmail, role },
+    userId,
+  );
 
   const inviteUrl = `${appUrl}/invites/${token}`;
   await sendInviteEmail(normalizedEmail, inviteUrl);
@@ -164,6 +179,14 @@ export async function revokeInvite(
   if (error || !data) {
     return failure("not_found", "Active invite not found.");
   }
+
+  // Record activity
+  await recordProjectActivity(
+    projectId,
+    "invite_revoked",
+    { email: data.email },
+    userId,
+  );
 
   return success(mapInviteRow(data as ProjectInviteRow));
 }
@@ -220,11 +243,23 @@ export async function resendInvite(
     .eq("project_id", projectId)
     .eq("status", "pending")
     .select(inviteSelect)
-    .single();
+    .maybeSingle();
 
   if (error) {
-    return failure("validation_error", "Failed to resend invite.");
+    return failure("internal_error", "Failed to resend invite.");
   }
+
+  if (!data) {
+    return failure("conflict", "Invite was modified before the resend could complete.");
+  }
+
+  // Record activity
+  await recordProjectActivity(
+    projectId,
+    "invite_resent",
+    { email: existingInvite.email },
+    userId,
+  );
 
   const inviteUrl = `${appUrl}/invites/${token}`;
   await sendInviteEmail(existingInvite.email, inviteUrl);
@@ -236,9 +271,9 @@ export async function getInviteDetails(
   token: string,
 ): Promise<ProjectResult<ProjectInvite>> {
   const hash = crypto.createHash("sha256").update(token).digest("hex");
-  const supabase = await createClient();
+  const adminClient = await createAdminClient();
 
-  const { data: invite, error } = await supabase
+  const { data: invite, error } = await adminClient
     .from("project_invites")
     .select(inviteSelect)
     .eq("token_hash", hash)
@@ -310,41 +345,20 @@ export async function acceptInvite(
     );
   }
 
-  // We use the admin client to bypass RLS because the user is not yet a member
-  // Use upsert to allow role upgrades if they are already a member (e.g. Viewer -> Owner)
-  const { error: membershipError } = await adminClient
-    .from("project_memberships")
-    .upsert(
-      {
-        project_id: invite.project_id,
-        user_id: user.id,
-        role: invite.role,
-        invited_by: invite.invited_by,
-      },
-      { onConflict: "project_id, user_id" }
-    );
+  // accept_project_invite RPC upserts the membership and marks the invite
+  // accepted in a single Postgres function call so both succeed or both roll back.
+  const { data: rows, error: acceptError } = await adminClient
+    .rpc("accept_project_invite", {
+      p_invite_id: invite.id,
+      p_user_id: user.id,
+    });
 
-  if (membershipError) {
-     console.error("Membership upsert error:", membershipError);
-     return failure("conflict", "Could not join or update project role.");
+  if (acceptError) {
+    console.error("Accept invite RPC error:", acceptError);
+    return failure("internal_error", "Failed to accept invite.");
   }
 
-  // Mark invite as accepted atomically to prevent race conditions
-  const { data: updatedInvite, error: updateError } = await adminClient
-    .from("project_invites")
-    .update({
-      accepted_at: new Date().toISOString(),
-      status: "accepted",
-    })
-    .eq("id", invite.id)
-    .eq("status", "pending")
-    .select(inviteSelect)
-    .maybeSingle();
-
-  if (updateError) {
-    return failure("validation_error", "Failed to accept invite.");
-  }
-
+  const updatedInvite = Array.isArray(rows) ? (rows[0] ?? null) : null;
   if (!updatedInvite) {
     return failure("conflict", "Invite has already been processed or is no longer pending.");
   }
@@ -354,7 +368,7 @@ export async function acceptInvite(
     .from("project_activity_events")
     .insert({
       actor_id: user.id,
-      event_payload: { role: invite.role },
+      event_payload: { email: invite.email, role: invite.role },
       event_type: "user_joined",
       project_id: invite.project_id,
     });
@@ -364,4 +378,39 @@ export async function acceptInvite(
   }
 
   return success(mapInviteRow(updatedInvite as ProjectInviteRow));
+}
+
+export async function listInvites(
+  projectId: string,
+): Promise<ProjectResult<ProjectInvite[]>> {
+  const userResult = await requireUser();
+  if (!userResult.ok) {
+    return userResult;
+  }
+  const userId = userResult.data.id;
+
+  const accessResult = await requireProjectCapability(
+    projectId,
+    "manage_project_members",
+  );
+  if (!accessResult.ok) {
+    return accessResult;
+  }
+  if (accessResult.data.id !== userId) {
+    return failure("forbidden", "Cannot access data for another user.");
+  }
+
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("project_invites")
+    .select(inviteSelect)
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    return failure("validation_error", "Failed to load invites.");
+  }
+
+  return success((data as ProjectInviteRow[]).map(mapInviteRow));
 }

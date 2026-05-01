@@ -15,7 +15,8 @@ export type ProjectResultStatus =
   | "forbidden"
   | "not_found"
   | "validation_error"
-  | "conflict";
+  | "conflict"
+  | "internal_error";
 
 export type ProjectSuccess<T> = {
   data: T;

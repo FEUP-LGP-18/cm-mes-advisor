@@ -1,16 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   AUTH_NOT_CONFIGURED_MESSAGE,
   mapSignUpError,
+  sanitizeAuthNextPath,
 } from "@/lib/supabase/auth-messages";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import AuthShell from "@/components/auth/auth-shell";
 
-export default function SignUpPage() {
+function SignUpForm() {
+  const searchParams = useSearchParams();
+  const next = sanitizeAuthNextPath(searchParams.get("next"));
   const supabaseConfigured = isSupabaseConfigured();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,11 +40,16 @@ export default function SignUpPage() {
     }
 
     const supabase = createClient();
+    const callbackUrl = new URL(`${window.location.origin}/auth/callback`);
+    if (next) {
+      callbackUrl.searchParams.set("next", next);
+    }
+
     const { error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: callbackUrl.toString(),
       },
     });
 
@@ -56,6 +65,7 @@ export default function SignUpPage() {
   }
 
   if (success) {
+    const loginLink = next ? `/login?next=${encodeURIComponent(next)}` : "/login";
     return (
       <AuthShell>
         <div className="w-full max-w-sm animate-enter">
@@ -72,7 +82,7 @@ export default function SignUpPage() {
               </p>
             </div>
             <Link
-              href="/login"
+              href={loginLink}
               className="focus-premium theme-button-primary w-full rounded-2xl px-5 py-3 text-sm font-semibold text-center transition"
             >
               Go to sign in
@@ -174,7 +184,7 @@ export default function SignUpPage() {
             <p className="text-center text-sm text-[color:var(--shell-muted)]">
               Already have an account?{" "}
               <Link
-                href="/login"
+                href={next ? `/login?next=${encodeURIComponent(next)}` : "/login"}
                 className="font-semibold text-[color:var(--shell-ink)] hover:text-[color:var(--brand-accent-soft)] transition-colors"
               >
                 Sign in
@@ -184,5 +194,13 @@ export default function SignUpPage() {
         </div>
       </div>
     </AuthShell>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense>
+      <SignUpForm />
+    </Suspense>
   );
 }
