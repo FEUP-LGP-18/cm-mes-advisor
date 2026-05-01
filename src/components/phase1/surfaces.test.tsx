@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   assembleDemoScript,
   createDefaultDemoScriptDraft,
@@ -18,6 +18,7 @@ import {
 import { getNextAction, getWorkflowProgress } from "@/lib/phase1/workflow";
 import ExportStudio from "./export-studio";
 import GenerateStudio from "./generate-studio";
+import Phase1Topbar from "./phase-topbar";
 import { ProjectCommandDesk } from "./project-home";
 import Phase1ProjectShell from "./project-shell";
 import ReviewStudio from "./review-studio";
@@ -35,6 +36,20 @@ function createProjectRecord() {
 }
 
 describe("phase 1 redesigned surfaces", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("does not show sign out in local mock mode without Supabase auth", () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "");
+
+    const html = render(<Phase1Topbar />);
+
+    expect(html).not.toContain("Sign out");
+    expect(html).toContain("MES Demo Advisor");
+  });
+
   it("renders the command desk empty state with one blunt starting action", () => {
     const html = render(
       <ProjectCommandDesk
