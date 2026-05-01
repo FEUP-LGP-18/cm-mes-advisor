@@ -458,6 +458,7 @@ export function Phase1ProjectProvider({
           },
           body: JSON.stringify({
             mode,
+            projectId: project.projectId,
             requirements: targetRequirements.map(
               toGenerationRequestRequirement,
             ),

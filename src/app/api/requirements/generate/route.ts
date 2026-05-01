@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireUser } from "../../../../lib/projects/permissions.server";
+import { requireProjectCapability } from "../../../../lib/projects/permissions.server";
 import { readRequirementGenerationServerConfig } from "../../../../lib/requirements/server/config";
 import { createRequirementGenerationProvider } from "../../../../lib/requirements/server/provider";
 import { parseRequirementGenerationRequestBody } from "../../../../lib/requirements/server/request";
@@ -10,17 +10,6 @@ import type {
 } from "../../../../lib/requirements/generation-api";
 
 export async function POST(request: Request) {
-  if (isSupabaseConfigured()) {
-    const userResult = await requireUser();
-    if (!userResult.ok) {
-      const body: RequirementGenerationRouteErrorBody = {
-        ok: false,
-        error: { code: "invalid-request", message: userResult.message },
-      };
-      return NextResponse.json(body, { status: 401 });
-    }
-  }
-
   let rawBody: unknown;
 
   try {
@@ -34,6 +23,22 @@ export async function POST(request: Request) {
   const parsedBody = parseRequirementGenerationRequestBody(rawBody);
   if (!parsedBody.ok) {
     return invalidRequestResponse(parsedBody.error.message);
+  }
+
+  if (isSupabaseConfigured()) {
+    const capabilityResult = await requireProjectCapability(
+      parsedBody.projectId,
+      "edit_project_state",
+    );
+    if (!capabilityResult.ok) {
+      const status = capabilityResult.status === "not_authenticated" ? 401 : 403;
+      const code = status === 401 ? "unauthorized" : "forbidden";
+      const body: RequirementGenerationRouteErrorBody = {
+        ok: false,
+        error: { code, message: capabilityResult.message },
+      };
+      return NextResponse.json(body, { status });
+    }
   }
 
   const config = readRequirementGenerationServerConfig();

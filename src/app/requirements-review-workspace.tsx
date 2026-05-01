@@ -494,6 +494,7 @@ export default function RequirementsReviewWorkspace({
           "content-type": "application/json",
         },
         body: JSON.stringify({
+          projectId: projectMetadata.projectId,
           requirements: targetRequirements.map(toGenerationRequestRequirement),
         }),
       });
