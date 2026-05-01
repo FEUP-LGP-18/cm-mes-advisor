@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/projects/permissions.server";
 import { acceptInvite, getInviteDetails } from "@/lib/projects/invites.server";
@@ -11,12 +12,12 @@ function InvalidInvitationPanel({ message }: { message: string }) {
         </h1>
         <p className="text-gray-600 dark:text-gray-400">{message}</p>
         <div className="mt-8">
-          <a
+          <Link
             href="/"
             className="inline-flex justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500"
           >
             Return to Dashboard
-          </a>
+          </Link>
         </div>
       </div>
     </div>

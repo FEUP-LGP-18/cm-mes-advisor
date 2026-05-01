@@ -60,7 +60,6 @@ describe("invites server module", () => {
       const eqEmail = vi.fn().mockReturnValue({ eq: eqStatus });
       const eqProjectId = vi.fn().mockReturnValue({ eq: eqEmail });
       const selectExisting = vi.fn().mockReturnValue({ eq: eqProjectId });
-      const fromExisting = vi.fn().mockReturnValue({ select: selectExisting });
 
       const single = vi.fn().mockResolvedValue({
         data: {
@@ -78,7 +77,6 @@ describe("invites server module", () => {
       });
       const selectInsert = vi.fn().mockReturnValue({ single });
       const insert = vi.fn().mockReturnValue({ select: selectInsert });
-      const fromInsert = vi.fn().mockReturnValue({ insert });
 
       createClientMock.mockResolvedValueOnce({
         from: vi.fn((table) => {
