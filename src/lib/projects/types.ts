@@ -15,7 +15,8 @@ export type ProjectResultStatus =
   | "forbidden"
   | "not_found"
   | "validation_error"
-  | "conflict";
+  | "conflict"
+  | "internal_error";
 
 export type ProjectSuccess<T> = {
   data: T;
@@ -33,6 +34,7 @@ export type ProjectResult<T> = ProjectFailure | ProjectSuccess<T>;
 
 export type CurrentUser = {
   email: string | null;
+  emailConfirmedAt: string | null;
   id: string;
 };
 
@@ -69,6 +71,22 @@ export type ProjectActivityEvent = {
   id: string;
   payload: unknown;
   projectId: string;
+};
+
+export type ProjectInviteStatus = "pending" | "accepted" | "revoked" | "expired";
+
+export type ProjectInvite = {
+  acceptedAt: string | null;
+  createdAt: string;
+  email: string;
+  expiresAt: string;
+  id: string;
+  invitedBy: string | null;
+  projectId: string;
+  revokedAt: string | null;
+  role: ProjectRole;
+  status: ProjectInviteStatus;
+  updatedAt: string;
 };
 
 export type CreateProjectInput = {

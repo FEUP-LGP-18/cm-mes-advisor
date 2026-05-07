@@ -130,6 +130,7 @@ export async function requireProjectCapability(
 function toCurrentUser(user: User): CurrentUser {
   return {
     email: user.email ?? null,
+    emailConfirmedAt: user.email_confirmed_at ?? null,
     id: user.id,
   };
 }

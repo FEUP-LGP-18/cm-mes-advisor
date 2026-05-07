@@ -1,7 +1,9 @@
+import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
 import { requireSupabasePublicConfig } from "./config";
+import { requireSupabaseServiceRoleConfig } from "./server-config";
 
 export async function createClient(response?: NextResponse) {
   const cookieStore = await cookies();
@@ -24,6 +26,25 @@ export async function createClient(response?: NextResponse) {
               // Called from a Server Component; middleware handles session refresh.
             }
           });
+        },
+      },
+    },
+  );
+}
+
+export async function createAdminClient() {
+  const { serviceRoleKey, url } = requireSupabaseServiceRoleConfig();
+
+  return createServerClient(
+    url,
+    serviceRoleKey,
+    {
+      cookies: {
+        getAll() {
+          return [];
+        },
+        setAll() {
+          // Admin client does not manage cookies
         },
       },
     },

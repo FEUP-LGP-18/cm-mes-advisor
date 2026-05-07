@@ -44,7 +44,7 @@ describe("POST /api/requirements/generate", () => {
     requireProjectCapabilityMock.mockResolvedValueOnce({
       ok: true,
       status: "success",
-      data: { id: "user1", email: "test@example.com" },
+      data: { id: "user1", email: "test@example.com", emailConfirmedAt: "2026-05-01T12:00:00.000Z" },
     });
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
@@ -81,7 +81,7 @@ describe("POST /api/requirements/generate", () => {
     requireProjectCapabilityMock.mockResolvedValueOnce({
       ok: true,
       status: "success",
-      data: { id: "user1", email: "test@example.com" },
+      data: { id: "user1", email: "test@example.com", emailConfirmedAt: "2026-05-01T12:00:00.000Z" },
     });
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
@@ -249,7 +249,7 @@ describe("POST /api/requirements/generate", () => {
     requireProjectCapabilityMock.mockResolvedValueOnce({
       ok: true,
       status: "success",
-      data: { id: "user1", email: "test@example.com" },
+      data: { id: "user1", email: "test@example.com", emailConfirmedAt: "2026-05-01T12:00:00.000Z" },
     });
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
