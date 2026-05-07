@@ -15,6 +15,7 @@ import Phase1ProjectShell from "./project-shell";
 import ReviewStudio from "./review-studio";
 import ScriptStudio from "./script-studio";
 import SourceStudio from "./source-studio";
+import { getMasterDataStepPath } from "@/lib/master-data/workflow";
 
 export default function Phase1ProjectStepRoute({
   initialGenerationAvailability = null,
@@ -212,6 +213,9 @@ export default function Phase1ProjectStepRoute({
           }
           onGoToScript={() =>
             router.push(getPhase1StepPath(project.projectId, "script"))
+          }
+          onOpenMasterData={() =>
+            router.push(getMasterDataStepPath(project.projectId, "setup"))
           }
           pendingReviewCount={generatedReviewableRequirements.length}
           projectMetadata={workspaceState.reviewState.project}

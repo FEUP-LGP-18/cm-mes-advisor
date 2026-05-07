@@ -24,22 +24,32 @@ import {
   type Phase1WorkflowStep,
   resolveLegacyPhase1WorkflowStep,
 } from "./workflow";
+import {
+  createInitialMasterDataPhase2State,
+  summarizeMasterDataObjects,
+  type MasterDataPhase2State,
+  type MasterDataWorkflowStep,
+} from "@/lib/master-data/types";
 
 export const PHASE1_PROJECT_REGISTRY_STORAGE_KEY =
-  "cm-mes-advisor:phase1-project-registry:v3";
+  "cm-mes-advisor:phase1-project-registry:v4";
 export const LEGACY_PHASE1_PROJECT_REGISTRY_STORAGE_KEY =
+  "cm-mes-advisor:phase1-project-registry:v3";
+const EARLIER_LEGACY_PHASE1_PROJECT_REGISTRY_STORAGE_KEY =
   "cm-mes-advisor:phase1-project-registry:v2";
-const EARLIER_PHASE1_PROJECT_REGISTRY_STORAGE_KEY =
+const EARLIEST_PHASE1_PROJECT_REGISTRY_STORAGE_KEY =
   "cm-mes-advisor:phase1-project-registry:v1";
 
 export interface Phase1ProjectRecord {
-  version: 3;
+  version: 4;
   projectId: string;
   projectName: string;
   customerName: string;
   createdAt: string;
   updatedAt: string;
+  activeFlow: "phase1" | "master-data";
   currentStep: Phase1WorkflowStep;
+  phase2: MasterDataPhase2State;
   workspaceState: RequirementsWorkspaceState;
   snapshot: Phase1ProjectSnapshot;
 }
@@ -48,10 +58,16 @@ export interface Phase1ProjectSnapshot extends Phase1WorkflowSnapshot {
   sourceFilename: string;
   sourceKind: RequirementsSourceMetadata["sourceKind"];
   sourceLabel: string;
+  phase2Active: boolean;
+  phase2ApprovedCount: number;
+  phase2CurrentStep: MasterDataWorkflowStep | null;
+  phase2ExportReady: boolean;
+  phase2NeedsReviewCount: number;
+  phase2ObjectCount: number;
 }
 
 export interface Phase1ProjectRegistry {
-  version: 3;
+  version: 4;
   activeProjectId: string | null;
   projects: Phase1ProjectRecord[];
 }
@@ -67,7 +83,7 @@ export function createPhase1ProjectRegistry(
   activeProjectId: string | null = projects[0]?.projectId ?? null,
 ): Phase1ProjectRegistry {
   return {
-    version: 3,
+    version: 4,
     activeProjectId,
     projects: sortProjects(projects),
   };
@@ -104,12 +120,28 @@ export function loadPhase1ProjectRegistry(
     }
 
     const earlierLegacyRawRegistry = storage.getItem(
-      EARLIER_PHASE1_PROJECT_REGISTRY_STORAGE_KEY,
+      EARLIER_LEGACY_PHASE1_PROJECT_REGISTRY_STORAGE_KEY,
     );
 
     if (earlierLegacyRawRegistry) {
       const normalized = normalizeProjectRegistry(
         JSON.parse(earlierLegacyRawRegistry),
+        fallbackWorkspaceState,
+      );
+
+      if (normalized.projects.length > 0) {
+        savePhase1ProjectRegistry(storage, normalized);
+        return normalized;
+      }
+    }
+
+    const earliestLegacyRawRegistry = storage.getItem(
+      EARLIEST_PHASE1_PROJECT_REGISTRY_STORAGE_KEY,
+    );
+
+    if (earliestLegacyRawRegistry) {
+      const normalized = normalizeProjectRegistry(
+        JSON.parse(earliestLegacyRawRegistry),
         fallbackWorkspaceState,
       );
 
@@ -164,7 +196,7 @@ export function upsertPhase1Project(
   nextProjects.push(project);
 
   return {
-    version: 3,
+    version: 4,
     activeProjectId: project.projectId,
     projects: sortProjects(nextProjects),
   };
@@ -183,8 +215,10 @@ export function setActivePhase1Project(
 export function createPhase1ProjectRecordFromWorkspaceState(
   workspaceState: RequirementsWorkspaceState,
   options?: {
+    activeFlow?: Phase1ProjectRecord["activeFlow"];
     createdAt?: string;
     currentStep?: Phase1WorkflowStep;
+    phase2?: MasterDataPhase2State;
     projectId?: string;
     updatedAt?: string;
   },
@@ -194,13 +228,16 @@ export function createPhase1ProjectRecordFromWorkspaceState(
   const currentStep =
     options?.currentStep ??
     getRecommendedWorkflowStep(summarizePhase1Workspace(workspaceState, false));
+  const phase2 = options?.phase2 ?? createInitialMasterDataPhase2State();
   const snapshot = summarizePhase1Workspace(
     workspaceState,
     currentStep === "script" || currentStep === "export",
+    phase2,
   );
 
   return {
-    version: 3,
+    version: 4,
+    activeFlow: options?.activeFlow ?? "phase1",
     projectId:
       options?.projectId ??
       createStablePhase1ProjectId(workspaceState.reviewState.project.projectId),
@@ -209,6 +246,7 @@ export function createPhase1ProjectRecordFromWorkspaceState(
     createdAt,
     updatedAt: options?.updatedAt ?? nowIso(),
     currentStep,
+    phase2,
     workspaceState,
     snapshot,
   };
@@ -220,8 +258,10 @@ export function updatePhase1ProjectRecord(
   currentStep = project.currentStep,
 ): Phase1ProjectRecord {
   return createPhase1ProjectRecordFromWorkspaceState(workspaceState, {
+    activeFlow: project.activeFlow,
     createdAt: project.createdAt,
     currentStep,
+    phase2: project.phase2,
     projectId: project.projectId,
     updatedAt: nowIso(),
   });
@@ -232,8 +272,47 @@ export function touchPhase1ProjectStep(
   currentStep: Phase1WorkflowStep,
 ): Phase1ProjectRecord {
   return createPhase1ProjectRecordFromWorkspaceState(project.workspaceState, {
+    activeFlow: "phase1",
     createdAt: project.createdAt,
     currentStep,
+    phase2: project.phase2,
+    projectId: project.projectId,
+    updatedAt: nowIso(),
+  });
+}
+
+export function touchMasterDataProjectStep(
+  project: Phase1ProjectRecord,
+  currentStep: MasterDataWorkflowStep,
+): Phase1ProjectRecord {
+  return createPhase1ProjectRecordFromWorkspaceState(project.workspaceState, {
+    activeFlow: "master-data",
+    createdAt: project.createdAt,
+    currentStep: project.currentStep,
+    phase2: {
+      ...project.phase2,
+      active: true,
+      currentStep,
+    },
+    projectId: project.projectId,
+    updatedAt: nowIso(),
+  });
+}
+
+export function updateMasterDataPhase2State(
+  project: Phase1ProjectRecord,
+  updater:
+    | MasterDataPhase2State
+    | ((currentState: MasterDataPhase2State) => MasterDataPhase2State),
+): Phase1ProjectRecord {
+  const nextPhase2 =
+    typeof updater === "function" ? updater(project.phase2) : updater;
+
+  return createPhase1ProjectRecordFromWorkspaceState(project.workspaceState, {
+    activeFlow: nextPhase2.active ? "master-data" : project.activeFlow,
+    createdAt: project.createdAt,
+    currentStep: project.currentStep,
+    phase2: nextPhase2,
     projectId: project.projectId,
     updatedAt: nowIso(),
   });
@@ -300,6 +379,7 @@ export function createFixtureWorkspaceStateForProject(
 export function summarizePhase1Workspace(
   workspaceState: RequirementsWorkspaceState,
   scriptVisited: boolean,
+  phase2: MasterDataPhase2State = createInitialMasterDataPhase2State(),
 ): Phase1ProjectSnapshot {
   const reviewRequirements = buildReviewRequirements(
     workspaceState.parsedRequirements,
@@ -319,6 +399,7 @@ export function summarizePhase1Workspace(
       requirement.generatedOutput.state === "mock-generated-draft" &&
       requirement.reviewStatus === "pending",
   ).length;
+  const masterDataSummary = summarizeMasterDataObjects(phase2.generatedObjects);
 
   return {
     sourceRowCount: reviewRequirements.length,
@@ -334,6 +415,14 @@ export function summarizePhase1Workspace(
       !demoScriptAssembly.emptyState &&
       summary.approvedCount > 0 &&
       generatedReviewableCount === 0,
+    phase2Active: phase2.active,
+    phase2ApprovedCount: masterDataSummary.approvedCount,
+    phase2CurrentStep: phase2.active ? phase2.currentStep : null,
+    phase2ExportReady:
+      masterDataSummary.objectCount > 0 &&
+      masterDataSummary.needsReviewCount === 0,
+    phase2NeedsReviewCount: masterDataSummary.needsReviewCount,
+    phase2ObjectCount: masterDataSummary.objectCount,
     sourceFilename: workspaceState.source.sourceFilename,
     sourceKind: workspaceState.source.sourceKind,
     sourceLabel: workspaceState.source.sourceLabel,
@@ -373,11 +462,11 @@ function createMigratedProjectRegistry(
     storage,
     fallbackWorkspaceState,
   );
-  const project = createPhase1ProjectRecordFromWorkspaceState(workspaceState, {
-    currentStep: getRecommendedWorkflowStep(
-      summarizePhase1Workspace(workspaceState, false),
-    ),
-  });
+    const project = createPhase1ProjectRecordFromWorkspaceState(workspaceState, {
+      currentStep: getRecommendedWorkflowStep(
+        summarizePhase1Workspace(workspaceState, false),
+      ),
+    });
   const registry = createPhase1ProjectRegistry([project], project.projectId);
 
   savePhase1ProjectRegistry(storage, registry);
@@ -422,7 +511,10 @@ function normalizeProjectRegistry(
 ): Phase1ProjectRegistry {
   if (
     !isRecord(value) ||
-    (value.version !== 1 && value.version !== 2 && value.version !== 3) ||
+    (value.version !== 1 &&
+      value.version !== 2 &&
+      value.version !== 3 &&
+      value.version !== 4) ||
     !Array.isArray(value.projects)
   ) {
     return createPhase1ProjectRegistry();
@@ -447,7 +539,10 @@ function normalizeProjectRecord(
 ): Phase1ProjectRecord | null {
   if (
     !isRecord(value) ||
-    (value.version !== 1 && value.version !== 2 && value.version !== 3)
+    (value.version !== 1 &&
+      value.version !== 2 &&
+      value.version !== 3 &&
+      value.version !== 4)
   ) {
     return null;
   }
@@ -474,10 +569,15 @@ function normalizeProjectRecord(
     getRecommendedWorkflowStep(snapshotWithoutScriptVisit),
     normalizedSnapshot,
   );
+  const phase2 = normalizePhase2State(value.phase2);
+  const activeFlow =
+    value.activeFlow === "master-data" && phase2.active ? "master-data" : "phase1";
 
   return createPhase1ProjectRecordFromWorkspaceState(workspaceState, {
+    activeFlow,
     createdAt: typeof value.createdAt === "string" ? value.createdAt : nowIso(),
     currentStep,
+    phase2,
     projectId:
       typeof value.projectId === "string" && value.projectId.length > 0
         ? value.projectId
@@ -535,8 +635,8 @@ function normalizeWorkspaceState(
 
 function normalizeWorkflowSnapshot(
   value: unknown,
-  fallbackSnapshot: Phase1WorkflowSnapshot,
-): Phase1WorkflowSnapshot {
+  fallbackSnapshot: Phase1ProjectSnapshot,
+): Phase1ProjectSnapshot {
   if (!isRecord(value)) {
     return fallbackSnapshot;
   }
@@ -582,6 +682,157 @@ function normalizeWorkflowSnapshot(
       typeof value.exportReady === "boolean"
         ? value.exportReady
         : fallbackSnapshot.exportReady,
+    phase2Active:
+      typeof value.phase2Active === "boolean"
+        ? value.phase2Active
+        : fallbackSnapshot.phase2Active,
+    phase2ApprovedCount:
+      typeof value.phase2ApprovedCount === "number"
+        ? value.phase2ApprovedCount
+        : fallbackSnapshot.phase2ApprovedCount,
+    phase2CurrentStep: isMasterDataWorkflowStep(value.phase2CurrentStep)
+      ? value.phase2CurrentStep
+      : fallbackSnapshot.phase2CurrentStep,
+    phase2ExportReady:
+      typeof value.phase2ExportReady === "boolean"
+        ? value.phase2ExportReady
+        : fallbackSnapshot.phase2ExportReady,
+    phase2NeedsReviewCount:
+      typeof value.phase2NeedsReviewCount === "number"
+        ? value.phase2NeedsReviewCount
+        : fallbackSnapshot.phase2NeedsReviewCount,
+    phase2ObjectCount:
+      typeof value.phase2ObjectCount === "number"
+        ? value.phase2ObjectCount
+        : fallbackSnapshot.phase2ObjectCount,
+    sourceFilename:
+      typeof value.sourceFilename === "string"
+        ? value.sourceFilename
+        : fallbackSnapshot.sourceFilename,
+    sourceKind:
+      value.sourceKind === "upload" || value.sourceKind === "fixture"
+        ? value.sourceKind
+        : fallbackSnapshot.sourceKind,
+    sourceLabel:
+      typeof value.sourceLabel === "string"
+        ? value.sourceLabel
+        : fallbackSnapshot.sourceLabel,
+  };
+}
+
+function normalizePhase2State(value: unknown): MasterDataPhase2State {
+  const fallbackState = createInitialMasterDataPhase2State();
+
+  if (!isRecord(value) || value.version !== 1) {
+    return fallbackState;
+  }
+
+  const selectedObjectTypes = Array.isArray(value.selectedObjectTypes)
+    ? value.selectedObjectTypes.filter(isMasterDataObjectType)
+    : fallbackState.selectedObjectTypes;
+  const generatedObjects = normalizeMasterDataGeneratedObjects(
+    value.generatedObjects,
+  );
+
+  return {
+    version: 1,
+    active: typeof value.active === "boolean" ? value.active : fallbackState.active,
+    currentStep: isMasterDataWorkflowStep(value.currentStep)
+      ? value.currentStep
+      : fallbackState.currentStep,
+    mode: value.mode === "mock" ? "mock" : "real",
+    applicableRequirements: Array.isArray(value.applicableRequirements)
+      ? (value.applicableRequirements.filter(
+          isRecord,
+        ) as unknown as MasterDataPhase2State["applicableRequirements"])
+      : fallbackState.applicableRequirements,
+    selectedRequirementKeys: Array.isArray(value.selectedRequirementKeys)
+      ? value.selectedRequirementKeys.filter(
+          (entry): entry is string => typeof entry === "string",
+        )
+      : fallbackState.selectedRequirementKeys,
+    selectedObjectTypes:
+      selectedObjectTypes.length > 0
+        ? selectedObjectTypes
+        : fallbackState.selectedObjectTypes,
+    generationStatus:
+      value.generationStatus === "running" ||
+      value.generationStatus === "ready" ||
+      value.generationStatus === "error"
+        ? value.generationStatus
+        : fallbackState.generationStatus,
+    generationFeedback:
+      typeof value.generationFeedback === "string" ||
+      value.generationFeedback === null
+        ? value.generationFeedback
+        : fallbackState.generationFeedback,
+    generatedAt:
+      typeof value.generatedAt === "string" || value.generatedAt === null
+        ? value.generatedAt
+        : fallbackState.generatedAt,
+    generationLogs: Array.isArray(value.generationLogs)
+      ? (value.generationLogs.filter(
+          isRecord,
+        ) as unknown as MasterDataPhase2State["generationLogs"])
+      : fallbackState.generationLogs,
+    generatedObjects,
+    traceability: Array.isArray(value.traceability)
+      ? (value.traceability.filter(
+          isRecord,
+        ) as unknown as MasterDataPhase2State["traceability"])
+      : fallbackState.traceability,
+    exportSummary:
+      isRecord(value.exportSummary) || value.exportSummary === null
+        ? (value.exportSummary as MasterDataPhase2State["exportSummary"])
+        : fallbackState.exportSummary,
+  };
+}
+
+function normalizeMasterDataGeneratedObjects(
+  value: unknown,
+): MasterDataPhase2State["generatedObjects"] {
+  const fallback = createInitialMasterDataPhase2State().generatedObjects;
+
+  if (!isRecord(value)) {
+    return fallback;
+  }
+
+  return {
+    enterprise: Array.isArray(value.enterprise)
+      ? (value.enterprise.filter(
+          isRecord,
+        ) as unknown as MasterDataPhase2State["generatedObjects"]["enterprise"])
+      : [],
+    site: Array.isArray(value.site)
+      ? (value.site.filter(
+          isRecord,
+        ) as unknown as MasterDataPhase2State["generatedObjects"]["site"])
+      : [],
+    facility: Array.isArray(value.facility)
+      ? (value.facility.filter(
+          isRecord,
+        ) as unknown as MasterDataPhase2State["generatedObjects"]["facility"])
+      : [],
+    area: Array.isArray(value.area)
+      ? (value.area.filter(
+          isRecord,
+        ) as unknown as MasterDataPhase2State["generatedObjects"]["area"])
+      : [],
+    resource: Array.isArray(value.resource)
+      ? (value.resource.filter(
+          isRecord,
+        ) as unknown as MasterDataPhase2State["generatedObjects"]["resource"])
+      : [],
+    product: Array.isArray(value.product)
+      ? (value.product.filter(
+          isRecord,
+        ) as unknown as MasterDataPhase2State["generatedObjects"]["product"])
+      : [],
+    material: Array.isArray(value.material)
+      ? (value.material.filter(
+          isRecord,
+        ) as unknown as MasterDataPhase2State["generatedObjects"]["material"])
+      : [],
   };
 }
 
@@ -712,6 +963,30 @@ function isWorkflowStep(value: unknown): value is Phase1WorkflowStep {
     value === "review" ||
     value === "script" ||
     value === "export"
+  );
+}
+
+function isMasterDataWorkflowStep(
+  value: unknown,
+): value is MasterDataWorkflowStep {
+  return (
+    value === "setup" ||
+    value === "process" ||
+    value === "review" ||
+    value === "export" ||
+    value === "traceability"
+  );
+}
+
+function isMasterDataObjectType(value: unknown) {
+  return (
+    value === "enterprise" ||
+    value === "site" ||
+    value === "facility" ||
+    value === "area" ||
+    value === "resource" ||
+    value === "product" ||
+    value === "material"
   );
 }
 

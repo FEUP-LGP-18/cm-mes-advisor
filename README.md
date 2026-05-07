@@ -1,14 +1,22 @@
 # Critical Manufacturing MES Demo Advisor
 
-Consultant-facing Phase 1 workspace for turning customer requirements Excel workbooks into reviewable MES demo outputs.
+Consultant-facing MES workspace for turning customer requirements Excel workbooks into reviewable demo outputs, with an optional Phase 2 continuation for Master Data package generation.
 
-The current product direction is project-based and route-based:
+The current product direction is project-based and route-based. Phase 1 remains the primary finish line:
 
 - `source`
 - `generate`
 - `review`
 - `script`
 - `export`
+
+Optional Phase 2 continuation lives under:
+
+- `master-data/setup`
+- `master-data/process`
+- `master-data/review`
+- `master-data/export`
+- `master-data/traceability`
 
 Mock generation is the default so teammates can run the app locally without partner credentials. Real grounded generation is implemented behind the server route boundary, but live validation is still blocked by partner Bedrock access.
 
@@ -20,6 +28,7 @@ Mock generation is the default so teammates can run the app locally without part
 - Generates draft requirement comments and demo guidance through the server-side generation route.
 - Supports consultant review, approval, and script shaping before export.
 - Downloads a separate Markdown Phase 1 handoff document.
+- Supports an optional Phase 2 continuation that analyzes approved requirements, drafts MES Master Data objects, preserves traceability, and exports a workbook-centered package.
 
 ## Phase 1 Scope
 
@@ -35,11 +44,10 @@ Output:
 - demo guidance for selected requirements
 - separate Markdown demo document
 
-Phase 2 Master Data generation is not required to complete Phase 1 in this repo.
+Phase 2 Master Data generation remains optional and is not required to finish a valid Phase 1 handoff.
 
 ## Non-Goals
 
-- Phase 2 Master Data generation
 - direct LibreChat product shell
 - broad unstructured document ingestion
 - browser-exposed Bedrock, AWS, MCP, or MES credentials
@@ -54,6 +62,14 @@ The current routed Phase 1 flow lives under `src/app/projects/[projectId]/`:
 3. `review`: approve, flag, skip, or edit generated output
 4. `script`: shape the assembled consultant-facing narrative
 5. `export`: download the Markdown handoff
+
+Optional Phase 2 continuation lives under `src/app/projects/[projectId]/master-data/`:
+
+1. `setup`: analyze applicable requirements and select object types
+2. `process`: generate Master Data drafts with template-backed defaults
+3. `review`: edit and approve generated objects
+4. `export`: download the Master Data package
+5. `traceability`: inspect the requirement-to-object audit trail
 
 The top-level home screen creates or reopens local projects. Project state is stored locally so a teammate can continue where the last review stopped.
 
@@ -158,8 +174,8 @@ Real mode requires the server-side values shown in [`.env.example`](.env.example
 Current status:
 
 - mock mode is the safe default and should work for normal teammate onboarding
-- real mode is implemented, but live validation is still blocked by partner credential access
-- see [docs/discovery/phase-1-real-mode-validation-2026-04-20.md](docs/discovery/phase-1-real-mode-validation-2026-04-20.md)
+- real mode is implemented for both requirement generation and Phase 2 Master Data generation
+- use the existing validation notes in `docs/discovery/` for partner-stack history and retest evidence
 
 ## Quality Commands
 

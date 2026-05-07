@@ -75,7 +75,7 @@ describe("phase 1 project registry", () => {
     const registry = loadPhase1ProjectRegistry(storage, fallbackWorkspaceState);
 
     expect(registry).toMatchObject({
-      version: 3,
+      version: 4,
       activeProjectId: null,
       projects: [],
     });
@@ -144,7 +144,7 @@ describe("phase 1 project registry", () => {
     storage.setItem(
       PHASE1_PROJECT_REGISTRY_STORAGE_KEY,
       JSON.stringify({
-        version: 3,
+        version: 4,
         activeProjectId: project.projectId,
         projects: [project],
       }),
@@ -155,6 +155,9 @@ describe("phase 1 project registry", () => {
     expect(registry.projects).toHaveLength(1);
     expect(registry.projects[0]).toMatchObject({
       projectId: "pilot-review-project",
+      phase2: {
+        active: false,
+      },
       currentStep: "review",
       workspaceState: {
         source: {
@@ -206,7 +209,7 @@ describe("phase 1 project registry", () => {
 
     expect(registry.projects).toHaveLength(1);
     expect(registry.projects[0]).toMatchObject({
-      version: 3,
+      version: 4,
       projectId: "legacy-script-project",
       currentStep: "script",
       workspaceState: {
@@ -217,7 +220,7 @@ describe("phase 1 project registry", () => {
       },
     });
     expect(storage.getItem(PHASE1_PROJECT_REGISTRY_STORAGE_KEY)).toContain(
-      '"version":3',
+      '"version":4',
     );
   });
 
@@ -275,7 +278,7 @@ describe("phase 1 project registry", () => {
 
     expect(registry.projects).toHaveLength(1);
     expect(registry.projects[0]).toMatchObject({
-      version: 3,
+      version: 4,
       currentStep: "generate",
       workspaceState: {
         source: {
@@ -352,11 +355,11 @@ describe("phase 1 project registry", () => {
     const registry = loadPhase1ProjectRegistry(storage, fallbackWorkspaceState);
 
     expect(registry.projects[0]).toMatchObject({
-      version: 3,
+      version: 4,
       currentStep: "export",
     });
     expect(storage.getItem(PHASE1_PROJECT_REGISTRY_STORAGE_KEY)).toContain(
-      '"version":3',
+      '"version":4',
     );
   });
 

@@ -7,10 +7,10 @@ This is the current-state source of truth for the GitHub repo. Use this before r
 ## Product Summary
 
 - Product: Critical Manufacturing MES Demo Advisor
-- Current repo scope: Phase 1 only
+- Current repo scope: Phase 1 plus optional Phase 2 continuation
 - Primary users: Critical Manufacturing consultants and pre-sales engineers
 - Input: customer requirements Excel workbook
-- Output: consultant-reviewed requirement comments, demo guidance, and a separate Markdown demo document
+- Output: consultant-reviewed requirement comments, demo guidance, a separate Markdown demo document, and an optional Master Data package continuation
 
 The current product direction is a project-based, route-based workflow. A user starts from project home, opens a project, then moves through:
 
@@ -19,6 +19,14 @@ The current product direction is a project-based, route-based workflow. A user s
 3. `review`
 4. `script`
 5. `export`
+
+Optional continuation after export:
+
+6. `master-data/setup`
+7. `master-data/process`
+8. `master-data/review`
+9. `master-data/export`
+10. `master-data/traceability`
 
 ## Scope Boundaries
 
@@ -35,7 +43,6 @@ In scope now:
 
 Out of scope unless explicitly requested:
 
-- Phase 2 Master Data generation
 - direct LibreChat product UI
 - broad unstructured document ingestion
 - client-side exposure of partner or cloud credentials
@@ -54,12 +61,13 @@ Out of scope unless explicitly requested:
 - Requirements domain: parsing, review, generation, validation, and export in `src/lib/requirements/`
 - Generation boundary: `src/app/api/requirements/generate/route.ts`
 - Default fixture: `fixtures/customer-x-functional-requirements.xlsx`
+- Phase 2 template fixture: `fixtures/master-data-sample.xlsx`
 
 Important implementation truths:
 
 - the project, not the raw workbook screen, is the current top-level UX object
 - workbook upload exists alongside the committed sample workbook
-- export is Markdown today
+- export is Markdown for Phase 1 and a workbook-centered ZIP package for Phase 2
 - mock mode is the safe default path for teammates
 - real mode depends on server-side environment config and partner access
 
@@ -77,7 +85,7 @@ What is effectively present in the repo:
 
 What is still blocked:
 
-- fully validated direct real-mode generation against partner Bedrock access
+- manual MES-side validation of the generated Phase 2 package format
 
 Reference:
 
@@ -91,8 +99,8 @@ Reference:
 - Read `AGENTS.md` for coding and scope guardrails.
 - Use `.nvmrc` and `package.json` as the source of truth for local runtime and commands.
 - Use `.env.example` only for placeholder names and safe example values.
-- Do not mark Phase 2 as shipped or required to finish Phase 1.
-- Do not claim real generation is fully validated while the external blocker note still stands.
+- Do not present Phase 2 as mandatory for a successful Phase 1 workflow.
+- Do not claim the generated Phase 2 package is MES-validated until the manual import pass is complete.
 
 ## Supporting Sources And History
 

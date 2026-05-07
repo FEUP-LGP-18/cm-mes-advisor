@@ -176,6 +176,10 @@ describe("bedrock requirement generation client", () => {
 
     expect(sendMock).toHaveBeenCalledTimes(1);
     expect(sendMock.mock.calls[0]?.[0]).toMatchObject({
+      inferenceConfig: {
+        maxTokens: 1200,
+        temperature: 0.1,
+      },
       system: [
         {
           text: expect.stringContaining(
@@ -195,6 +199,9 @@ describe("bedrock requirement generation client", () => {
         },
       ],
     });
+    expect(sendMock.mock.calls[0]?.[0]?.inferenceConfig).not.toHaveProperty(
+      "topP",
+    );
   });
 
   it("raises a format error when the model response is not valid JSON", async () => {

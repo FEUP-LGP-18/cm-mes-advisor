@@ -9,6 +9,7 @@ interface ExportStudioProps {
   exportReady: boolean;
   onGoToReview: () => void;
   onGoToScript: () => void;
+  onOpenMasterData: () => void;
   pendingReviewCount: number;
   projectMetadata: ReviewProjectMetadata;
 }
@@ -18,6 +19,7 @@ export default function ExportStudio({
   exportReady,
   onGoToReview,
   onGoToScript,
+  onOpenMasterData,
   pendingReviewCount,
   projectMetadata,
 }: ExportStudioProps) {
@@ -43,6 +45,30 @@ export default function ExportStudio({
         pendingReviewCount={pendingReviewCount}
         projectMetadata={projectMetadata}
       />
+
+      <section className="phase-section-card">
+        <div className="phase-toolbar">
+          <div className="phase-toolbar-copy">
+            <p className="phase-overline">Optional continuation</p>
+            <h3 className="phase-section-title">
+              Continue into Master Data generation when Phase 1 is complete.
+            </h3>
+            <p className="phase-section-body">
+              Phase 1 remains a valid finish line on its own. Move into Phase 2
+              only when the team wants a reviewable MES Master Data package for
+              the selected demo scope.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onOpenMasterData}
+            className="focus-premium theme-shell-button-secondary rounded-2xl px-5 py-3 text-sm font-semibold transition"
+          >
+            Generate Master Data
+          </button>
+        </div>
+      </section>
     </section>
   );
 }
