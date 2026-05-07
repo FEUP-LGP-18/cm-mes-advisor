@@ -2,11 +2,15 @@ import { describe, expect, it } from "vitest";
 import { phaseOneScope } from "./project-scope";
 
 describe("phaseOneScope", () => {
-  it("keeps the Epic 0 baseline focused on the Excel-first MVP", () => {
-    expect(phaseOneScope.mode).toBe("Excel-first");
+  it("keeps the product scope centered on the Excel-first workflow with optional Phase 2 continuation", () => {
+    expect(phaseOneScope.mode).toBe(
+      "Excel-first with optional Master Data continuation",
+    );
     expect(phaseOneScope.fixturePath).toBe(
       "fixtures/customer-x-functional-requirements.xlsx",
     );
-    expect(phaseOneScope.excluded).toContain("Phase 2 Master Data generation");
+    expect(phaseOneScope.included).toContain(
+      "Optional Phase 2 Master Data continuation",
+    );
   });
 });

@@ -2,9 +2,9 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { getProjectResumePath } from "@/lib/master-data/workflow";
 import {
   getLegacyPhase1StepRedirectPath,
-  getPhase1StepPath,
 } from "@/lib/phase1/workflow";
 import { usePhase1Project } from "./project-provider";
 
@@ -28,7 +28,7 @@ export default function Phase1ProjectStepRedirect({
 
     const nextPath =
       mode === "current"
-        ? getPhase1StepPath(project.projectId, project.currentStep)
+        ? getProjectResumePath(project)
         : getLegacyPhase1StepRedirectPath(
             project.projectId,
             mode,

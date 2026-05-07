@@ -134,7 +134,6 @@ export function createBedrockRequirementGenerationClient({
         inferenceConfig: {
           maxTokens: 1200,
           temperature: 0.1,
-          topP: 0.9,
         },
         system: [
           {

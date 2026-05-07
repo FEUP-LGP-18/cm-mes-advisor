@@ -283,6 +283,7 @@ describe("phase 1 redesigned surfaces", () => {
         exportReady
         onGoToReview={vi.fn()}
         onGoToScript={vi.fn()}
+        onOpenMasterData={vi.fn()}
         pendingReviewCount={0}
         projectMetadata={phase1UiFixtureProjectMetadata}
       />,

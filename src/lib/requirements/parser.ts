@@ -1,4 +1,5 @@
 import type { Cell, CellValue, Row, Worksheet } from "exceljs";
+import { createExcelJsWorkbook } from "@/lib/exceljs";
 import type { ParsedRequirement, RequirementsSummary } from "./types";
 
 export const REQUIREMENTS_SHEET_NAME = "Requirements";
@@ -34,8 +35,7 @@ export type { ParsedRequirement, RequirementsSummary } from "./types";
 export async function parseRequirementsWorkbook(
   workbookData: ArrayBuffer | Uint8Array,
 ): Promise<ParsedRequirement[]> {
-  const { Workbook } = await import("exceljs");
-  const workbook = new Workbook();
+  const workbook = await createExcelJsWorkbook();
   await workbook.xlsx.load(
     workbookData as unknown as Parameters<typeof workbook.xlsx.load>[0],
   );

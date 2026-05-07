@@ -88,7 +88,7 @@ export function serializeDemoScriptToMarkdown({
   appendSectionHeading(lines, "Phase 1 Notes");
   appendParagraph(
     lines,
-    "Phase 2 Master Data remains optional and future-facing; it is not required to complete this Phase 1 export.",
+    "Phase 2 Master Data is an optional continuation after this export; it is not required to complete the Phase 1 handoff.",
   );
 
   return lines
