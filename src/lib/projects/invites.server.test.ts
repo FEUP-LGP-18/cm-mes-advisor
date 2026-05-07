@@ -154,6 +154,70 @@ describe("invites server module", () => {
       expect(requireProjectCapabilityMock).not.toHaveBeenCalled();
       expect(createClientMock).not.toHaveBeenCalled();
     });
+
+    it("returns validation_error when the email is missing", async () => {
+      requireUserMock.mockResolvedValueOnce({
+        data: { email: "owner@example.com", emailConfirmedAt: "2026-05-01T12:00:00.000Z", id: userId },
+        ok: true,
+        status: "success",
+      });
+
+      const result = await createInvite(projectId, undefined as never, "editor", appUrl);
+
+      expect(result.ok).toBe(false);
+      expect(result.status).toBe("validation_error");
+      expect(requireProjectCapabilityMock).not.toHaveBeenCalled();
+      expect(createClientMock).not.toHaveBeenCalled();
+    });
+
+    it("returns conflict when a duplicate pending invite wins the insert race", async () => {
+      requireUserMock.mockResolvedValueOnce({
+        data: { email: "owner@example.com", emailConfirmedAt: "2026-05-01T12:00:00.000Z", id: userId },
+        ok: true,
+        status: "success",
+      });
+      requireProjectCapabilityMock.mockResolvedValueOnce({
+        data: { email: "owner@example.com", emailConfirmedAt: "2026-05-01T12:00:00.000Z", id: userId },
+        ok: true,
+        status: "success",
+      });
+
+      const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+      const eqStatus = vi.fn().mockReturnValue({ maybeSingle });
+      const eqEmail = vi.fn().mockReturnValue({ eq: eqStatus });
+      const eqProjectId = vi.fn().mockReturnValue({ eq: eqEmail });
+      const selectExisting = vi.fn().mockReturnValue({ eq: eqProjectId });
+
+      const single = vi.fn().mockResolvedValue({
+        data: null,
+        error: {
+          code: "23505",
+          message: "duplicate key value violates unique constraint",
+        },
+      });
+      const selectInsert = vi.fn().mockReturnValue({ single });
+      const insert = vi.fn().mockReturnValue({ select: selectInsert });
+
+      createClientMock.mockResolvedValueOnce({
+        from: vi.fn((table) => {
+          if (table === "project_invites") {
+            return {
+              insert,
+              select: selectExisting,
+            };
+          }
+        }),
+      } as unknown as Awaited<ReturnType<typeof createClient>>);
+
+      const result = await createInvite(projectId, email, "editor", appUrl);
+
+      expect(result.ok).toBe(false);
+      expect(result.status).toBe("conflict");
+      expect(result).toMatchObject({
+        message: "A pending invite already exists for this email.",
+      });
+      expect(sendInviteEmailMock).not.toHaveBeenCalled();
+    });
   });
 
   describe("acceptInvite", () => {

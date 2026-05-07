@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createInvite, listInvites } from "@/lib/projects/invites.server";
+import type { ProjectRole } from "@/lib/projects/types";
 
 function toHttpStatus(status: string): number {
   if (status === "forbidden") return 403;
@@ -37,11 +38,26 @@ export async function POST(
 ) {
   try {
     const { projectId } = await params;
-    const body = await request.json();
+    let body: Record<string, unknown>;
+
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid JSON body." },
+        { status: 400 },
+      );
+    }
+
     const { email, role } = body;
 
     const origin = new URL(request.url).origin;
-    const result = await createInvite(projectId, email, role, origin);
+    const result = await createInvite(
+      projectId,
+      email as string,
+      role as ProjectRole,
+      origin,
+    );
 
     if (result.ok) {
       return NextResponse.json(result.data, { status: 201 });

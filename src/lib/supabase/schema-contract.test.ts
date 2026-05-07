@@ -75,10 +75,25 @@ describe("project collaboration schema migration", () => {
     expect(acceptRpcMigration).toContain(
       "create or replace function public.accept_project_invite",
     );
-    expect(acceptRpcMigration).toContain("and pi.status = 'pending'");
+    expect(acceptRpcMigration).toContain("and status = 'pending'");
     expect(acceptRpcMigration).toContain(
       "revoke all on function public.accept_project_invite",
     );
+  });
+
+  it("accepts invites by claiming the pending invite before writing membership", () => {
+    const normalizedMigration = acceptRpcMigration.toLowerCase();
+    const inviteUpdateIndex = normalizedMigration.indexOf(
+      "update public.project_invites",
+    );
+    const membershipInsertIndex = normalizedMigration.indexOf(
+      "insert into public.project_memberships",
+    );
+
+    expect(normalizedMigration).toContain("with accepted_invite as");
+    expect(inviteUpdateIndex).toBeGreaterThanOrEqual(0);
+    expect(membershipInsertIndex).toBeGreaterThanOrEqual(0);
+    expect(inviteUpdateIndex).toBeLessThan(membershipInsertIndex);
   });
 
   it("keeps mutating policies aligned with viewer, editor, and owner roles", () => {

@@ -184,4 +184,19 @@ describe("POST /api/projects/[projectId]/invites", () => {
 
     expect(response.status).toBe(500);
   });
+
+  it("returns 400 when the request body is malformed JSON", async () => {
+    const response = await POST(
+      new Request(`http://localhost/api/projects/${projectId}/invites`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{",
+      }),
+      { params },
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "Invalid JSON body." });
+    expect(createInviteMock).not.toHaveBeenCalled();
+  });
 });

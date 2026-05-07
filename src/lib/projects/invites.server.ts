@@ -30,6 +30,11 @@ type ProjectInviteRow = {
   updated_at: string;
 };
 
+type SupabaseError = {
+  code?: string;
+  message?: string;
+};
+
 const inviteSelect =
   "id,project_id,email,role,status,invited_by,expires_at,accepted_at,revoked_at,created_at,updated_at";
 
@@ -66,6 +71,10 @@ export async function createInvite(
     return userResult;
   }
   const userId = userResult.data.id;
+
+  if (typeof email !== "string") {
+    return failure("validation_error", "A valid email address is required.");
+  }
 
   const normalizedEmail = email.trim().toLowerCase();
   if (!emailSchema.safeParse(normalizedEmail).success) {
@@ -124,6 +133,10 @@ export async function createInvite(
     .single();
 
   if (error) {
+    if (isUniqueViolation(error)) {
+      return failure("conflict", "A pending invite already exists for this email.");
+    }
+
     return failure("internal_error", "Failed to create invite.");
   }
 
@@ -413,4 +426,8 @@ export async function listInvites(
   }
 
   return success((data as ProjectInviteRow[]).map(mapInviteRow));
+}
+
+function isUniqueViolation(error: SupabaseError) {
+  return error.code === "23505";
 }

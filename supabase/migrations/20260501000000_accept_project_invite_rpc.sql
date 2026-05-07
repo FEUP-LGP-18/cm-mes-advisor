@@ -1,6 +1,6 @@
--- Atomic invite acceptance: upserts the membership and marks the invite
--- accepted in a single function call so a partial failure cannot leave
--- the invite pending after the membership row already exists.
+-- Atomic invite acceptance: first claims the pending invite, then upserts
+-- membership from the claimed row so a concurrent revoke/accept cannot leave
+-- a membership behind after returning a conflict.
 
 create or replace function public.accept_project_invite(
   p_invite_id uuid,
@@ -12,27 +12,32 @@ security definer
 set search_path = public
 as $$
 begin
-  -- Upsert membership derived from the invite; also handles role upgrades
-  -- (e.g. Viewer already in project is re-invited as Owner).
-  insert into public.project_memberships (project_id, user_id, role, invited_by)
-  select pi.project_id, p_user_id, pi.role, pi.invited_by
-  from public.project_invites pi
-  where pi.id = p_invite_id
-    and pi.status = 'pending'
-  on conflict (project_id, user_id) do update
-    set role = excluded.role,
-        updated_at = now();
-
-  -- Mark the invite accepted only if it is still pending.
-  -- If it was revoked or accepted concurrently, the update matches zero rows
-  -- and the function returns an empty set, which the caller treats as conflict.
   return query
-  update public.project_invites
-  set status = 'accepted',
-      accepted_at = now()
-  where id = p_invite_id
-    and status = 'pending'
-  returning *;
+  with accepted_invite as (
+    update public.project_invites
+    set status = 'accepted',
+        accepted_at = now()
+    where id = p_invite_id
+      and status = 'pending'
+    returning *
+  ),
+  membership_upsert as (
+    -- Upsert membership derived from the claimed invite; also handles role
+    -- upgrades (e.g. Viewer already in project is re-invited as Owner).
+    insert into public.project_memberships (project_id, user_id, role, invited_by)
+    select ai.project_id, p_user_id, ai.role, ai.invited_by
+    from accepted_invite ai
+    on conflict (project_id, user_id) do update
+      set role = excluded.role,
+          updated_at = now()
+    returning project_id
+  )
+  select ai.*
+  from accepted_invite ai
+  where exists (
+    select 1
+    from membership_upsert
+  );
 end;
 $$;
 
