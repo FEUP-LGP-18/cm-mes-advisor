@@ -1,75 +1,18 @@
 "use client";
 
-import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import type { RequirementGenerationAvailabilityBody } from "@/lib/requirements/generation-api";
-import {
-  getAllowedWorkflowStep,
-  getPhase1StepPath,
-  type Phase1WorkflowStep,
-} from "@/lib/phase1/workflow";
-import ExportStudio from "./export-studio";
-import GenerateStudio from "./generate-studio";
+import type { Phase1WorkflowStep } from "@/lib/phase1/workflow";
 import { usePhase1Project } from "./project-provider";
-import Phase1ProjectShell from "./project-shell";
-import ReviewStudio from "./review-studio";
-import ScriptStudio from "./script-studio";
-import SourceStudio from "./source-studio";
-import { getMasterDataStepPath } from "@/lib/master-data/workflow";
+import Phase1Topbar from "./phase-topbar";
 
 export default function Phase1ProjectStepRoute({
-  initialGenerationAvailability = null,
-  step,
+  step: _step,
 }: {
-  initialGenerationAvailability?: RequirementGenerationAvailabilityBody | null;
+  initialGenerationAvailability?: unknown;
   step: Phase1WorkflowStep;
 }) {
   const router = useRouter();
-  const {
-    currentSourceMetadata,
-    demoRequirements,
-    demoScriptAssembly,
-    generatedRequirements,
-    generatedReviewableRequirements,
-    generationFeedback,
-    isGenerating,
-    isHydrated,
-    lastGenerationMode,
-    mockGenerationRun,
-    nextAction,
-    project,
-    reviewRequirements,
-    setCurrentStep,
-    sourceFeedback,
-    summary,
-    uploadWorkbook,
-    workflowProgress,
-    workflowSnapshot,
-    workspaceState,
-    updateDemoScriptDraft,
-    updateRequirementReview,
-    restoreFixtureSource,
-    generateRows,
-  } = usePhase1Project();
-  const allowedStep =
-    isHydrated && project
-      ? getAllowedWorkflowStep(workflowSnapshot, step)
-      : step;
-
-  useEffect(() => {
-    if (!isHydrated || !project) {
-      return;
-    }
-
-    if (allowedStep !== step) {
-      router.replace(getPhase1StepPath(project.projectId, allowedStep));
-      return;
-    }
-
-    if (project.currentStep !== step) {
-      setCurrentStep(step);
-    }
-  }, [allowedStep, isHydrated, project, router, setCurrentStep, step]);
+  const { isHydrated, project } = usePhase1Project();
 
   if (!isHydrated) {
     return (
@@ -88,7 +31,7 @@ export default function Phase1ProjectStepRoute({
     );
   }
 
-  if (!project || !workspaceState) {
+  if (!project) {
     return (
       <main className="app-canvas flex min-h-screen items-center justify-center px-6">
         <div className="phase-empty-state max-w-xl text-center">
@@ -111,116 +54,27 @@ export default function Phase1ProjectStepRoute({
     );
   }
 
-  if (allowedStep !== step) {
-    return (
-      <main className="app-canvas flex min-h-screen items-center justify-center px-6">
-        <div className="phase-empty-state max-w-xl text-center">
-          <p className="phase-overline">Redirecting</p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-[-0.04em]">
-            Returning to the next valid stage
-          </h1>
-          <p className="mt-3 text-sm leading-7 text-[color:var(--shell-muted)]">
-            The requested stage is blocked by the current review state, so the
-            workspace is taking you to the next actionable surface.
-          </p>
-        </div>
-      </main>
-    );
-  }
-
   return (
-    <Phase1ProjectShell
-      currentStep={step}
-      nextAction={nextAction}
-      progress={workflowProgress}
-      project={project}
-    >
-      {step === "source" ? (
-        <SourceStudio
-          key={currentSourceMetadata.sourceId}
-          currentSourceMetadata={currentSourceMetadata}
-          demoCount={summary.demoCount}
-          mvpCount={summary.mvpCount}
-          onContinue={() =>
-            router.push(getPhase1StepPath(project.projectId, "generate"))
-          }
-          onRestoreFixtureSource={restoreFixtureSource}
-          onUploadWorkbook={uploadWorkbook}
-          requirements={reviewRequirements}
-          sourceFeedback={sourceFeedback}
-          sourceRowCount={workspaceState.reviewState.project.sourceRowCount}
-        />
-      ) : null}
-
-      {step === "generate" ? (
-        <GenerateStudio
-          demoRequirements={demoRequirements}
-          generatedCount={generatedRequirements.length}
-          generationFeedback={generationFeedback}
-          initialGenerationAvailability={initialGenerationAvailability}
-          isGenerating={isGenerating}
-          lastGenerationMode={lastGenerationMode}
-          mockGenerationRun={mockGenerationRun}
-          onGenerateRows={generateRows}
-          onOpenReview={() =>
-            router.push(getPhase1StepPath(project.projectId, "review"))
-          }
-          requirements={reviewRequirements}
-        />
-      ) : null}
-
-      {step === "review" ? (
-        <ReviewStudio
-          approvedCount={summary.approvedCount}
-          generatedCount={generatedRequirements.length}
-          generatedReviewableRequirements={generatedReviewableRequirements}
-          onGenerateDemoRows={() => generateRows(demoRequirements, "demo rows")}
-          onGoToGenerate={() =>
-            router.push(getPhase1StepPath(project.projectId, "generate"))
-          }
-          onOpenScript={() =>
-            router.push(getPhase1StepPath(project.projectId, "script"))
-          }
-          onReviewAction={updateRequirementReview}
-          projectId={project.projectId}
-          reviewRequirements={reviewRequirements}
-        />
-      ) : null}
-
-      {step === "script" ? (
-        <ScriptStudio
-          assembly={demoScriptAssembly}
-          draft={workspaceState.reviewState.demoScriptDraft}
-          exportReady={workflowSnapshot.exportReady}
-          onDraftAction={updateDemoScriptDraft}
-          onGoToReview={() =>
-            router.push(getPhase1StepPath(project.projectId, "review"))
-          }
-          onOpenExport={() =>
-            router.push(getPhase1StepPath(project.projectId, "export"))
-          }
-          pendingReviewCount={generatedReviewableRequirements.length}
-          projectMetadata={workspaceState.reviewState.project}
-        />
-      ) : null}
-
-      {step === "export" ? (
-        <ExportStudio
-          assembly={demoScriptAssembly}
-          exportReady={workflowSnapshot.exportReady}
-          onGoToReview={() =>
-            router.push(getPhase1StepPath(project.projectId, "review"))
-          }
-          onGoToScript={() =>
-            router.push(getPhase1StepPath(project.projectId, "script"))
-          }
-          onOpenMasterData={() =>
-            router.push(getMasterDataStepPath(project.projectId, "setup"))
-          }
-          pendingReviewCount={generatedReviewableRequirements.length}
-          projectMetadata={workspaceState.reviewState.project}
-        />
-      ) : null}
-    </Phase1ProjectShell>
+    <main className="app-canvas min-h-screen text-[color:var(--shell-ink)]">
+      <div className="mx-auto flex w-full max-w-[1560px] flex-col gap-6 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
+        <Phase1Topbar />
+        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center">
+          <p className="phase-overline">Coming soon</p>
+          <h1 className="text-3xl font-semibold tracking-[-0.04em]">
+            Project details
+          </h1>
+          <p className="max-w-sm text-sm leading-7 text-[color:var(--shell-muted)]">
+            This workspace is being built.
+          </p>
+          <button
+            type="button"
+            onClick={() => router.push("/")}
+            className="focus-premium theme-shell-button-secondary mt-2 rounded-2xl px-5 py-3 text-sm font-semibold transition"
+          >
+            Back to project desk
+          </button>
+        </div>
+      </div>
+    </main>
   );
 }
