@@ -123,15 +123,17 @@ export function ProjectCommandDesk({
             handoff.
           </p>
         </div>
-        <div className="phase-command-actions">
-          <button
-            type="button"
-            onClick={() => setCreateDialogOpen(true)}
-            className="focus-premium theme-button-primary rounded-2xl px-5 py-3 text-sm font-semibold transition"
-          >
-            Create project
-          </button>
-        </div>
+        {hasProjects ? (
+          <div className="phase-command-actions">
+            <button
+              type="button"
+              onClick={() => setCreateDialogOpen(true)}
+              className="focus-premium theme-button-primary rounded-2xl px-5 py-3 text-sm font-semibold transition"
+            >
+              Create project
+            </button>
+          </div>
+        ) : null}
       </section>
 
       {createDialogOpen ? (
@@ -305,20 +307,31 @@ export function ProjectCommandDesk({
             </div>
           </div>
         ) : (
-          <div className="phase-empty-state">
-            <p className="phase-overline">
-              {isSearching ? "No matching projects" : "No projects yet"}
-            </p>
-            <h2 className="mt-2 text-3xl font-semibold">
-              {isSearching
-                ? "No project matches this search."
-                : "Create the first server-backed project."}
-            </h2>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-[color:var(--shell-muted)]">
-              {isSearching
-                ? "Clear or change the search to return to the full project list."
-                : "New projects are saved to Supabase and the creator becomes the owner automatically."}
-            </p>
+          <div className="phase-empty-state flex items-center justify-between gap-6">
+            <div>
+              <p className="phase-overline">
+                {isSearching ? "No matching projects" : "No projects yet"}
+              </p>
+              <h2 className="mt-2 text-3xl font-semibold">
+                {isSearching
+                  ? "No project matches this search."
+                  : "Create the first server-backed project."}
+              </h2>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-[color:var(--shell-muted)]">
+                {isSearching
+                  ? "Clear or change the search to return to the full project list."
+                  : "New projects are saved to Supabase and the creator becomes the owner automatically."}
+              </p>
+            </div>
+            {!isSearching ? (
+              <button
+                type="button"
+                onClick={() => setCreateDialogOpen(true)}
+                className="focus-premium theme-button-primary shrink-0 rounded-2xl px-5 py-3 text-sm font-semibold transition"
+              >
+                Create project
+              </button>
+            ) : null}
           </div>
         )}
       </section>
