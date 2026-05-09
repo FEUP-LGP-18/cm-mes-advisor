@@ -1494,7 +1494,6 @@ textarea {
     minmax(0, 1.25fr)
     minmax(140px, 0.8fr)
     minmax(120px, 0.7fr)
-    minmax(150px, 0.85fr)
     minmax(90px, 0.55fr)
     auto;
   padding: 0 1rem;
@@ -2212,7 +2211,6 @@ textarea {
       minmax(0, 1.25fr)
       minmax(140px, 0.8fr)
       minmax(120px, 0.7fr)
-      minmax(150px, 0.85fr)
       minmax(90px, 0.55fr)
       auto;
     align-items: center;

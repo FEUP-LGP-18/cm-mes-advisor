@@ -41,26 +41,34 @@ describe("proxy auth routing", () => {
     ).toBe(true);
   });
 
-  it("does not require a session for the public command desk home", async () => {
+  it("requires a session for the project dashboard home", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
+    updateSessionMock.mockResolvedValueOnce({
+      supabaseResponse: NextResponse.next(),
+      user: null,
+    });
 
     const response = await proxy(new NextRequest("http://localhost/"));
 
-    expect(response.status).toBe(200);
-    expect(updateSessionMock).not.toHaveBeenCalled();
+    expect(getRedirectUrl(response)).toBe("http://localhost/login?next=%2F");
   });
 
-  it("does not require a session for public Phase 1 mock project routes", async () => {
+  it("requires a session for project routes", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
+    updateSessionMock.mockResolvedValueOnce({
+      supabaseResponse: NextResponse.next(),
+      user: null,
+    });
 
     const response = await proxy(
       new NextRequest("http://localhost/projects/demo/source"),
     );
 
-    expect(response.status).toBe(200);
-    expect(updateSessionMock).not.toHaveBeenCalled();
+    expect(getRedirectUrl(response)).toBe(
+      "http://localhost/login?next=%2Fprojects%2Fdemo%2Fsource",
+    );
   });
 
   it("skips auth entirely when Supabase is not configured", async () => {

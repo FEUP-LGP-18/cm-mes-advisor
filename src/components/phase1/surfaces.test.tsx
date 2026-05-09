@@ -7,6 +7,7 @@ import {
   filterReviewRequirements,
   mockGenerationStageLabels,
 } from "@/lib/requirements";
+import type { ProjectListItem } from "@/lib/projects/types";
 import {
   createPhase1UiFixtureProjectRecord,
   createPhase1UiFixtureReviewQueue,
@@ -35,6 +36,35 @@ function createProjectRecord() {
   });
 }
 
+function createDashboardProject(
+  overrides: Partial<ProjectListItem> = {},
+): ProjectListItem {
+  return {
+    archivedAt: null,
+    createdAt: "2026-05-01T10:00:00.000Z",
+    createdBy: "11111111-1111-4111-8111-111111111111",
+    currentUserRole: "owner",
+    customerName: "Customer X",
+    description: "Phase 1 demo workspace",
+    id: "22222222-2222-4222-8222-222222222222",
+    name: "Customer X MES demo",
+    status: "active",
+    updatedAt: "2026-05-09T10:00:00.000Z",
+    updatedBy: "11111111-1111-4111-8111-111111111111",
+    ...overrides,
+  };
+}
+
+const createProjectActionStub = async () => ({
+  message: null,
+  status: "idle" as const,
+});
+
+const initialCreateProjectState = {
+  message: null,
+  status: "idle" as const,
+};
+
 describe("phase 1 redesigned surfaces", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -54,50 +84,68 @@ describe("phase 1 redesigned surfaces", () => {
     const html = render(
       <ProjectCommandDesk
         activeProject={null}
-        canCreateSampleProject
-        onCreateSampleProject={vi.fn()}
+        createProject={createProjectActionStub}
+        currentUser={null}
+        initialCreateProjectState={initialCreateProjectState}
+        listError={null}
         onOpenProject={vi.fn()}
         onQueryChange={vi.fn()}
         onSortChange={vi.fn()}
         projects={[]}
         query=""
         sort="recent"
+        totalProjectCount={0}
       />,
     );
 
-    expect(html).toContain("Start with a sample project and walk the full Phase 1 flow.");
-    expect(html).toContain("Start sample project");
+    expect(html).toContain("Create the first server-backed project.");
+    expect(html).toContain("Create project");
   });
 
   it("renders the priority strip and table-first project desk for active work", () => {
-    const baseProject = createProjectRecord();
-    const project = {
-      ...baseProject,
-      currentStep: "review" as const,
-      snapshot: {
-        ...baseProject.snapshot,
-        generatedCount: 2,
-        generatedReviewableCount: 2,
-      },
-    };
+    const project = createDashboardProject();
     const html = render(
       <ProjectCommandDesk
         activeProject={project}
-        canCreateSampleProject
-        onCreateSampleProject={vi.fn()}
+        createProject={createProjectActionStub}
+        currentUser={null}
+        initialCreateProjectState={initialCreateProjectState}
+        listError={null}
         onOpenProject={vi.fn()}
         onQueryChange={vi.fn()}
         onSortChange={vi.fn()}
         projects={[project]}
         query=""
         sort="recent"
+        totalProjectCount={1}
       />,
     );
 
-    expect(html).toContain("Priority project");
-    expect(html).toContain("Resume project");
+    expect(html).toContain("Next project");
+    expect(html).toContain("Open project");
     expect(html).toContain("Project list");
-    expect(html).toContain("Needs review");
+    expect(html).toContain("Owner");
+  });
+
+  it("renders a no-results state when search filters out server projects", () => {
+    const html = render(
+      <ProjectCommandDesk
+        activeProject={null}
+        createProject={createProjectActionStub}
+        currentUser={null}
+        initialCreateProjectState={initialCreateProjectState}
+        listError={null}
+        onOpenProject={vi.fn()}
+        onQueryChange={vi.fn()}
+        onSortChange={vi.fn()}
+        projects={[]}
+        query="missing"
+        sort="recent"
+        totalProjectCount={1}
+      />,
+    );
+
+    expect(html).toContain("No project matches this search.");
   });
 
   it("renders the compact shell metadata strip for a project workspace", () => {

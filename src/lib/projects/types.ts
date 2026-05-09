@@ -55,6 +55,10 @@ export type Project = {
   updatedBy: string | null;
 };
 
+export type ProjectListItem = Project & {
+  currentUserRole: ProjectRole;
+};
+
 export type ProjectPhaseState = {
   phaseKey: string;
   projectId: string;
@@ -93,6 +97,11 @@ export type CreateProjectInput = {
   customerName?: string | null;
   description?: string | null;
   name: string;
+};
+
+export type CreateProjectActionState = {
+  message: string | null;
+  status: "idle" | "error";
 };
 
 export function success<T>(data: T): ProjectSuccess<T> {
