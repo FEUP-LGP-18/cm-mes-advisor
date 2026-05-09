@@ -38,6 +38,28 @@ describe("requirements source metadata", () => {
     expect(metadata.uploadedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
+  it("can bind uploaded source metadata to a server project identity", () => {
+    const metadata = createUploadSourceMetadata(
+      "Customer X Requirements.xlsx",
+      new Uint8Array([9, 8, 7, 6]),
+      {
+        customerName: "Customer X",
+        projectName: "Customer X MES demo",
+        sourceId:
+          "db-backed://projects/22222222-2222-4222-8222-222222222222/source/source.xlsx",
+        uploadedAt: "2026-05-10T12:00:00.000Z",
+      },
+    );
+
+    expect(metadata).toMatchObject({
+      customerName: "Customer X",
+      projectName: "Customer X MES demo",
+      sourceId:
+        "db-backed://projects/22222222-2222-4222-8222-222222222222/source/source.xlsx",
+      uploadedAt: "2026-05-10T12:00:00.000Z",
+    });
+  });
+
   it("creates a readable display name from the filename", () => {
     expect(
       createDisplayNameFromFilename("customer-x-functional-requirements.xlsx"),

@@ -1,6 +1,6 @@
 # Project Context
 
-Last updated: `2026-04-28`
+Last updated: `2026-05-10`
 
 This is the current-state source of truth for the GitHub repo. Use this before relying on older discovery notes.
 
@@ -58,6 +58,7 @@ Out of scope unless explicitly requested:
 - Home screen: project home that creates or reopens local Phase 1 projects
 - Routed workflow: `src/app/projects/[projectId]/`
 - Project state: local registry and workflow snapshot helpers in `src/lib/phase1/`
+- Persistent source uploads: DB-backed approach using `project_files` for workbook metadata and `project_phase_states` with `phase_key = 'source'` for the parsed Source workspace. The `project_files.storage_path` value is a durable logical reference in the form `db-backed://projects/<projectId>/source/<upload>-<checksum>.xlsx`; raw workbook bytes are not stored in the repo or database in this mode.
 - Requirements domain: parsing, review, generation, validation, and export in `src/lib/requirements/`
 - Generation boundary: `src/app/api/requirements/generate/route.ts`
 - Default fixture: `fixtures/customer-x-functional-requirements.xlsx`

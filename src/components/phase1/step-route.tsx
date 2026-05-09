@@ -1,18 +1,74 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import type { Phase1WorkflowStep } from "@/lib/phase1/workflow";
+import {
+  getAllowedWorkflowStep,
+  getPhase1StepPath,
+  type Phase1WorkflowStep,
+} from "@/lib/phase1/workflow";
+import { getMasterDataStepPath } from "@/lib/master-data/workflow";
+import type { RequirementGenerationAvailabilityBody } from "@/lib/requirements/generation-api";
+import ExportStudio from "./export-studio";
+import GenerateStudio from "./generate-studio";
 import { usePhase1Project } from "./project-provider";
-import Phase1Topbar from "./phase-topbar";
+import Phase1ProjectShell from "./project-shell";
+import ReviewStudio from "./review-studio";
+import ScriptStudio from "./script-studio";
+import SourceStudio from "./source-studio";
 
 export default function Phase1ProjectStepRoute({
-  step: _step,
+  initialGenerationAvailability = null,
+  step,
 }: {
-  initialGenerationAvailability?: unknown;
+  initialGenerationAvailability?: RequirementGenerationAvailabilityBody | null;
   step: Phase1WorkflowStep;
 }) {
   const router = useRouter();
-  const { isHydrated, project } = usePhase1Project();
+  const phase1 = usePhase1Project();
+  const {
+    currentSourceMetadata,
+    demoRequirements,
+    demoScriptAssembly,
+    generatedRequirements,
+    generatedReviewableRequirements,
+    generationFeedback,
+    isGenerating,
+    isHydrated,
+    lastGenerationMode,
+    mockGenerationRun,
+    project,
+    reviewRequirements,
+    setCurrentStep,
+    setMasterDataStep,
+    sourceFeedback,
+    summary,
+    uploadWorkbook,
+    workflowProgress,
+    workflowSnapshot,
+    workspaceState,
+    updateDemoScriptDraft,
+    updateRequirementReview,
+    restoreFixtureSource,
+    generateRows,
+  } = phase1;
+
+  const allowedStep = getAllowedWorkflowStep(workflowSnapshot, step);
+
+  useEffect(() => {
+    if (!isHydrated || !project) {
+      return;
+    }
+
+    if (allowedStep !== step) {
+      router.replace(getPhase1StepPath(project.projectId, allowedStep));
+      return;
+    }
+
+    if (project.currentStep !== step) {
+      setCurrentStep(step);
+    }
+  }, [allowedStep, isHydrated, project, router, setCurrentStep, step]);
 
   if (!isHydrated) {
     return (
@@ -54,27 +110,109 @@ export default function Phase1ProjectStepRoute({
     );
   }
 
-  return (
-    <main className="app-canvas min-h-screen text-[color:var(--shell-ink)]">
-      <div className="mx-auto flex w-full max-w-[1560px] flex-col gap-6 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
-        <Phase1Topbar />
-        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center">
-          <p className="phase-overline">Coming soon</p>
-          <h1 className="text-3xl font-semibold tracking-[-0.04em]">
-            Project details
+  if (allowedStep !== step) {
+    return (
+      <main className="app-canvas flex min-h-screen items-center justify-center px-6">
+        <div className="phase-empty-state max-w-xl text-center">
+          <p className="phase-overline">Redirecting</p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-[-0.04em]">
+            Loading the right project step
           </h1>
-          <p className="max-w-sm text-sm leading-7 text-[color:var(--shell-muted)]">
-            This workspace is being built.
+          <p className="mt-3 text-sm leading-7 text-[color:var(--shell-muted)]">
+            This stage depends on earlier Phase 1 work, so the project is being
+            reopened at the next available step.
           </p>
-          <button
-            type="button"
-            onClick={() => router.push("/")}
-            className="focus-premium theme-shell-button-secondary mt-2 rounded-2xl px-5 py-3 text-sm font-semibold transition"
-          >
-            Back to project desk
-          </button>
         </div>
-      </div>
-    </main>
+      </main>
+    );
+  }
+
+  const projectMetadata =
+    workspaceState?.reviewState.project ??
+    project.workspaceState.reviewState.project;
+  const navigateToStep = (nextStep: Phase1WorkflowStep) => {
+    router.push(getPhase1StepPath(project.projectId, nextStep));
+  };
+
+  return (
+    <Phase1ProjectShell
+      currentStep={step}
+      nextAction={phase1.nextAction}
+      progress={workflowProgress}
+      project={project}
+    >
+      {step === "source" ? (
+        <SourceStudio
+          currentSourceMetadata={currentSourceMetadata}
+          demoCount={summary.demoCount}
+          mvpCount={summary.mvpCount}
+          onContinue={() => navigateToStep("generate")}
+          onRestoreFixtureSource={restoreFixtureSource}
+          onUploadWorkbook={uploadWorkbook}
+          requirements={reviewRequirements}
+          sourceFeedback={sourceFeedback}
+          sourceRowCount={workflowSnapshot.sourceRowCount}
+        />
+      ) : null}
+
+      {step === "generate" ? (
+        <GenerateStudio
+          demoRequirements={demoRequirements}
+          generatedCount={generatedRequirements.length}
+          generationFeedback={generationFeedback}
+          initialGenerationAvailability={initialGenerationAvailability}
+          isGenerating={isGenerating}
+          lastGenerationMode={lastGenerationMode}
+          mockGenerationRun={mockGenerationRun}
+          onGenerateRows={generateRows}
+          onOpenReview={() => navigateToStep("review")}
+          requirements={reviewRequirements}
+        />
+      ) : null}
+
+      {step === "review" ? (
+        <ReviewStudio
+          approvedCount={summary.approvedCount}
+          generatedCount={generatedRequirements.length}
+          generatedReviewableRequirements={generatedReviewableRequirements}
+          onGenerateDemoRows={() =>
+            generateRows(demoRequirements, "recommended demo rows")
+          }
+          onGoToGenerate={() => navigateToStep("generate")}
+          onOpenScript={() => navigateToStep("script")}
+          onReviewAction={updateRequirementReview}
+          projectId={project.projectId}
+          reviewRequirements={reviewRequirements}
+        />
+      ) : null}
+
+      {step === "script" ? (
+        <ScriptStudio
+          assembly={demoScriptAssembly}
+          draft={project.workspaceState.reviewState.demoScriptDraft}
+          exportReady={workflowSnapshot.exportReady}
+          onDraftAction={updateDemoScriptDraft}
+          onGoToReview={() => navigateToStep("review")}
+          onOpenExport={() => navigateToStep("export")}
+          pendingReviewCount={workflowSnapshot.generatedReviewableCount}
+          projectMetadata={projectMetadata}
+        />
+      ) : null}
+
+      {step === "export" ? (
+        <ExportStudio
+          assembly={demoScriptAssembly}
+          exportReady={workflowSnapshot.exportReady}
+          onGoToReview={() => navigateToStep("review")}
+          onGoToScript={() => navigateToStep("script")}
+          onOpenMasterData={() => {
+            setMasterDataStep("setup");
+            router.push(getMasterDataStepPath(project.projectId, "setup"));
+          }}
+          pendingReviewCount={workflowSnapshot.generatedReviewableCount}
+          projectMetadata={projectMetadata}
+        />
+      ) : null}
+    </Phase1ProjectShell>
   );
 }

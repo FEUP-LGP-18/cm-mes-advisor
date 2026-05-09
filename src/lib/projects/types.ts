@@ -68,6 +68,19 @@ export type ProjectPhaseState = {
   version: number;
 };
 
+export type ProjectFile = {
+  checksum: string | null;
+  createdAt: string;
+  filename: string;
+  id: string;
+  mimeType: string | null;
+  projectId: string;
+  sizeBytes: number;
+  sourceMetadata: unknown;
+  storagePath: string;
+  uploadedBy: string | null;
+};
+
 export type ProjectActivityEvent = {
   actorId: string | null;
   createdAt: string;

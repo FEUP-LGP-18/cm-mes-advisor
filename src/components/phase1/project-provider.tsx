@@ -34,6 +34,7 @@ import type { ParsedRequirement } from "@/lib/requirements/types";
 import {
   createFixtureWorkspaceStateForProject,
   createEmptyProjectFromServerIdentity,
+  createPhase1ProjectRecordFromWorkspaceState,
   createUploadedWorkspaceStateForProject,
   getPhase1Project,
   loadPhase1ProjectRegistry,
@@ -108,6 +109,18 @@ interface SourceFeedback {
   message: string;
 }
 
+type UploadWorkbookResponse =
+  | {
+      ok: true;
+      workspaceState: RequirementsWorkspaceState;
+    }
+  | {
+      error?: {
+        message?: string;
+      };
+      ok: false;
+    };
+
 interface Phase1ProjectContextValue {
   currentSourceMetadata: RequirementsWorkspaceState["source"];
   demoRequirements: ReviewRequirement[];
@@ -173,10 +186,12 @@ export function Phase1ProjectProvider({
   children,
   fallbackWorkspaceState,
   initialServerProject,
+  initialServerWorkspaceState,
   routeProjectId,
 }: PropsWithChildren<{
   fallbackWorkspaceState: RequirementsWorkspaceState;
   initialServerProject?: Project | null;
+  initialServerWorkspaceState?: RequirementsWorkspaceState | null;
   routeProjectId: string;
 }>) {
   const [registry, setRegistry] = useState<Phase1ProjectRegistry | null>(null);
@@ -197,7 +212,23 @@ export function Phase1ProjectProvider({
       fallbackWorkspaceState,
     );
 
-    if (initialServerProject && !getPhase1Project(nextRegistry, routeProjectId)) {
+    if (initialServerProject && initialServerWorkspaceState) {
+      nextRegistry = upsertPhase1Project(
+        nextRegistry,
+        createPhase1ProjectRecordFromWorkspaceState(
+          initialServerWorkspaceState,
+          {
+            createdAt: initialServerProject.createdAt,
+            projectId: initialServerProject.id,
+            updatedAt: initialServerProject.updatedAt,
+          },
+        ),
+      );
+      savePhase1ProjectRegistry(window.localStorage, nextRegistry);
+    } else if (
+      initialServerProject &&
+      !getPhase1Project(nextRegistry, routeProjectId)
+    ) {
       nextRegistry = upsertPhase1Project(
         nextRegistry,
         createEmptyProjectFromServerIdentity({
@@ -212,13 +243,19 @@ export function Phase1ProjectProvider({
     }
 
     setRegistry(nextRegistry);
-  }, [fallbackWorkspaceState, initialServerProject, routeProjectId]);
+  }, [
+    fallbackWorkspaceState,
+    initialServerProject,
+    initialServerWorkspaceState,
+    routeProjectId,
+  ]);
 
   const project = useMemo(
     () => (registry ? getPhase1Project(registry, routeProjectId) : null),
     [registry, routeProjectId],
   );
   const workspaceState = project?.workspaceState ?? null;
+  const hasServerProject = Boolean(initialServerProject);
 
   const reviewRequirements = useMemo(
     () =>
@@ -546,9 +583,50 @@ export function Phase1ProjectProvider({
         return false;
       }
 
-      setSourceFeedback(null);
+      setSourceFeedback({
+        tone: "neutral",
+        message: hasServerProject
+          ? "Uploading, validating, and saving the workbook source..."
+          : "Parsing the workbook in this browser...",
+      });
 
       try {
+        if (hasServerProject) {
+          const formData = new FormData();
+          formData.append("workbook", file);
+
+          const response = await fetch(
+            `/projects/${project.projectId}/source/upload`,
+            {
+              body: formData,
+              method: "POST",
+            },
+          );
+          const responseBody = (await response.json().catch(() => null)) as
+            | UploadWorkbookResponse
+            | null;
+
+          if (!response.ok || !responseBody?.ok) {
+            setSourceFeedback({
+              tone: "error",
+              message:
+                responseBody && !responseBody.ok
+                  ? responseBody.error?.message ||
+                    "The uploaded workbook could not be saved."
+                  : "The uploaded workbook could not be saved.",
+            });
+            return false;
+          }
+
+          updateWorkspaceState(responseBody.workspaceState, "source");
+          setSourceFeedback({
+            tone: "success",
+            message: `Saved ${file.name}. Collaborators will see this workbook source when they reopen the project.`,
+          });
+
+          return true;
+        }
+
         const workbookBuffer = await file.arrayBuffer();
         const { parseRequirementsWorkbook } = await import(
           "@/lib/requirements/parser"
@@ -587,7 +665,7 @@ export function Phase1ProjectProvider({
         return false;
       }
     },
-    [project, updateWorkspaceState],
+    [hasServerProject, project, updateWorkspaceState],
   );
 
   const generateRows = useCallback(

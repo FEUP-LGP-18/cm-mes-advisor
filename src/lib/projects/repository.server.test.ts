@@ -7,6 +7,7 @@ import {
 import {
   createProjectForUser,
   listProjectsForUser,
+  saveProjectFileMetadata,
   saveProjectPhaseState,
 } from "./repository.server";
 
@@ -224,6 +225,96 @@ describe("project repository", () => {
     ).resolves.toMatchObject({
       ok: false,
       status: "conflict",
+    });
+  });
+
+  it("saves project file metadata for editors", async () => {
+    requireUserMock.mockResolvedValueOnce({
+      data: {
+        email: "editor@example.com",
+        emailConfirmedAt: "2026-05-01T12:00:00.000Z",
+        id: userId,
+      },
+      ok: true,
+      status: "success",
+    });
+    requireProjectCapabilityMock.mockResolvedValueOnce({
+      data: {
+        email: "editor@example.com",
+        emailConfirmedAt: "2026-05-01T12:00:00.000Z",
+        id: userId,
+      },
+      ok: true,
+      status: "success",
+    });
+
+    const single = vi.fn().mockResolvedValue({
+      data: {
+        checksum: "abc123",
+        created_at: "2026-05-10T12:00:00.000Z",
+        filename: "Customer X.xlsx",
+        id: "33333333-3333-4333-8333-333333333333",
+        mime_type:
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        project_id: projectId,
+        size_bytes: 1024,
+        source_metadata_json: {
+          rowCount: 12,
+        },
+        storage_path: `db-backed://projects/${projectId}/source/abc123.xlsx`,
+        uploaded_by: userId,
+      },
+      error: null,
+    });
+    const select = vi.fn().mockReturnValue({ single });
+    const insert = vi.fn().mockReturnValue({ select });
+    const from = vi.fn().mockReturnValue({ insert });
+
+    createClientMock.mockResolvedValueOnce({
+      from,
+    } as unknown as Awaited<ReturnType<typeof createClient>>);
+
+    await expect(
+      saveProjectFileMetadata(
+        {
+          checksum: "abc123",
+          filename: "Customer X.xlsx",
+          mimeType:
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          projectId,
+          sizeBytes: 1024,
+          sourceMetadata: {
+            rowCount: 12,
+          },
+          storagePath: `db-backed://projects/${projectId}/source/abc123.xlsx`,
+        },
+        userId,
+      ),
+    ).resolves.toMatchObject({
+      data: {
+        checksum: "abc123",
+        filename: "Customer X.xlsx",
+        projectId,
+        uploadedBy: userId,
+      },
+      ok: true,
+    });
+    expect(requireProjectCapabilityMock).toHaveBeenCalledWith(
+      projectId,
+      "upload_project_file",
+    );
+    expect(insert).toHaveBeenCalledWith({
+      checksum: "abc123",
+      filename: "Customer X.xlsx",
+      mime_type:
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      project_id: projectId,
+      size_bytes: 1024,
+      source_metadata_json: {
+        rowCount: 12,
+      },
+      storage_path: `db-backed://projects/${projectId}/source/abc123.xlsx`,
+      uploaded_by: userId,
     });
   });
 });
