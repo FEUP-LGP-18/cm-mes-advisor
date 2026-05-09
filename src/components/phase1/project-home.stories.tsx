@@ -25,11 +25,6 @@ const meta = {
   component: ProjectCommandDesk,
   tags: ["autodocs"],
   args: {
-    currentUser: {
-      email: "consultant@example.com",
-      emailConfirmedAt: "2026-05-01T10:00:00.000Z",
-      id: "11111111-1111-4111-8111-111111111111",
-    },
     createProject,
     initialCreateProjectState: {
       message: null,

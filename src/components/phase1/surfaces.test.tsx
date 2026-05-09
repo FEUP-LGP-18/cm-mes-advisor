@@ -85,7 +85,7 @@ describe("phase 1 redesigned surfaces", () => {
       <ProjectCommandDesk
         activeProject={null}
         createProject={createProjectActionStub}
-        currentUser={null}
+
         initialCreateProjectState={initialCreateProjectState}
         listError={null}
         onOpenProject={vi.fn()}
@@ -108,7 +108,7 @@ describe("phase 1 redesigned surfaces", () => {
       <ProjectCommandDesk
         activeProject={project}
         createProject={createProjectActionStub}
-        currentUser={null}
+
         initialCreateProjectState={initialCreateProjectState}
         listError={null}
         onOpenProject={vi.fn()}
@@ -132,7 +132,7 @@ describe("phase 1 redesigned surfaces", () => {
       <ProjectCommandDesk
         activeProject={null}
         createProject={createProjectActionStub}
-        currentUser={null}
+
         initialCreateProjectState={initialCreateProjectState}
         listError={null}
         onOpenProject={vi.fn()}
