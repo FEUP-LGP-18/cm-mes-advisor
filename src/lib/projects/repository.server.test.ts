@@ -122,6 +122,9 @@ describe("project repository", () => {
       status: "success",
     });
 
+    const insert = vi.fn().mockResolvedValue({
+      error: null,
+    });
     const single = vi.fn().mockResolvedValue({
       data: {
         archived_at: null,
@@ -137,9 +140,12 @@ describe("project repository", () => {
       },
       error: null,
     });
-    const select = vi.fn().mockReturnValue({ single });
-    const insert = vi.fn().mockReturnValue({ select });
-    const from = vi.fn().mockReturnValue({ insert });
+    const eq = vi.fn().mockReturnValue({ single });
+    const select = vi.fn().mockReturnValue({ eq });
+    const from = vi
+      .fn()
+      .mockReturnValueOnce({ insert })
+      .mockReturnValueOnce({ select });
 
     createClientMock.mockResolvedValueOnce({
       from,
@@ -167,6 +173,7 @@ describe("project repository", () => {
       created_by: userId,
       customer_name: "Customer X",
       description: "Demo workspace",
+      id: expect.any(String),
       name: "Customer X MES demo",
       updated_by: userId,
     });

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { requireProjectCapability, requireUser } from "./permissions.server";
 import {
@@ -15,6 +16,8 @@ import {
 
 type SupabaseError = {
   code?: string;
+  details?: string;
+  hint?: string;
   message?: string;
 };
 
@@ -155,20 +158,31 @@ export async function createProjectForUser(
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const projectId = randomUUID();
+
+  const { error } = await supabase
     .from("projects")
     .insert({
       created_by: userId,
       customer_name: parsed.data.customerName,
       description: parsed.data.description,
+      id: projectId,
       name: parsed.data.name,
       updated_by: userId,
-    })
-    .select(projectSelect)
-    .single();
+    });
 
   if (error) {
     return mapSupabaseError(error, "Project could not be created.");
+  }
+
+  const { data, error: readError } = await supabase
+    .from("projects")
+    .select(projectSelect)
+    .eq("id", projectId)
+    .single();
+
+  if (readError) {
+    return mapSupabaseError(readError, "Project could not be loaded.");
   }
 
   return success(mapProjectRow(data as ProjectRow));
