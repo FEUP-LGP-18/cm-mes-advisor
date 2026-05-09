@@ -9,7 +9,10 @@ import type {
   ProjectListItem,
   ProjectRole,
 } from "@/lib/projects/types";
-import { getPhase1StepPath } from "@/lib/phase1/workflow";
+import {
+  getPhase1StepPath,
+  type Phase1WorkflowStep,
+} from "@/lib/phase1/workflow";
 import Phase1Topbar from "./phase-topbar";
 
 type ProjectSort = "recent" | "customer" | "role";
@@ -43,16 +46,15 @@ export default function Phase1ProjectHome({
   return (
     <main className="app-canvas min-h-screen text-[color:var(--shell-ink)]">
       <div className="mx-auto flex w-full max-w-[1560px] flex-col gap-6 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
-        <Phase1Topbar />
+        <Phase1Topbar email={currentUser?.email} />
 
         <ProjectCommandDesk
           activeProject={activeProject}
           createProject={createProject}
-          currentUser={currentUser}
           initialCreateProjectState={initialCreateProjectState}
           listError={listError}
-          onOpenProject={(project) =>
-            router.push(getPhase1StepPath(project.id, "source"))
+          onOpenProject={(project, step = "source") =>
+            router.push(getPhase1StepPath(project.id, step))
           }
           onQueryChange={setQuery}
           onSortChange={setSort}
@@ -69,7 +71,6 @@ export default function Phase1ProjectHome({
 export function ProjectCommandDesk({
   activeProject,
   createProject,
-  currentUser,
   initialCreateProjectState,
   listError,
   onOpenProject,
@@ -85,10 +86,9 @@ export function ProjectCommandDesk({
     previousState: CreateProjectActionState,
     formData: FormData,
   ) => Promise<CreateProjectActionState>;
-  currentUser: CurrentUser | null;
   initialCreateProjectState: CreateProjectActionState;
   listError: string | null;
-  onOpenProject: (project: ProjectListItem) => void;
+  onOpenProject: (project: ProjectListItem, step?: Phase1WorkflowStep) => void;
   onQueryChange: (query: string) => void;
   onSortChange: (sort: ProjectSort) => void;
   projects: ProjectListItem[];
@@ -112,14 +112,15 @@ export function ProjectCommandDesk({
     <section className="grid gap-6">
       <section className="phase-command-desk">
         <div className="phase-command-copy">
-          <p className="phase-overline">Project dashboard</p>
+          <p className="phase-overline">Phase 1 command desk</p>
           <h1 className="phase-command-title">
-            Open owned and shared MES demo projects.
+            Pick up the right customer project quickly.
           </h1>
           <p className="phase-command-body">
-            {phaseOneScope.productName} now loads project access from the
-            signed-in account. Phase 1 workflow details remain scoped to the
-            project workspace while project membership is handled by Supabase.
+            {phaseOneScope.productName} stays focused on one consultant
+            workflow: confirm the workbook, generate safe drafts, make
+            consultant decisions, shape the script, and export a clean Phase 1
+            handoff.
           </p>
         </div>
         <div className="phase-command-actions">
@@ -191,24 +192,19 @@ export function ProjectCommandDesk({
         <div className="phase-toolbar">
           <div className="phase-toolbar-copy">
             <p className="phase-overline">Project list</p>
-            <h2 className="phase-section-title">Owned and shared projects</h2>
+            <h2 className="phase-section-title">Project queue</h2>
             <p className="phase-section-body">
-              Search by project, customer, description, or role. Project access
-              comes from membership rows for the signed-in user.
+              Search by customer, source workbook, or stage, then use the table
+              to jump back into the work that needs attention.
             </p>
-            {currentUser?.email ? (
-              <p className="phase-project-subtle">
-                Signed in as {currentUser.email}
-              </p>
-            ) : null}
           </div>
           <div className="phase-toolbar-stats">
             <InlineStat
               label="Projects"
               value={totalProjectCount ?? projects.length}
             />
-            <InlineStat label="Owned" value={ownedCount} />
-            <InlineStat label="Shared" value={sharedCount} />
+            <InlineStat label="Pending review" value={0} />
+            <InlineStat label="Approved rows" value={0} />
           </div>
         </div>
 
@@ -216,7 +212,7 @@ export function ProjectCommandDesk({
           <input
             value={query}
             onChange={(event) => onQueryChange(event.currentTarget.value)}
-            placeholder="Search projects, customer, description, or role..."
+            placeholder="Search projects, customer, workbook, or stage..."
             className="focus-premium theme-shell-input rounded-2xl px-4 py-3 text-sm"
           />
           <label className="phase-select-wrap">
@@ -239,9 +235,10 @@ export function ProjectCommandDesk({
           <div className="phase-project-table">
             <div className="phase-project-table-head">
               <span>Project</span>
-              <span>Customer</span>
-              <span>Role</span>
+              <span>Source</span>
               <span>Status</span>
+              <span>Next stage</span>
+              <span>Review</span>
               <span>Updated</span>
               <span>Action</span>
             </div>
@@ -250,26 +247,37 @@ export function ProjectCommandDesk({
               {projects.map((project) => (
                 <article key={project.id} className="phase-project-row">
                   <div className="min-w-0">
-                    <p className="phase-project-title">{project.name}</p>
+                    <p className="phase-project-title">
+                      {project.name}
+                      <span className="phase-project-subtle font-normal">
+                        <span className="mx-2">·</span>
+                        {formatRole(project.currentUserRole)}
+                      </span>
+                    </p>
                     <p className="phase-project-subtle">
-                      {project.description || "No description added"}
+                      {getCustomerLabel(project)}
                     </p>
                   </div>
 
+                  <div className="min-w-0">
+                    <p className="phase-project-subtle">
+                      No workbook selected
+                    </p>
+                    <p className="phase-project-filename">
+                      Upload workbook in Source
+                    </p>
+                  </div>
+
+                  <div>
+                    <span className="phase-project-chip phase-project-chip-muted">
+                      In source
+                    </span>
+                  </div>
+
+                  <div className="phase-project-subtle">Source</div>
+
                   <div className="phase-project-subtle">
-                    {getCustomerLabel(project)}
-                  </div>
-
-                  <div>
-                    <span className={getRoleClassName(project.currentUserRole)}>
-                      {formatRole(project.currentUserRole)}
-                    </span>
-                  </div>
-
-                  <div>
-                    <span className={getStatusClassName(project.status)}>
-                      {formatStatus(project.status)}
-                    </span>
+                    0 pending · 0 approved
                   </div>
 
                   <div className="phase-project-subtle">
@@ -283,6 +291,13 @@ export function ProjectCommandDesk({
                       className="focus-premium theme-button-primary rounded-xl px-4 py-2.5 text-sm font-semibold transition"
                     >
                       Open
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onOpenProject(project, "review")}
+                      className="focus-premium theme-shell-button-secondary rounded-xl px-4 py-2.5 text-sm font-semibold transition"
+                    >
+                      Review
                     </button>
                   </div>
                 </article>
@@ -497,24 +512,6 @@ function roleSortValue(role: ProjectRole) {
 
 function formatRole(role: ProjectRole) {
   return `${role[0].toUpperCase()}${role.slice(1)}`;
-}
-
-function getRoleClassName(role: ProjectRole) {
-  return role === "owner"
-    ? "phase-project-chip phase-project-chip-ready"
-    : role === "editor"
-      ? "phase-project-chip"
-      : "phase-project-chip phase-project-chip-muted";
-}
-
-function formatStatus(status: ProjectListItem["status"]) {
-  return `${status[0].toUpperCase()}${status.slice(1)}`;
-}
-
-function getStatusClassName(status: ProjectListItem["status"]) {
-  return status === "active"
-    ? "phase-project-chip phase-project-chip-ready"
-    : "phase-project-chip phase-project-chip-muted";
 }
 
 function formatUpdatedAt(value: string) {

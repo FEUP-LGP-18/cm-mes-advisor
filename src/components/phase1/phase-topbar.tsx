@@ -4,7 +4,7 @@ import Image from "next/image";
 import ThemeToggle from "@/app/theme-toggle";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
-export default function Phase1Topbar() {
+export default function Phase1Topbar({ email }: { email?: string | null }) {
   const supabaseConfigured = isSupabaseConfigured();
 
   async function handleSignOut() {
@@ -71,7 +71,12 @@ export default function Phase1Topbar() {
         </div>
       </div>
 
-      <div className="top-shell-toggle" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+      <div className="top-shell-toggle" style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+        {email ? (
+          <span className="mono-label top-shell-partner-label hidden sm:inline">
+            {email}
+          </span>
+        ) : null}
         {supabaseConfigured ? (
           <button
             type="button"
