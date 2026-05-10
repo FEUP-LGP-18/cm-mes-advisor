@@ -17,11 +17,6 @@ import { createRequirementsWorkspaceState } from "@/lib/requirements/workspace-s
 const MAX_WORKBOOK_SIZE_BYTES = 10 * 1024 * 1024;
 const XLSX_MIME_TYPE =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-const ACCEPTED_MIME_TYPES = new Set([
-  "",
-  XLSX_MIME_TYPE,
-  "application/octet-stream",
-]);
 
 type UploadRouteContext = {
   params: Promise<Record<string, string | string[] | undefined>>;
@@ -34,7 +29,7 @@ export async function POST(request: Request, context: UploadRouteContext) {
     : resolvedParams.projectId;
 
   if (!projectId) {
-    return errorResponse("Project id is required.", 400);
+    return errorResponse("Project id is required.", 400, { projectId });
   }
 
   const accessResult = await requireProjectCapability(
@@ -48,12 +43,19 @@ export async function POST(request: Request, context: UploadRouteContext) {
   const formData = await request.formData().catch(() => null);
   const file = formData?.get("workbook");
   if (!(file instanceof File)) {
-    return errorResponse("Choose an .xlsx workbook to upload.", 400);
+    return errorResponse("Choose an .xlsx workbook to upload.", 400, {
+      projectId,
+    });
   }
 
   const validationError = validateWorkbookFile(file);
   if (validationError) {
-    return errorResponse(validationError, 400);
+    return errorResponse(validationError, 400, {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      projectId,
+    });
   }
 
   const workbookBuffer = await file.arrayBuffer();
@@ -66,6 +68,12 @@ export async function POST(request: Request, context: UploadRouteContext) {
         ? error.message
         : "The uploaded workbook could not be parsed.",
       400,
+      {
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        projectId,
+      },
     );
   }
 
@@ -73,6 +81,12 @@ export async function POST(request: Request, context: UploadRouteContext) {
     return errorResponse(
       "The uploaded workbook does not contain any requirement rows.",
       400,
+      {
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        projectId,
+      },
     );
   }
 
@@ -168,10 +182,6 @@ function validateWorkbookFile(file: File) {
     return "The uploaded workbook is too large. Upload an .xlsx file under 10 MB.";
   }
 
-  if (!ACCEPTED_MIME_TYPES.has(file.type)) {
-    return "Only .xlsx workbooks are supported for requirements upload.";
-  }
-
   return null;
 }
 
@@ -206,6 +216,16 @@ function projectFailureResponse(failure: ProjectFailure) {
   return errorResponse(failure.message, status);
 }
 
-function errorResponse(message: string, status: number) {
+function errorResponse(
+  message: string,
+  status: number,
+  metadata?: Record<string, unknown>,
+) {
+  console.warn("Project workbook upload rejected", {
+    message,
+    status,
+    ...metadata,
+  });
+
   return NextResponse.json({ error: { message }, ok: false }, { status });
 }
