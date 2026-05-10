@@ -14,12 +14,14 @@ import Phase1Topbar from "./phase-topbar";
 export default function Phase1ProjectShell({
   children,
   currentStep,
+  email,
   nextAction,
   progress,
   project,
 }: {
   children: React.ReactNode;
   currentStep: Phase1WorkflowStep;
+  email?: string | null;
   nextAction: Phase1NextAction;
   progress: Phase1WorkflowStepState[];
   project: Phase1ProjectRecord;
@@ -34,7 +36,7 @@ export default function Phase1ProjectShell({
   return (
     <main className="app-canvas min-h-screen text-[color:var(--shell-ink)]">
       <div className="mx-auto flex w-full max-w-[1560px] flex-col gap-6 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
-        <Phase1Topbar />
+        <Phase1Topbar email={email} />
 
         <header className="phase-shell-header">
           <div className="phase-shell-header-top">

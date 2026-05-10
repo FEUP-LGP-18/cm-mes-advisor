@@ -2278,6 +2278,7 @@ function searchRequirements(
 }
 
 export function WorkspaceSourcePanel({
+  canUploadWorkbook = true,
   continueHelper,
   continueLabel,
   demoCount,
@@ -2294,6 +2295,7 @@ export function WorkspaceSourcePanel({
   sourcePreviewExpanded,
   sourceRowCount,
 }: {
+  canUploadWorkbook?: boolean;
   continueHelper?: string;
   continueLabel?: string;
   demoCount: number;
@@ -2347,27 +2349,34 @@ export function WorkspaceSourcePanel({
                 sample file only as a fallback for walkthroughs and quick demos.
               </p>
 
-              <div className="mt-4 flex flex-wrap gap-3">
-                <label className="focus-premium theme-button-primary inline-flex cursor-pointer justify-center rounded-2xl px-4 py-3 text-sm font-bold transition">
-                  Upload .xlsx workbook
-                  <input
-                    accept=".xlsx"
-                    type="file"
-                    onChange={onUploadWorkbook}
-                    className="sr-only"
-                  />
-                </label>
+              {canUploadWorkbook ? (
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <label className="focus-premium theme-button-primary inline-flex cursor-pointer justify-center rounded-2xl px-4 py-3 text-sm font-bold transition">
+                    Upload .xlsx workbook
+                    <input
+                      accept=".xlsx"
+                      type="file"
+                      onChange={onUploadWorkbook}
+                      className="sr-only"
+                    />
+                  </label>
 
-                {!isFixtureSource ? (
-                  <button
-                    type="button"
-                    onClick={onRestoreFixtureSource}
-                    className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-bold transition"
-                  >
-                    Restore sample workbook
-                  </button>
-                ) : null}
-              </div>
+                  {!isFixtureSource ? (
+                    <button
+                      type="button"
+                      onClick={onRestoreFixtureSource}
+                      className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-bold transition"
+                    >
+                      Restore sample workbook
+                    </button>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="tone-neutral mt-4 rounded-[1.1rem] border px-4 py-3 text-sm font-semibold leading-6">
+                  Viewer access can inspect this workbook source, but cannot
+                  upload or replace files here.
+                </p>
+              )}
 
               <ul className="mt-4 grid gap-2 text-sm leading-6 text-[color:var(--shell-muted)]">
                 <li>Uploading replaces the sample source for this run.</li>

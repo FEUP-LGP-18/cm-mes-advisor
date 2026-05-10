@@ -81,7 +81,7 @@ import {
   type MasterDataReviewStatus,
   type MasterDataWorkflowStep,
 } from "@/lib/master-data/types";
-import type { Project } from "@/lib/projects/types";
+import type { CurrentUser, Project } from "@/lib/projects/types";
 
 type MockGenerationStageStatus = "waiting" | "running" | "complete";
 
@@ -122,6 +122,8 @@ type UploadWorkbookResponse =
     };
 
 interface Phase1ProjectContextValue {
+  canUploadWorkbook: boolean;
+  currentUser: CurrentUser | null;
   currentSourceMetadata: RequirementsWorkspaceState["source"];
   demoRequirements: ReviewRequirement[];
   demoScriptAssembly: ReturnType<typeof assembleDemoScript>;
@@ -185,11 +187,15 @@ const Phase1ProjectContext = createContext<Phase1ProjectContextValue | null>(
 export function Phase1ProjectProvider({
   children,
   fallbackWorkspaceState,
+  initialCanUploadWorkbook = true,
+  initialCurrentUser,
   initialServerProject,
   initialServerWorkspaceState,
   routeProjectId,
 }: PropsWithChildren<{
   fallbackWorkspaceState: RequirementsWorkspaceState;
+  initialCanUploadWorkbook?: boolean;
+  initialCurrentUser?: CurrentUser | null;
   initialServerProject?: Project | null;
   initialServerWorkspaceState?: RequirementsWorkspaceState | null;
   routeProjectId: string;
@@ -1199,6 +1205,8 @@ export function Phase1ProjectProvider({
 
   const value = useMemo<Phase1ProjectContextValue>(
     () => ({
+      canUploadWorkbook: initialCanUploadWorkbook,
+      currentUser: initialCurrentUser ?? null,
       currentSourceMetadata:
         workspaceState?.source ?? fallbackWorkspaceState.source,
       analyzeMasterData,
@@ -1241,6 +1249,8 @@ export function Phase1ProjectProvider({
     }),
     [
       analyzeMasterData,
+      initialCanUploadWorkbook,
+      initialCurrentUser,
       demoRequirements,
       demoScriptAssembly,
       downloadMasterDataPackage,

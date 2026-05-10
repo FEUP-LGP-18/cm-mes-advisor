@@ -27,6 +27,7 @@ export default function Phase1ProjectStepRoute({
   const router = useRouter();
   const phase1 = usePhase1Project();
   const {
+    canUploadWorkbook,
     currentSourceMetadata,
     demoRequirements,
     demoScriptAssembly,
@@ -137,12 +138,14 @@ export default function Phase1ProjectStepRoute({
   return (
     <Phase1ProjectShell
       currentStep={step}
+      email={phase1.currentUser?.email}
       nextAction={phase1.nextAction}
       progress={workflowProgress}
       project={project}
     >
       {step === "source" ? (
         <SourceStudio
+          canUploadWorkbook={canUploadWorkbook}
           currentSourceMetadata={currentSourceMetadata}
           demoCount={summary.demoCount}
           mvpCount={summary.mvpCount}

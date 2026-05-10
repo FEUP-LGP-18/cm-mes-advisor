@@ -1,11 +1,14 @@
 import { Phase1ProjectProvider } from "@/components/phase1/project-provider";
 import { getFixtureWorkspaceState } from "@/lib/phase1/fixture";
-import { requireProjectCapability } from "@/lib/projects/permissions.server";
+import {
+  getProjectCapabilities,
+  requireProjectCapability,
+} from "@/lib/projects/permissions.server";
 import {
   getProjectForUser,
   getProjectPhaseState,
 } from "@/lib/projects/repository.server";
-import type { Project } from "@/lib/projects/types";
+import type { CurrentUser, Project } from "@/lib/projects/types";
 import {
   parseRequirementsWorkspaceState,
   type RequirementsWorkspaceState,
@@ -34,6 +37,8 @@ export default async function ProjectLayout({
 
   let initialServerProject: Project | null = null;
   let initialServerWorkspaceState: RequirementsWorkspaceState | null = null;
+  let initialCurrentUser: CurrentUser | null = null;
+  let initialCanUploadWorkbook = true;
 
   if (isSupabaseConfigured()) {
     const capabilityResult = await requireProjectCapability(
@@ -43,6 +48,14 @@ export default async function ProjectLayout({
     if (!capabilityResult.ok) {
       notFound();
     }
+    initialCurrentUser = capabilityResult.data;
+    const capabilitiesResult = await getProjectCapabilities(
+      projectId,
+      capabilityResult.data.id,
+    );
+    initialCanUploadWorkbook =
+      capabilitiesResult.ok &&
+      capabilitiesResult.data.includes("upload_project_file");
 
     const projectResult = await getProjectForUser(
       projectId,
@@ -69,6 +82,8 @@ export default async function ProjectLayout({
   return (
     <Phase1ProjectProvider
       fallbackWorkspaceState={workspaceState}
+      initialCanUploadWorkbook={initialCanUploadWorkbook}
+      initialCurrentUser={initialCurrentUser}
       initialServerProject={initialServerProject}
       initialServerWorkspaceState={initialServerWorkspaceState}
       routeProjectId={projectId}
