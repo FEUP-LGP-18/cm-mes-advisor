@@ -2,6 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { listMembers } from "@/lib/projects/members.server";
 import { GET } from "./route";
 
+vi.mock("@/lib/supabase/config", () => ({
+  isSupabaseConfigured: () => true,
+}));
+
 vi.mock("@/lib/projects/members.server", () => ({
   listMembers: vi.fn(),
 }));
