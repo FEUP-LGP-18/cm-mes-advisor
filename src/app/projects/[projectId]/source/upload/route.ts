@@ -13,8 +13,10 @@ import { parseRequirementsWorkbook } from "@/lib/requirements/parser";
 import { createUploadSourceMetadata } from "@/lib/requirements/source";
 import { assertRequirementsWorkbookFilename } from "@/lib/requirements/workbook-file";
 import { createRequirementsWorkspaceState } from "@/lib/requirements/workspace-state";
+import { createClient } from "@/lib/supabase/server";
 
 const MAX_WORKBOOK_SIZE_BYTES = 10 * 1024 * 1024;
+const PROJECT_FILES_BUCKET = "project-files";
 const XLSX_MIME_TYPE =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
@@ -97,11 +99,27 @@ export async function POST(request: Request, context: UploadRouteContext) {
 
   const checksum = createSha256Checksum(workbookBuffer);
   const uploadedAt = new Date().toISOString();
-  const storagePath = createDbBackedWorkbookReference(
+  const storageObjectPath = createWorkbookStorageObjectPath(
     projectId,
     checksum,
     uploadedAt,
   );
+  const storagePath = createWorkbookStoragePath(storageObjectPath);
+  const storageResult = await uploadWorkbookToStorage(
+    storageObjectPath,
+    workbookBuffer,
+    file.type || XLSX_MIME_TYPE,
+  );
+  if (!storageResult.ok) {
+    return errorResponse(storageResult.message, 400, {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      projectId,
+      storagePath,
+    });
+  }
+
   const sourceMetadata = createUploadSourceMetadata(file.name, workbookBuffer, {
     customerName: projectResult.data.customerName,
     projectName: projectResult.data.name,
@@ -123,6 +141,7 @@ export async function POST(request: Request, context: UploadRouteContext) {
     accessResult.data.id,
   );
   if (!existingSourceState.ok) {
+    await removeWorkbookFromStorage(storageObjectPath);
     return projectFailureResponse(existingSourceState);
   }
 
@@ -137,13 +156,16 @@ export async function POST(request: Request, context: UploadRouteContext) {
         ...sourceMetadata,
         parser: "phase1-requirements-v1",
         rowCount: parsedRequirements.length,
-        storageMode: "db-backed",
+        storageBucket: PROJECT_FILES_BUCKET,
+        storageMode: "supabase-storage",
+        storageObjectPath,
       },
       storagePath,
     },
     accessResult.data.id,
   );
   if (!fileResult.ok) {
+    await removeWorkbookFromStorage(storageObjectPath);
     return projectFailureResponse(fileResult);
   }
 
@@ -155,6 +177,7 @@ export async function POST(request: Request, context: UploadRouteContext) {
     accessResult.data.id,
   );
   if (!phaseStateResult.ok) {
+    await removeWorkbookFromStorage(storageObjectPath);
     return projectFailureResponse(phaseStateResult);
   }
 
@@ -191,14 +214,58 @@ function createSha256Checksum(workbookBuffer: ArrayBuffer) {
     .digest("hex");
 }
 
-function createDbBackedWorkbookReference(
+function createWorkbookStorageObjectPath(
   projectId: string,
   checksum: string,
   uploadedAt: string,
 ) {
-  return `db-backed://projects/${projectId}/source/${Date.parse(
+  return `projects/${projectId}/source/${Date.parse(
     uploadedAt,
   )}-${checksum}.xlsx`;
+}
+
+function createWorkbookStoragePath(storageObjectPath: string) {
+  return `${PROJECT_FILES_BUCKET}/${storageObjectPath}`;
+}
+
+async function uploadWorkbookToStorage(
+  storageObjectPath: string,
+  workbookBuffer: ArrayBuffer,
+  contentType: string,
+) {
+  const supabase = await createClient();
+  const { error } = await supabase.storage
+    .from(PROJECT_FILES_BUCKET)
+    .upload(storageObjectPath, Buffer.from(workbookBuffer), {
+      cacheControl: "3600",
+      contentType,
+      upsert: false,
+    });
+
+  if (error) {
+    return {
+      message:
+        error.message ||
+        "The uploaded workbook could not be saved to project storage.",
+      ok: false as const,
+    };
+  }
+
+  return { ok: true as const };
+}
+
+async function removeWorkbookFromStorage(storageObjectPath: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.storage
+    .from(PROJECT_FILES_BUCKET)
+    .remove([storageObjectPath]);
+
+  if (error) {
+    console.warn("Project workbook storage cleanup failed", {
+      message: error.message,
+      storageObjectPath,
+    });
+  }
 }
 
 function projectFailureResponse(failure: ProjectFailure) {
