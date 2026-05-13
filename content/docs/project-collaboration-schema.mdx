@@ -31,6 +31,18 @@ The core tables are:
 `project_phase_states.phase_key` is intentionally generic so Phase 1 and future
 Phase 2 state can coexist without adding one table per workflow step.
 
+Use stable, workflow-level keys rather than route names. Current and reserved
+examples:
+
+| Phase key              | Status             | Purpose                                |
+| ---------------------- | ------------------ | -------------------------------------- |
+| `phase1`               | Current contract   | Phase 1 source/generate/review state   |
+| `phase2_master_data`   | Future/reserved    | Phase 2 Master Data setup/review state |
+
+The database check only enforces safe key syntax. It does not hard-code a Phase
+1-only enum, so future phase state should use the same `project_phase_states`
+table and the same repository helpers.
+
 ## Roles
 
 Project roles are stored as the `project_role` enum:
@@ -96,6 +108,51 @@ Owners can:
 - add, update, and remove memberships
 - create, update, revoke, and delete invites
 - delete files and phase state records
+
+## Server Route Contract
+
+Server routes must go through the project permission and repository layer rather
+than calling Supabase tables directly. The repository still relies on RLS as the
+database authority; route code should use the helper result types to fail closed
+before doing domain work.
+
+Future Phase 2 routes should follow this shape:
+
+```ts
+const user = await requireProjectCapability(projectId, "edit_project_state");
+if (!user.ok) {
+  return NextResponse.json({ ok: false, error: user.message }, { status: 403 });
+}
+
+const result = await saveProjectPhaseState(
+  projectId,
+  "phase2_master_data",
+  state,
+  expectedVersion,
+  user.data.id,
+);
+```
+
+Use `getProjectPhaseStateForUser(projectId, "phase2_master_data", userId)` for
+reads and `saveProjectPhaseState(projectId, "phase2_master_data", ...)` for
+writes. Do not add a Phase-2-specific persistence table unless the data model
+requires relational queries that JSON phase state cannot support.
+
+Suggested Phase 2 capability mapping:
+
+| Future Phase 2 action                  | Capability                  | Role effect       |
+| -------------------------------------- | --------------------------- | ----------------- |
+| Read Master Data setup/review/export   | `read_project`              | Viewer and above  |
+| Generate Master Data draft             | `edit_project_state`        | Editor and owner  |
+| Edit/approve Master Data objects       | `edit_project_state`        | Editor and owner  |
+| Download generated export package      | `read_project` by default   | Viewer and above  |
+| Upload supporting project files        | `upload_project_file`       | Editor and owner  |
+| Manage project/team/settings           | `manage_project_settings` or `manage_project_members` | Owner |
+| Archive/delete project                 | `archive_project` or `delete_project` | Owner |
+
+If the product later decides generated export packages should be restricted to
+editors, use `edit_project_state` for that route. The current default is
+viewer-plus read access for generated downloads.
 
 ## Owner Safety
 
