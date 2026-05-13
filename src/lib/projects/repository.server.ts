@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
-import { requireProjectCapability, requireUser } from "./permissions.server";
+import {
+  isUuid,
+  requireProjectCapability,
+  requireUser,
+} from "./permissions.server";
 import {
   failure,
   success,
@@ -394,6 +398,48 @@ export async function saveProjectFileMetadata(
   }
 
   return success(mapProjectFileRow(data as ProjectFileRow));
+}
+
+export async function deleteUploadedProjectFileMetadata(
+  input: {
+    fileId: string;
+    projectId: string;
+  },
+  userId: string,
+): Promise<ProjectResult<null>> {
+  const authResult = await requireRepositoryUser(userId);
+  if (!authResult.ok) {
+    return authResult;
+  }
+
+  const accessResult = await requireProjectCapability(
+    input.projectId,
+    "upload_project_file",
+  );
+  if (!accessResult.ok) {
+    return accessResult;
+  }
+
+  if (!isUuid(input.fileId) || !isUuid(input.projectId)) {
+    return failure("validation_error", "Project file id must be valid.");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("project_files")
+    .delete()
+    .eq("id", input.fileId)
+    .eq("project_id", input.projectId)
+    .eq("uploaded_by", userId);
+
+  if (error) {
+    return mapSupabaseError(
+      error,
+      "Project file metadata could not be deleted.",
+    );
+  }
+
+  return success(null);
 }
 
 export async function recordProjectActivity(

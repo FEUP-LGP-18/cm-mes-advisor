@@ -79,3 +79,15 @@ using (
   and name ~ '^projects/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/source/.+\.xlsx$'
   and public.can_edit_project(((storage.foldername(name))[2])::uuid)
 );
+
+drop policy if exists "editors can delete own failed project file metadata"
+on public.project_files;
+
+create policy "editors can delete own failed project file metadata"
+on public.project_files
+for delete
+to authenticated
+using (
+  public.can_edit_project(project_id)
+  and uploaded_by = auth.uid()
+);

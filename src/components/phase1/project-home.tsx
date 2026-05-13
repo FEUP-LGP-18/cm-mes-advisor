@@ -237,10 +237,9 @@ export function ProjectCommandDesk({
           <div className="phase-project-table">
             <div className="phase-project-table-head">
               <span>Project</span>
-              <span>Source</span>
-              <span>Status</span>
-              <span>Next stage</span>
-              <span>Review</span>
+              <span>Workspace</span>
+              <span>Access</span>
+              <span>Default step</span>
               <span>Updated</span>
               <span>Action</span>
             </div>
@@ -263,24 +262,20 @@ export function ProjectCommandDesk({
 
                   <div className="min-w-0">
                     <p className="phase-project-subtle">
-                      No workbook selected
+                      Source details load in project
                     </p>
                     <p className="phase-project-filename">
-                      Upload workbook in Source
+                      Open Source to inspect workbook state
                     </p>
                   </div>
 
                   <div>
                     <span className="phase-project-chip phase-project-chip-muted">
-                      In source
+                      {formatRole(project.currentUserRole)}
                     </span>
                   </div>
 
                   <div className="phase-project-subtle">Source</div>
-
-                  <div className="phase-project-subtle">
-                    0 pending · 0 approved
-                  </div>
 
                   <div className="phase-project-subtle">
                     {formatUpdatedAt(project.updatedAt)}
@@ -323,15 +318,13 @@ export function ProjectCommandDesk({
                   : "New projects are saved to Supabase and the creator becomes the owner automatically."}
               </p>
             </div>
-            {!isSearching ? (
-              <button
-                type="button"
-                onClick={() => setCreateDialogOpen(true)}
-                className="focus-premium theme-button-primary shrink-0 rounded-2xl px-5 py-3 text-sm font-semibold transition"
-              >
-                Create project
-              </button>
-            ) : null}
+            <button
+              type="button"
+              onClick={() => setCreateDialogOpen(true)}
+              className="focus-premium theme-button-primary shrink-0 rounded-2xl px-5 py-3 text-sm font-semibold transition"
+            >
+              Create project
+            </button>
           </div>
         )}
       </section>

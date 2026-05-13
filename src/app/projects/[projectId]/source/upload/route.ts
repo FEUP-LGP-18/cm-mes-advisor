@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { applyProjectIdentity } from "@/lib/phase1/project-registry";
 import { requireProjectCapability } from "@/lib/projects/permissions.server";
 import {
+  deleteUploadedProjectFileMetadata,
   getProjectForUser,
   getProjectPhaseState,
   saveProjectFileMetadata,
@@ -177,6 +178,20 @@ export async function POST(request: Request, context: UploadRouteContext) {
     accessResult.data.id,
   );
   if (!phaseStateResult.ok) {
+    const metadataCleanupResult = await deleteUploadedProjectFileMetadata(
+      {
+        fileId: fileResult.data.id,
+        projectId,
+      },
+      accessResult.data.id,
+    );
+    if (!metadataCleanupResult.ok) {
+      console.warn("Project workbook metadata cleanup failed", {
+        fileId: fileResult.data.id,
+        message: metadataCleanupResult.message,
+        projectId,
+      });
+    }
     await removeWorkbookFromStorage(storageObjectPath);
     return projectFailureResponse(phaseStateResult);
   }

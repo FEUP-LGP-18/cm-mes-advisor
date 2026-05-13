@@ -37,6 +37,12 @@ export function roleHasCapability(
   return getCapabilitiesForRole(role).includes(capability);
 }
 
+export function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
+
 export async function requireUser(): Promise<ProjectResult<CurrentUser>> {
   const supabase = await createClient();
   const {
@@ -168,10 +174,4 @@ async function readCurrentProjectRole(
   }
 
   return success(isProjectRole(data) ? data : null);
-}
-
-function isUuid(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    value,
-  );
 }

@@ -71,7 +71,11 @@ export default async function ProjectLayout({
       "source",
       capabilityResult.data.id,
     );
-    if (sourceStateResult.ok && sourceStateResult.data) {
+    if (!sourceStateResult.ok) {
+      throw new Error(sourceStateResult.message);
+    }
+
+    if (sourceStateResult.data) {
       initialServerWorkspaceState = parseRequirementsWorkspaceState(
         sourceStateResult.data.state,
         workspaceState,

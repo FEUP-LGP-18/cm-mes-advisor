@@ -5,6 +5,7 @@ import {
   requireUser,
 } from "./permissions.server";
 import {
+  deleteUploadedProjectFileMetadata,
   createProjectForUser,
   listProjectsForUser,
   saveProjectFileMetadata,
@@ -16,6 +17,10 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 vi.mock("./permissions.server", () => ({
+  isUuid: (value: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value,
+    ),
   requireProjectCapability: vi.fn(),
   requireUser: vi.fn(),
 }));
@@ -316,5 +321,60 @@ describe("project repository", () => {
       storage_path: `db-backed://projects/${projectId}/source/abc123.xlsx`,
       uploaded_by: userId,
     });
+  });
+
+  it("deletes only the current user's uploaded file metadata during upload cleanup", async () => {
+    requireUserMock.mockResolvedValueOnce({
+      data: {
+        email: "editor@example.com",
+        emailConfirmedAt: "2026-05-01T12:00:00.000Z",
+        id: userId,
+      },
+      ok: true,
+      status: "success",
+    });
+    requireProjectCapabilityMock.mockResolvedValueOnce({
+      data: {
+        email: "editor@example.com",
+        emailConfirmedAt: "2026-05-01T12:00:00.000Z",
+        id: userId,
+      },
+      ok: true,
+      status: "success",
+    });
+
+    const uploadedByEq = vi.fn().mockResolvedValue({ error: null });
+    const projectEq = vi.fn().mockReturnValue({ eq: uploadedByEq });
+    const idEq = vi.fn().mockReturnValue({ eq: projectEq });
+    const deleteMock = vi.fn().mockReturnValue({ eq: idEq });
+    const from = vi.fn().mockReturnValue({ delete: deleteMock });
+
+    createClientMock.mockResolvedValueOnce({
+      from,
+    } as unknown as Awaited<ReturnType<typeof createClient>>);
+
+    const fileId = "33333333-3333-4333-8333-333333333333";
+
+    await expect(
+      deleteUploadedProjectFileMetadata(
+        {
+          fileId,
+          projectId,
+        },
+        userId,
+      ),
+    ).resolves.toMatchObject({
+      data: null,
+      ok: true,
+    });
+
+    expect(requireProjectCapabilityMock).toHaveBeenCalledWith(
+      projectId,
+      "upload_project_file",
+    );
+    expect(deleteMock).toHaveBeenCalled();
+    expect(idEq).toHaveBeenCalledWith("id", fileId);
+    expect(projectEq).toHaveBeenCalledWith("project_id", projectId);
+    expect(uploadedByEq).toHaveBeenCalledWith("uploaded_by", userId);
   });
 });
