@@ -2,6 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createInvite, listInvites } from "@/lib/projects/invites.server";
 import { GET, POST } from "./route";
 
+vi.mock("@/lib/supabase/config", () => ({
+  isSupabaseConfigured: () => true,
+}));
+
 vi.mock("@/lib/projects/invites.server", () => ({
   createInvite: vi.fn(),
   listInvites: vi.fn(),
