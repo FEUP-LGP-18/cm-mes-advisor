@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createInvite, listInvites } from "@/lib/projects/invites.server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import type { ProjectRole } from "@/lib/projects/types";
 
 function toHttpStatus(status: string): number {
@@ -17,6 +18,11 @@ export async function GET(
 ) {
   try {
     const { projectId } = await params;
+
+    if (!isSupabaseConfigured()) {
+      return NextResponse.json([]);
+    }
+
     const result = await listInvites(projectId);
 
     if (result.ok) {
