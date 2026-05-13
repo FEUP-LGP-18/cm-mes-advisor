@@ -60,6 +60,18 @@ describe("project collaboration schema migration", () => {
     );
   });
 
+  it("keeps project phase state keyed by a generic phase key", () => {
+    expect(migration).toContain("create table public.project_phase_states");
+    expect(migration).toContain(
+      "phase_key text not null check (phase_key ~ '^[a-z0-9][a-z0-9_-]*$')",
+    );
+    expect(migration).toContain("primary key (project_id, phase_key)");
+    expect(migration).not.toContain("phase_key public.");
+    expect(migration).not.toContain(
+      "phase_key text not null check (phase_key = 'phase1')",
+    );
+  });
+
   it("creates and protects the initial owner invariant", () => {
     expect(migration).toContain(
       "create or replace function public.create_initial_project_owner",

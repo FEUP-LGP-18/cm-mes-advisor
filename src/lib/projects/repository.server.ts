@@ -188,6 +188,43 @@ export async function createProjectForUser(
   return success(mapProjectRow(data as ProjectRow));
 }
 
+export async function getProjectPhaseStateForUser(
+  projectId: string,
+  phaseKey: string,
+  userId: string,
+): Promise<ProjectResult<ProjectPhaseState | null>> {
+  const authResult = await requireRepositoryUser(userId);
+  if (!authResult.ok) {
+    return authResult;
+  }
+
+  const accessResult = await requireProjectCapability(projectId, "read_project");
+  if (!accessResult.ok) {
+    return accessResult;
+  }
+
+  if (!isValidPhaseKey(phaseKey)) {
+    return failure("validation_error", "Phase key must be valid.");
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("project_phase_states")
+    .select(phaseStateSelect)
+    .eq("project_id", projectId)
+    .eq("phase_key", phaseKey)
+    .maybeSingle();
+
+  if (error) {
+    return mapSupabaseError(
+      error,
+      "Project phase state could not be loaded.",
+    );
+  }
+
+  return success(data ? mapPhaseStateRow(data as ProjectPhaseStateRow) : null);
+}
+
 export async function saveProjectPhaseState(
   projectId: string,
   phaseKey: string,
