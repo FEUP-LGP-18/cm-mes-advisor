@@ -62,7 +62,7 @@ export async function listMembers(
 
   const accessResult = await requireProjectCapability(
     projectId,
-    "manage_project_members",
+    "read_project",
   );
   if (!accessResult.ok) return accessResult;
   if (accessResult.data.id !== userId) {

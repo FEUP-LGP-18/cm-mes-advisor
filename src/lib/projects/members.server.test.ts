@@ -88,6 +88,10 @@ describe("members.server", () => {
       const result = await listMembers(projectId);
 
       expect(result.ok).toBe(true);
+      expect(requireProjectCapabilityMock).toHaveBeenCalledWith(
+        projectId,
+        "read_project",
+      );
       if (!result.ok) throw new Error("expected success");
       expect(result.data).toHaveLength(1);
       expect(result.data[0]).toMatchObject({
@@ -141,7 +145,7 @@ describe("members.server", () => {
       expect(createClientMock).not.toHaveBeenCalled();
     });
 
-    it("returns forbidden when the caller lacks manage_project_members", async () => {
+    it("returns forbidden when the caller lacks read_project", async () => {
       requireUserMock.mockResolvedValueOnce(ownerSuccess);
       requireProjectCapabilityMock.mockResolvedValueOnce({
         message: "Project access denied.",
@@ -153,6 +157,10 @@ describe("members.server", () => {
 
       expect(result.ok).toBe(false);
       expect(result.status).toBe("forbidden");
+      expect(requireProjectCapabilityMock).toHaveBeenCalledWith(
+        projectId,
+        "read_project",
+      );
       expect(createClientMock).not.toHaveBeenCalled();
     });
 

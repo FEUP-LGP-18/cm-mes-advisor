@@ -62,7 +62,7 @@ describe("GET /api/projects/[projectId]/members", () => {
     expect(body).toHaveProperty("error");
   });
 
-  it("returns 403 when the caller lacks owner capabilities", async () => {
+  it("returns 403 when the caller lacks project read access", async () => {
     listMembersMock.mockResolvedValueOnce({
       message: "Project access denied.",
       ok: false,
