@@ -3,6 +3,7 @@ import type { ParsedRequirement } from "../parser";
 
 export interface RequirementGenerationRequestValidationSuccess {
   ok: true;
+  projectId: string;
   mode?: RequirementGenerationRouteMode;
   requirements: ParsedRequirement[];
 }
@@ -26,6 +27,11 @@ export function parseRequirementGenerationRequestBody(
     return invalidRequest(
       "Request body must be a JSON object with a requirements array.",
     );
+  }
+
+  const projectId = readString(value.projectId);
+  if (!projectId) {
+    return invalidRequest("Request body must include a projectId.");
   }
 
   if (!Array.isArray(value.requirements)) {
@@ -56,6 +62,7 @@ export function parseRequirementGenerationRequestBody(
 
   return {
     ok: true,
+    projectId,
     mode: mode ?? undefined,
     requirements,
   };

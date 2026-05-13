@@ -28,6 +28,7 @@ const projectId = "22222222-2222-4222-8222-222222222222";
 const phase2Key = "phase2_master_data";
 const currentUser: CurrentUser = {
   email: "editor@example.com",
+  emailConfirmedAt: "2026-05-01T12:00:00.000Z",
   id: userId,
 };
 

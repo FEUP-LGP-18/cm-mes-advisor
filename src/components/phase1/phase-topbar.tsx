@@ -5,8 +5,10 @@ import ThemeToggle from "@/app/theme-toggle";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 export default function Phase1Topbar() {
+  const supabaseConfigured = isSupabaseConfigured();
+
   async function handleSignOut() {
-    if (!isSupabaseConfigured()) {
+    if (!supabaseConfigured) {
       window.location.assign("/");
       return;
     }
@@ -70,14 +72,16 @@ export default function Phase1Topbar() {
       </div>
 
       <div className="top-shell-toggle" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-        <button
-          type="button"
-          onClick={handleSignOut}
-          className="focus-premium theme-shell-button-secondary rounded-xl px-3 py-2 text-xs font-semibold transition"
-          aria-label="Sign out"
-        >
-          Sign out
-        </button>
+        {supabaseConfigured ? (
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="focus-premium theme-shell-button-secondary rounded-xl px-3 py-2 text-xs font-semibold transition"
+            aria-label="Sign out"
+          >
+            Sign out
+          </button>
+        ) : null}
         <ThemeToggle />
       </div>
     </nav>

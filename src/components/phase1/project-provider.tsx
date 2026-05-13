@@ -24,6 +24,12 @@ import type {
   RequirementGenerationRouteMode,
   RequirementGenerationUnavailableReason,
 } from "@/lib/requirements/generation-api";
+import type {
+  MasterDataAnalyzeRouteBody,
+  MasterDataExportRouteBody,
+  MasterDataGenerateRouteBody,
+  MasterDataRequirementInput,
+} from "@/lib/master-data/api";
 import type { ParsedRequirement } from "@/lib/requirements/types";
 import {
   createFixtureWorkspaceStateForProject,
@@ -32,8 +38,10 @@ import {
   loadPhase1ProjectRegistry,
   savePhase1ProjectRegistry,
   setActivePhase1Project,
+  touchMasterDataProjectStep,
   summarizePhase1Workspace,
   touchPhase1ProjectStep,
+  updateMasterDataPhase2State,
   updatePhase1ProjectRecord,
   upsertPhase1Project,
   type Phase1ProjectRecord,
@@ -61,6 +69,16 @@ import {
   type Phase1WorkflowStep,
   type Phase1WorkflowStepState,
 } from "@/lib/phase1/workflow";
+import {
+  createInitialMasterDataPhase2State,
+  flattenMasterDataObjects,
+  type MasterDataDraftObject,
+  type MasterDataGenerationMode,
+  type MasterDataObjectType,
+  type MasterDataPhase2State,
+  type MasterDataReviewStatus,
+  type MasterDataWorkflowStep,
+} from "@/lib/master-data/types";
 
 type MockGenerationStageStatus = "waiting" | "running" | "complete";
 
@@ -105,6 +123,26 @@ interface Phase1ProjectContextValue {
   registry: Phase1ProjectRegistry | null;
   reviewRequirements: ReviewRequirement[];
   routeProjectId: string;
+  masterDataPhase2: MasterDataPhase2State;
+  masterDataObjects: MasterDataDraftObject[];
+  analyzeMasterData: () => Promise<boolean>;
+  downloadMasterDataPackage: () => Promise<MasterDataExportRouteBody | null>;
+  generateMasterData: () => Promise<boolean>;
+  setMasterDataMode: (mode: MasterDataGenerationMode) => void;
+  setMasterDataStep: (step: MasterDataWorkflowStep) => void;
+  setSelectedMasterDataObjectTypes: (
+    objectTypes: MasterDataObjectType[],
+  ) => void;
+  setSelectedMasterDataRequirementKeys: (requirementKeys: string[]) => void;
+  updateMasterDataObjectField: (
+    objectId: string,
+    fieldKey: string,
+    value: string,
+  ) => void;
+  updateMasterDataObjectReviewStatus: (
+    objectId: string,
+    reviewStatus: MasterDataReviewStatus,
+  ) => void;
   setCurrentStep: (step: Phase1WorkflowStep) => void;
   sourceFeedback: SourceFeedback | null;
   summary: ReturnType<typeof summarizeReviewRequirements>;
@@ -197,6 +235,13 @@ export function Phase1ProjectProvider({
     () => summarizeReviewRequirements(reviewRequirements),
     [reviewRequirements],
   );
+  const approvedMasterDataRequirementKeys = useMemo(
+    () =>
+      reviewRequirements
+        .filter((requirement) => requirement.reviewStatus === "approved")
+        .map((requirement) => requirement.requirementKey),
+    [reviewRequirements],
+  );
   const generatedRequirements = useMemo(
     () =>
       reviewRequirements.filter(
@@ -230,6 +275,40 @@ export function Phase1ProjectProvider({
   const workflowProgress = useMemo(
     () => getWorkflowProgress(workflowSnapshot),
     [workflowSnapshot],
+  );
+  const storedMasterDataPhase2 =
+    project?.phase2 ?? createInitialMasterDataPhase2State();
+  const masterDataPhase2 = useMemo(() => {
+    const approvedRequirementKeySet = new Set(approvedMasterDataRequirementKeys);
+    const applicableRequirements =
+      storedMasterDataPhase2.applicableRequirements.filter((requirement) =>
+        approvedRequirementKeySet.has(requirement.requirementKey),
+      );
+    const applicableRequirementKeySet = new Set(
+      applicableRequirements.map((requirement) => requirement.requirementKey),
+    );
+    const selectedRequirementKeys =
+      storedMasterDataPhase2.selectedRequirementKeys.filter((requirementKey) =>
+        applicableRequirementKeySet.has(requirementKey),
+      );
+
+    return {
+      ...storedMasterDataPhase2,
+      applicableRequirements,
+      generationFeedback:
+        approvedRequirementKeySet.size === 0 &&
+        storedMasterDataPhase2.currentStep === "setup"
+          ? "Approve at least one Phase 1 row before starting Phase 2. Master Data setup only analyzes the approved consultant slice."
+          : storedMasterDataPhase2.generationFeedback,
+      mode: storedMasterDataPhase2.active
+        ? storedMasterDataPhase2.mode
+        : "mock",
+      selectedRequirementKeys,
+    };
+  }, [approvedMasterDataRequirementKeys, storedMasterDataPhase2]);
+  const masterDataObjects = useMemo(
+    () => flattenMasterDataObjects(masterDataPhase2.generatedObjects),
+    [masterDataPhase2.generatedObjects],
   );
   const nextAction = useMemo(
     () => getNextAction(workflowSnapshot),
@@ -328,6 +407,76 @@ export function Phase1ProjectProvider({
     },
     [persistProject, project, workspaceState],
   );
+
+  const updateMasterDataState = useCallback(
+    (
+      updater:
+        | MasterDataPhase2State
+        | ((currentState: MasterDataPhase2State) => MasterDataPhase2State),
+    ) => {
+      if (!project) {
+        return;
+      }
+
+      persistProject((currentProject) =>
+        updateMasterDataPhase2State(currentProject, updater),
+      );
+    },
+    [persistProject, project],
+  );
+
+  useEffect(() => {
+    if (!project) {
+      return;
+    }
+
+    const shouldNormalizeApplicableRequirements =
+      !haveSameKeys(
+        storedMasterDataPhase2.applicableRequirements.map(
+          (requirement) => requirement.requirementKey,
+        ),
+        masterDataPhase2.applicableRequirements.map(
+          (requirement) => requirement.requirementKey,
+        ),
+      );
+    const shouldNormalizeSelectedRequirementKeys = !haveSameKeys(
+      storedMasterDataPhase2.selectedRequirementKeys,
+      masterDataPhase2.selectedRequirementKeys,
+    );
+    const shouldNormalizeFeedback =
+      storedMasterDataPhase2.generationFeedback !==
+      masterDataPhase2.generationFeedback;
+    const shouldNormalizeMode =
+      storedMasterDataPhase2.mode !== masterDataPhase2.mode;
+
+    if (
+      !shouldNormalizeApplicableRequirements &&
+      !shouldNormalizeSelectedRequirementKeys &&
+      !shouldNormalizeFeedback &&
+      !shouldNormalizeMode
+    ) {
+      return;
+    }
+
+    updateMasterDataState((currentState) => ({
+      ...currentState,
+      applicableRequirements: masterDataPhase2.applicableRequirements,
+      generationFeedback: masterDataPhase2.generationFeedback,
+      mode: masterDataPhase2.mode,
+      selectedRequirementKeys: masterDataPhase2.selectedRequirementKeys,
+    }));
+  }, [
+    masterDataPhase2.generationFeedback,
+    masterDataPhase2.mode,
+    masterDataPhase2.selectedRequirementKeys,
+    masterDataPhase2.applicableRequirements,
+    project,
+    storedMasterDataPhase2.applicableRequirements,
+    storedMasterDataPhase2.generationFeedback,
+    storedMasterDataPhase2.mode,
+    storedMasterDataPhase2.selectedRequirementKeys,
+    updateMasterDataState,
+  ]);
 
   const updateRequirementReview = useCallback(
     (requirement: ReviewRequirement, action: RequirementReviewAction) => {
@@ -458,6 +607,7 @@ export function Phase1ProjectProvider({
           },
           body: JSON.stringify({
             mode,
+            projectId: project.projectId,
             requirements: targetRequirements.map(
               toGenerationRequestRequirement,
             ),
@@ -589,25 +739,396 @@ export function Phase1ProjectProvider({
     [isGenerating, project, updateWorkspaceState, workspaceState],
   );
 
+  const setMasterDataStep = useCallback(
+    (step: MasterDataWorkflowStep) => {
+      if (!project) {
+        return;
+      }
+
+      persistProject((currentProject) =>
+        touchMasterDataProjectStep(currentProject, step),
+      );
+    },
+    [persistProject, project],
+  );
+
+  const setMasterDataMode = useCallback(
+    (mode: MasterDataGenerationMode) => {
+      updateMasterDataState((currentState) => ({
+        ...currentState,
+        active: true,
+        generationFeedback:
+          currentState.generationStatus === "error" && mode === "mock"
+            ? "Prototype drafts selected. Return to processing when you are ready to retry without the grounded generation config."
+            : currentState.generationFeedback,
+        generationStatus:
+          currentState.generationStatus === "error"
+            ? "idle"
+            : currentState.generationStatus,
+        mode,
+      }));
+    },
+    [updateMasterDataState],
+  );
+
+  const setSelectedMasterDataRequirementKeys = useCallback(
+    (requirementKeys: string[]) => {
+      updateMasterDataState((currentState) => ({
+        ...currentState,
+        active: true,
+        selectedRequirementKeys: requirementKeys,
+      }));
+    },
+    [updateMasterDataState],
+  );
+
+  const setSelectedMasterDataObjectTypes = useCallback(
+    (objectTypes: MasterDataObjectType[]) => {
+      updateMasterDataState((currentState) => ({
+        ...currentState,
+        active: true,
+        selectedObjectTypes: objectTypes,
+      }));
+    },
+    [updateMasterDataState],
+  );
+
+  const analyzeMasterData = useCallback(async () => {
+    if (!project) {
+      return false;
+    }
+
+    const approvedRequirementKeys = reviewRequirements
+      .filter((requirement) => requirement.reviewStatus === "approved")
+      .map((requirement) => requirement.requirementKey);
+
+    try {
+      const response = await fetch("/api/master-data/analyze", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          approvedRequirementKeys,
+          requirements: reviewRequirements.map(toMasterDataRequirementInput),
+        }),
+      });
+      const responseBody = (await response.json().catch(() => null)) as
+        | MasterDataAnalyzeRouteBody
+        | null;
+
+      if (!response.ok || !responseBody || !responseBody.ok) {
+        updateMasterDataState((currentState) => ({
+          ...currentState,
+          active: true,
+          currentStep: "setup",
+          generationFeedback:
+            responseBody && !responseBody.ok
+              ? responseBody.error.message
+              : "Master Data analysis could not be completed.",
+        }));
+        return false;
+      }
+
+      updateMasterDataState((currentState) => ({
+        ...currentState,
+        active: true,
+        currentStep: "setup",
+        applicableRequirements: responseBody.applicableRequirements,
+        selectedRequirementKeys: (() => {
+          const applicableRequirementKeys = new Set(
+            responseBody.applicableRequirements.map(
+              (requirement) => requirement.requirementKey,
+            ),
+          );
+          const retainedSelection = currentState.selectedRequirementKeys.filter(
+            (requirementKey) => applicableRequirementKeys.has(requirementKey),
+          );
+
+          if (retainedSelection.length > 0) {
+            return retainedSelection;
+          }
+
+          return responseBody.applicableRequirements
+            .filter((requirement) => requirement.preselected)
+            .map((requirement) => requirement.requirementKey);
+        })(),
+        selectedObjectTypes:
+          currentState.selectedObjectTypes.length > 0
+            ? currentState.selectedObjectTypes
+            : responseBody.suggestedObjectTypes,
+        generationFeedback:
+          responseBody.warnings.length > 0
+            ? responseBody.warnings.join(" ")
+            : "Phase 2 setup is ready for generation.",
+      }));
+      return true;
+    } catch {
+      updateMasterDataState((currentState) => ({
+        ...currentState,
+        active: true,
+        currentStep: "setup",
+        generationFeedback:
+          "Master Data analysis could not be reached. The saved project state was not changed.",
+      }));
+      return false;
+    }
+  }, [project, reviewRequirements, updateMasterDataState]);
+
+  const generateMasterData = useCallback(async () => {
+    if (!project) {
+      return false;
+    }
+
+    const phase2State = masterDataPhase2;
+    const selectedRequirementKeys = phase2State.selectedRequirementKeys;
+    const selectedObjectTypes = phase2State.selectedObjectTypes;
+
+    if (
+      selectedRequirementKeys.length === 0 ||
+      selectedObjectTypes.length === 0
+    ) {
+      updateMasterDataState((currentState) => ({
+        ...currentState,
+        active: true,
+        currentStep: "setup",
+        generationFeedback:
+          "Choose at least one applicable requirement and one object type before generating Master Data.",
+      }));
+      return false;
+    }
+
+    updateMasterDataState((currentState) => ({
+      ...currentState,
+      active: true,
+      currentStep: "process",
+      generationStatus: "running",
+      generationFeedback: "Generating Master Data drafts for the selected slice.",
+      generationLogs: [
+        {
+          id: "process:start",
+          stage: "analysis",
+          status: "running",
+          message: `Preparing ${selectedRequirementKeys.length} requirement(s) for Master Data generation.`,
+        },
+      ],
+    }));
+
+    try {
+      const response = await fetch("/api/master-data/generate", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          mode: phase2State.mode,
+          project: {
+            customerName: project.customerName,
+            projectId: project.projectId,
+            projectName: project.projectName,
+          },
+          requirements: reviewRequirements.map(toMasterDataRequirementInput),
+          selectedObjectTypes,
+          selectedRequirementKeys,
+        }),
+      });
+      const responseBody = (await response.json().catch(() => null)) as
+        | MasterDataGenerateRouteBody
+        | null;
+
+      if (!response.ok || !responseBody || !responseBody.ok) {
+        updateMasterDataState((currentState) => ({
+          ...currentState,
+          active: true,
+          currentStep: "process",
+          generationStatus: "error",
+          generationFeedback:
+            responseBody && !responseBody.ok
+              ? responseBody.error.message
+              : "Master Data generation failed before drafts could be created.",
+        }));
+        return false;
+      }
+
+      updateMasterDataState((currentState) => ({
+        ...currentState,
+        active: true,
+        currentStep: "review",
+        generationStatus: "ready",
+        generationFeedback:
+          responseBody.warnings.length > 0
+            ? responseBody.warnings.join(" ")
+            : `Generated ${flattenMasterDataObjects(responseBody.generatedObjects).length} Master Data draft object(s).`,
+        generatedAt: responseBody.generatedAt,
+        generationLogs: responseBody.logs,
+        generatedObjects: responseBody.generatedObjects,
+        traceability: responseBody.traceability,
+        exportSummary: null,
+      }));
+      return true;
+    } catch {
+      updateMasterDataState((currentState) => ({
+        ...currentState,
+        active: true,
+        currentStep: "process",
+        generationStatus: "error",
+        generationFeedback:
+          "The Master Data generation route could not be reached right now.",
+      }));
+      return false;
+    }
+  }, [masterDataPhase2, project, reviewRequirements, updateMasterDataState]);
+
+  const updateMasterDataObjectField = useCallback(
+    (objectId: string, fieldKey: string, value: string) => {
+      updateMasterDataState((currentState) => ({
+        ...currentState,
+        generatedObjects: Object.fromEntries(
+          Object.entries(currentState.generatedObjects).map(
+            ([objectType, objects]) => [
+              objectType,
+              objects.map((objectDraft) => {
+                if (objectDraft.objectId !== objectId) {
+                  return objectDraft;
+                }
+
+                return {
+                  ...objectDraft,
+                  modified: true,
+                  fields: objectDraft.fields.map((field) =>
+                    field.key === fieldKey
+                      ? {
+                          ...field,
+                          modified: true,
+                          source: "manual",
+                          value,
+                          warning: null,
+                        }
+                      : field,
+                  ),
+                };
+              }),
+            ],
+          ),
+        ) as MasterDataPhase2State["generatedObjects"],
+      }));
+    },
+    [updateMasterDataState],
+  );
+
+  const updateMasterDataObjectReviewStatus = useCallback(
+    (objectId: string, reviewStatus: MasterDataReviewStatus) => {
+      updateMasterDataState((currentState) => ({
+        ...currentState,
+        generatedObjects: Object.fromEntries(
+          Object.entries(currentState.generatedObjects).map(
+            ([objectType, objects]) => [
+              objectType,
+              objects.map((objectDraft) =>
+                objectDraft.objectId === objectId
+                  ? {
+                      ...objectDraft,
+                      reviewStatus,
+                    }
+                  : objectDraft,
+              ),
+            ],
+          ),
+        ) as MasterDataPhase2State["generatedObjects"],
+      }));
+    },
+    [updateMasterDataState],
+  );
+
+  const downloadMasterDataPackage = useCallback(async () => {
+    if (!project) {
+      return null;
+    }
+
+    const response = await fetch("/api/master-data/export", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        generatedAt: project.phase2.generatedAt,
+        project: {
+          customerName: project.customerName,
+          projectId: project.projectId,
+          projectName: project.projectName,
+        },
+        generatedObjects: project.phase2.generatedObjects,
+        traceability: project.phase2.traceability,
+      }),
+    });
+    const responseBody = (await response.json().catch(() => null)) as
+      | MasterDataExportRouteBody
+      | null;
+
+    if (!response.ok || !responseBody || !responseBody.ok) {
+      updateMasterDataState((currentState) => ({
+        ...currentState,
+        generationFeedback:
+          responseBody && !responseBody.ok
+            ? responseBody.error.message
+            : "The Master Data package could not be exported.",
+      }));
+      return responseBody;
+    }
+
+    const bytes = Uint8Array.from(atob(responseBody.packageBase64), (character) =>
+      character.charCodeAt(0),
+    );
+    const blob = new Blob([bytes], {
+      type: responseBody.mimeType,
+    });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = responseBody.fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(link.href);
+
+    updateMasterDataState((currentState) => ({
+      ...currentState,
+      active: true,
+      currentStep: "export",
+      exportSummary: responseBody.summary,
+      generationFeedback: "Master Data package download is ready.",
+    }));
+
+    return responseBody;
+  }, [project, updateMasterDataState]);
+
   const value = useMemo<Phase1ProjectContextValue>(
     () => ({
       currentSourceMetadata:
         workspaceState?.source ?? fallbackWorkspaceState.source,
+      analyzeMasterData,
       demoRequirements,
       demoScriptAssembly,
+      downloadMasterDataPackage,
       fallbackWorkspaceState,
+      generateMasterData,
       generatedRequirements,
       generatedReviewableRequirements,
       generationFeedback,
       isGenerating,
       isHydrated: registry !== null,
       lastGenerationMode,
+      masterDataObjects,
+      masterDataPhase2,
       mockGenerationRun,
       nextAction,
       project,
       registry,
       reviewRequirements,
       routeProjectId,
+      setMasterDataMode,
+      setMasterDataStep,
+      setSelectedMasterDataObjectTypes,
+      setSelectedMasterDataRequirementKeys,
       setCurrentStep,
       sourceFeedback,
       summary,
@@ -616,20 +1137,27 @@ export function Phase1ProjectProvider({
       workflowSnapshot,
       workspaceState,
       updateDemoScriptDraft: updateDemoScriptDraftAction,
+      updateMasterDataObjectField,
+      updateMasterDataObjectReviewStatus,
       updateRequirementReview,
       restoreFixtureSource,
       generateRows,
     }),
     [
+      analyzeMasterData,
       demoRequirements,
       demoScriptAssembly,
+      downloadMasterDataPackage,
       fallbackWorkspaceState,
+      generateMasterData,
       generateRows,
       generatedRequirements,
       generatedReviewableRequirements,
       generationFeedback,
       isGenerating,
       lastGenerationMode,
+      masterDataObjects,
+      masterDataPhase2,
       mockGenerationRun,
       nextAction,
       project,
@@ -637,10 +1165,16 @@ export function Phase1ProjectProvider({
       restoreFixtureSource,
       reviewRequirements,
       routeProjectId,
+      setMasterDataMode,
+      setMasterDataStep,
+      setSelectedMasterDataObjectTypes,
+      setSelectedMasterDataRequirementKeys,
       setCurrentStep,
       sourceFeedback,
       summary,
       updateDemoScriptDraftAction,
+      updateMasterDataObjectField,
+      updateMasterDataObjectReviewStatus,
       updateRequirementReview,
       uploadWorkbook,
       workflowProgress,
@@ -654,6 +1188,26 @@ export function Phase1ProjectProvider({
       {children}
     </Phase1ProjectContext.Provider>
   );
+}
+
+function toMasterDataRequirementInput(
+  requirement: ReviewRequirement,
+): MasterDataRequirementInput {
+  return {
+    ...toGenerationRequestRequirement(requirement),
+    consultantComment: requirement.consultantComment,
+    requirementKey: requirement.requirementKey,
+    reviewNote: requirement.reviewNote,
+    reviewStatus: requirement.reviewStatus,
+  };
+}
+
+function haveSameKeys(left: string[], right: string[]) {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((value, index) => value === right[index]);
 }
 
 export function usePhase1Project() {

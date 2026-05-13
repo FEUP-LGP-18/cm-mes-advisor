@@ -14,7 +14,9 @@ Use this file as the repo-level source of truth for Codex work in `cm-mes-adviso
 
 - `src/app/`: Next.js App Router entrypoints, routed Phase 1 screens, shared app shell, and API routes.
 - `src/components/phase1/`: consultant-facing Phase 1 surfaces and workflow components.
+- `src/components/phase2/`: optional Phase 2 Master Data setup, process, review, export, and traceability surfaces.
 - `src/lib/phase1/`: project registry, routing, workflow state, and shared UI fixture builders.
+- `src/lib/master-data/`: Phase 2 domain logic, template loading, generation, export, and workflow helpers.
 - `src/lib/requirements/`: parsing, review state, generation, export, and server boundaries.
 - `fixtures/`: committed sample workbook used for onboarding and deterministic local QA.
 - `docs/design/`: product UI canon, audits, and design-system guidance.
@@ -26,11 +28,12 @@ Use this file as the repo-level source of truth for Codex work in `cm-mes-adviso
 
 ## Product Truth
 
-- Treat this as a consultant-facing Phase 1 workspace, not a marketing site or executive dashboard.
+- Treat this as a consultant-facing MES workspace with a complete Phase 1 flow and an optional Phase 2 continuation, not a marketing site or executive dashboard.
 - The project unit is the `project`, not one oversized workbook page.
 - Preserve the routed flow: `source -> generate -> review -> script -> export`.
+- Preserve Phase 2 as a separate optional subflow under `master-data/setup -> process -> review -> export -> traceability`.
 - Keep Phase 1 Excel-first and human-reviewed.
-- Do not imply that Phase 2 Master Data generation, broad document ingestion, or a LibreChat shell is part of the default shipped product.
+- Do not imply that Phase 2 is mandatory to finish Phase 1, or that broader document ingestion or a LibreChat shell is part of the default shipped product.
 - Keep Bedrock, AWS, MCP, MES, and partner credentials server-side only.
 
 ## Commands

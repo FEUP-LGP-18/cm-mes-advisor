@@ -173,7 +173,15 @@ for (const theme of themes) {
     await assertNoHorizontalOverflow(page);
     await attachFullPageScreenshot(page, testInfo, `${theme}-generate-studio`);
 
-    await page.goto(`/projects/${project.projectId}/review`);
+    const generateDraftButton = page.getByRole("button", {
+      name: /generate recommended draft/i,
+    });
+    await expect(generateDraftButton).toBeEnabled();
+    await generateDraftButton.click();
+
+    await expect(page).toHaveURL(
+      new RegExp(`/projects/${project.projectId}/review$`),
+    );
     await expect(
       page.getByRole("heading", {
         name: /review generated requirements/i,

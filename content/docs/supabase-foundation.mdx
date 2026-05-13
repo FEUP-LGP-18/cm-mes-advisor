@@ -5,7 +5,9 @@ description: "Auth helpers, environment variables, and migration workflow."
 
 ## What Exists Now
 
-Supabase is currently used for authentication foundation, not app persistence.
+Supabase is currently used for authentication foundation and the project
+collaboration database schema. Phase 1 workflow persistence still remains a
+follow-up.
 
 Implemented pieces:
 
@@ -18,7 +20,8 @@ Implemented pieces:
 - auth pages: `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/auth/callback`
 
 The Phase 1 project/review state still uses browser storage. Product tables,
-roles, and RLS policies are part of the schema work, not this foundation layer.
+roles, and RLS policies are now available in the migration set for downstream
+repository and persistence work.
 
 ## Environment Variables
 
@@ -70,8 +73,14 @@ Migration files belong in:
 supabase/migrations/
 ```
 
-Issue #13 keeps this directory intentionally empty apart from `.gitkeep`. The
-first real schema migration should come from #16.
+The first project schema migration is already present:
+
+```text
+supabase/migrations/20260430180000_core_project_collaboration_schema.sql
+```
+
+Future schema work should add new timestamped migrations rather than editing an
+already-applied migration after it has shipped.
 
 ## Local Migration Workflow
 

@@ -152,7 +152,7 @@ function LoginForm() {
             <p className="text-center text-sm text-[color:var(--shell-muted)]">
               No account?{" "}
               <Link
-                href="/signup"
+                href={next ? `/signup?next=${encodeURIComponent(next)}` : "/signup"}
                 className="font-semibold text-[color:var(--shell-ink)] hover:text-[color:var(--brand-accent-soft)] transition-colors"
               >
                 Sign up

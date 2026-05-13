@@ -494,6 +494,7 @@ export default function RequirementsReviewWorkspace({
           "content-type": "application/json",
         },
         body: JSON.stringify({
+          projectId: projectMetadata.projectId,
           requirements: targetRequirements.map(toGenerationRequestRequirement),
         }),
       });
@@ -2419,6 +2420,15 @@ export function WorkspaceSourcePanel({
           </div>
         </section>
 
+        <GuidedStepFooter
+          helper={
+            continueHelper ??
+            `Showing ${previewCount} of ${sourceRowCount} rows from the active workbook. Continue once the file, counts, and preview all look right.`
+          }
+          label={continueLabel ?? "Continue to generation"}
+          onClick={onContinue}
+        />
+
         <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
           <div className="min-w-0">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -2511,15 +2521,6 @@ export function WorkspaceSourcePanel({
             </section>
           </aside>
         </div>
-
-        <GuidedStepFooter
-          helper={
-            continueHelper ??
-            `Showing ${previewCount} of ${sourceRowCount} rows from the active workbook. Continue once the file, counts, and preview all look right.`
-          }
-          label={continueLabel ?? "Continue to generation"}
-          onClick={onContinue}
-        />
       </article>
     </section>
   );

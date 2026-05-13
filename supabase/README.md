@@ -2,8 +2,9 @@
 
 This directory is the source-controlled home for Supabase database migrations.
 
-Issue #13 only establishes the foundation. Do not add product tables, roles, or
-RLS policies here until the schema work in #16.
+The current migration set includes the project collaboration schema, role
+helpers, and RLS policies used by the auth/collaboration work. Keep future
+schema changes in timestamped migrations under `supabase/migrations/`.
 
 ## Local Workflow
 

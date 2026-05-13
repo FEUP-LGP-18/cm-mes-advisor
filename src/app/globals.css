@@ -1,7 +1,15 @@
-@import "tailwindcss";
 @import "fumadocs-ui/css/neutral.css";
-@import "fumadocs-ui/css/preset.css";
+@import "fumadocs-ui/css/lib/base.css";
+@import "fumadocs-ui/css/lib/shiki.css";
+@import "fumadocs-ui/css/generated/docs.css";
+@import "fumadocs-ui/css/generated/home.css";
+@import "fumadocs-ui/css/generated/notebook.css";
+@import "fumadocs-ui/css/generated/flux.css";
+@import "fumadocs-ui/css/generated/shared.css";
 @import "./theme-tokens.css";
+@import "tailwindcss";
+
+@plugin "../../node_modules/fumadocs-ui/dist/tailwind/typography.js";
 
 * {
   box-sizing: border-box;
@@ -2008,9 +2016,6 @@ textarea {
 }
 
 .phase-mobile-review-bar {
-  position: sticky;
-  bottom: 0.85rem;
-  z-index: 20;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.6rem;
   border: 1px solid var(--shell-border);
@@ -2391,5 +2396,174 @@ textarea {
 
   .brand-lockup {
     min-height: 0;
+  }
+}
+
+.phase-generate-studio-grid {
+  grid-template-areas:
+    "intro rail"
+    "explorer rail";
+}
+
+.phase-generate-intro {
+  grid-area: intro;
+}
+
+.phase-generate-primary-rail {
+  grid-area: rail;
+}
+
+.phase-generate-explorer {
+  grid-area: explorer;
+}
+
+@media (max-width: 1100px) {
+  .phase-generate-studio-grid {
+    grid-template-areas:
+      "intro"
+      "rail"
+      "explorer";
+  }
+
+  .phase-setup-grid-ready .phase-setup-action-rail {
+    order: 1;
+  }
+
+  .phase-setup-grid-ready .phase-setup-input {
+    order: 2;
+  }
+}
+
+@media (max-width: 640px) {
+  .top-shell {
+    padding: 0.56rem 0.62rem;
+    border-radius: 1rem;
+    row-gap: 0.34rem;
+  }
+
+  .top-shell-brand {
+    gap: 0.52rem;
+  }
+
+  .top-shell-partner {
+    display: none;
+  }
+
+  .top-shell-product-title {
+    font-size: 0.95rem;
+    letter-spacing: 0;
+  }
+
+  .theme-toggle-icon {
+    min-height: 1.96rem;
+    min-width: 1.96rem;
+  }
+
+  .phase-shell-header {
+    gap: 0.5rem;
+    padding: 0.68rem;
+    border-radius: 1rem;
+  }
+
+  .phase-shell-breadcrumbs {
+    gap: 0.35rem;
+    font-size: 0.72rem;
+  }
+
+  .phase-shell-pill {
+    padding: 0.24rem 0.5rem;
+    font-size: 0.58rem;
+  }
+
+  .phase-shell-title {
+    font-size: 1.18rem;
+    letter-spacing: 0;
+    line-height: 1.05;
+  }
+
+  .phase-shell-helper {
+    display: none;
+  }
+
+  .phase-shell-summary-item,
+  .phase-shell-summary-stat {
+    border-radius: 0.8rem;
+    padding: 0.46rem 0.58rem;
+  }
+
+  .phase-shell-summary-item span,
+  .phase-shell-summary-stat span {
+    font-size: 0.52rem;
+    letter-spacing: 0.08em;
+  }
+
+  .phase-shell-summary-item strong,
+  .phase-shell-summary-stat strong {
+    font-size: 0.78rem;
+  }
+
+  .phase-shell-summary-stats {
+    display: none;
+  }
+
+  .phase-stage-nav {
+    display: flex;
+    gap: 0.42rem;
+    order: 4;
+    overflow-x: auto;
+    padding-bottom: 0.1rem;
+    scrollbar-width: none;
+  }
+
+  .phase-workspace-body {
+    order: 3;
+  }
+
+  .phase-setup-grid-ready .phase-rail-card {
+    display: grid;
+  }
+
+  .phase-setup-generate-button {
+    order: -1;
+  }
+
+  .phase-stage-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .phase-stage-link {
+    min-width: 7.25rem;
+    padding: 0.46rem 0.52rem;
+    border-radius: 0.72rem;
+  }
+
+  .phase-stage-eyebrow,
+  .phase-status-meta {
+    font-size: 0.5rem;
+    letter-spacing: 0.08em;
+  }
+
+  .phase-stage-title,
+  .phase-rail-title,
+  .phase-status-label {
+    font-size: 0.8rem;
+  }
+
+  .phase-section-card,
+  .phase-rail-card,
+  .phase-empty-state {
+    border-radius: 1rem;
+  }
+
+  .phase-section-card,
+  .phase-rail-card {
+    padding: 0.78rem;
+  }
+
+  .phase-command-title,
+  .phase-section-title {
+    font-size: 1.22rem;
+    letter-spacing: 0;
+    line-height: 1.05;
   }
 }

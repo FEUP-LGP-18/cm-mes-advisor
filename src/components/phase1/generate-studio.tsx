@@ -237,9 +237,8 @@ export default function GenerateStudio({
   }
 
   return (
-    <section className="phase-studio-grid">
-      <div className="grid gap-6">
-        <section className="phase-section-card">
+    <section className="phase-studio-grid phase-generate-studio-grid">
+      <section className="phase-section-card phase-generate-intro">
           <div className="phase-section-copy">
             <p className="phase-overline">Generate</p>
             <h2 className="phase-section-title">
@@ -266,9 +265,9 @@ export default function GenerateStudio({
               <strong>{generatedCount}</strong> generated
             </span>
           </div>
-        </section>
+      </section>
 
-        <section className="phase-section-card">
+      <section className="phase-section-card phase-generate-explorer">
           <div className="phase-section-copy">
             <p className="phase-overline">Row Explorer</p>
             <h3 className="phase-section-title">
@@ -301,10 +300,9 @@ export default function GenerateStudio({
             selectedRowNumber={selectedRowNumber}
             visibleRequirements={visibleRequirements}
           />
-        </section>
-      </div>
+      </section>
 
-      <aside className="phase-rail">
+      <aside className="phase-rail phase-generate-primary-rail">
         <section className="phase-rail-card phase-generate-rail">
           <div className="phase-rail-header">
             <div>

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { phaseOneScope } from "@/lib/project-scope";
+import { getProjectResumePath } from "@/lib/master-data/workflow";
 import {
   createSampleProject,
   loadPhase1ProjectRegistry,
@@ -107,7 +108,11 @@ export default function Phase1ProjectHome({
 
     const nextRegistry = setActivePhase1Project(registry, project.projectId);
     persistRegistry(nextRegistry);
-    router.push(getPhase1StepPath(project.projectId, step));
+    router.push(
+      step === project.currentStep
+        ? getProjectResumePath(project)
+        : getPhase1StepPath(project.projectId, step),
+    );
   }
 
   return (
@@ -197,7 +202,12 @@ export function ProjectCommandDesk({
             <h2 className="phase-section-title">{activeProject.projectName}</h2>
             <p className="phase-section-body">
               {activeProject.customerName} · {getReadableProjectStatus(activeProject).label} · Next stage{" "}
-              <strong>{phase1WorkflowMeta[activeProject.currentStep].label}</strong>
+              <strong>
+                {activeProject.activeFlow === "master-data" &&
+                activeProject.snapshot.phase2CurrentStep
+                  ? `Phase 2 ${activeProject.snapshot.phase2CurrentStep}`
+                  : phase1WorkflowMeta[activeProject.currentStep].label}
+              </strong>
             </p>
           </div>
           <div className="phase-priority-meta">
@@ -310,7 +320,10 @@ export function ProjectCommandDesk({
                     </div>
 
                     <div className="phase-project-subtle">
-                      {phase1WorkflowMeta[project.currentStep].label}
+                      {project.activeFlow === "master-data" &&
+                      project.snapshot.phase2CurrentStep
+                        ? `Phase 2 ${project.snapshot.phase2CurrentStep}`
+                        : phase1WorkflowMeta[project.currentStep].label}
                     </div>
 
                     <div className="phase-project-subtle">
@@ -388,6 +401,19 @@ function PriorityMetric({ label, value }: { label: string; value: number }) {
 }
 
 function getReadableProjectStatus(project: Phase1ProjectRecord) {
+  if (project.activeFlow === "master-data" && project.snapshot.phase2ObjectCount > 0) {
+    return {
+      className:
+        project.snapshot.phase2NeedsReviewCount > 0
+          ? "phase-project-chip"
+          : "phase-project-chip phase-project-chip-ready",
+      label:
+        project.snapshot.phase2NeedsReviewCount > 0
+          ? "Phase 2 in review"
+          : "Phase 2 export ready",
+    };
+  }
+
   if (project.snapshot.generatedReviewableCount > 0) {
     return {
       className: "phase-project-chip",

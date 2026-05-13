@@ -1,5 +1,8 @@
 import { Phase1ProjectProvider } from "@/components/phase1/project-provider";
 import { getFixtureWorkspaceState } from "@/lib/phase1/fixture";
+import { requireProjectCapability } from "@/lib/projects/permissions.server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { notFound } from "next/navigation";
 
 export default async function ProjectLayout({
   children,
@@ -18,6 +21,16 @@ export default async function ProjectLayout({
 
   if (!projectId) {
     throw new Error("Project route is missing the projectId parameter.");
+  }
+
+  if (isSupabaseConfigured()) {
+    const capabilityResult = await requireProjectCapability(
+      projectId,
+      "read_project",
+    );
+    if (!capabilityResult.ok) {
+      notFound();
+    }
   }
 
   return (

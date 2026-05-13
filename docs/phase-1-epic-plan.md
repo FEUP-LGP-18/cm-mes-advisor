@@ -34,7 +34,7 @@ The next meaningful work should stay aligned with this product shape:
 - keep the review workspace as the core Phase 1 artifact surface
 - keep setup and onboarding docs aligned with the current project-first model, with the root `start.sh` script as the preferred full-stack local startup entrypoint
 - improve real-mode confidence only after the partner access blocker is resolved
-- preserve honest scope language so Phase 1 feels complete without forcing Phase 2
+- preserve honest scope language so Phase 1 feels complete without forcing the optional Phase 2 continuation
 
 ## External Blockers
 
@@ -54,7 +54,6 @@ Reference:
 
 These are not part of current Phase 1 completion unless the task explicitly changes scope:
 
-- Phase 2 Master Data generation
 - direct LibreChat product shell
 - broader heterogeneous document ingestion
 - alternative export formats such as PDF or Word
@@ -79,3 +78,5 @@ Use these to guide specific workstreams:
 - [docs/discovery/ui-ux-decisions.md](discovery/ui-ux-decisions.md)
 - [docs/design/phase1-ui-audit-2026-04-21.md](design/phase1-ui-audit-2026-04-21.md)
 - [docs/discovery/rui-answers-2026-04-14.md](discovery/rui-answers-2026-04-14.md)
+
+Note: Phase 2 Master Data generation now exists as a separate optional continuation under the routed project shell, but it should still be discussed as a follow-on workflow rather than a Phase 1 requirement.

@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { requireUser } from "../../../../lib/projects/permissions.server";
+import { requireProjectCapability } from "../../../../lib/projects/permissions.server";
 import { POST } from "./route";
 
 vi.mock("../../../../lib/projects/permissions.server", () => ({
-  requireUser: vi.fn(),
+  requireProjectCapability: vi.fn(),
 }));
 
-const requireUserMock = vi.mocked(requireUser);
+const requireProjectCapabilityMock = vi.mocked(requireProjectCapability);
 
 const parsedRequirement = {
   sourceRowNumber: 3,
@@ -29,6 +29,11 @@ const parsedRequirement = {
   sourceComment: "Existing Excel Comment feedback.",
 } as const;
 
+const validRequestBody = {
+  projectId: "123e4567-e89b-12d3-a456-426614174000",
+  requirements: [parsedRequirement],
+};
+
 describe("POST /api/requirements/generate", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -36,13 +41,21 @@ describe("POST /api/requirements/generate", () => {
   });
 
   it("returns mock drafts for valid requests", async () => {
+    requireProjectCapabilityMock.mockResolvedValueOnce({
+      ok: true,
+      status: "success",
+      data: { id: "user1", email: "test@example.com", emailConfirmedAt: "2026-05-01T12:00:00.000Z" },
+    });
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
+
     const response = await POST(
       new Request("http://localhost/api/requirements/generate", {
         method: "POST",
         headers: {
           "content-type": "application/json",
         },
-        body: JSON.stringify({ requirements: [parsedRequirement] }),
+        body: JSON.stringify(validRequestBody),
       }),
     );
 
@@ -65,6 +78,13 @@ describe("POST /api/requirements/generate", () => {
   });
 
   it("allows an explicit mock request even when real mode is misconfigured", async () => {
+    requireProjectCapabilityMock.mockResolvedValueOnce({
+      ok: true,
+      status: "success",
+      data: { id: "user1", email: "test@example.com", emailConfirmedAt: "2026-05-01T12:00:00.000Z" },
+    });
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
     vi.stubEnv("GENERATION_MODE", "real");
     vi.stubEnv("MCP_SERVER_URL", "https://example.invalid/mcp");
     vi.stubEnv("BEDROCK_MODEL_ID", "example-bedrock-model-id");
@@ -79,7 +99,7 @@ describe("POST /api/requirements/generate", () => {
         },
         body: JSON.stringify({
           mode: "mock",
-          requirements: [parsedRequirement],
+          ...validRequestBody,
         }),
       }),
     );
@@ -101,7 +121,32 @@ describe("POST /api/requirements/generate", () => {
           "content-type": "application/json",
         },
         body: JSON.stringify({
+          projectId: validRequestBody.projectId,
           requirements: [{ ...parsedRequirement, sourceRowNumber: "bad" }],
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+
+    const body = (await response.json()) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      ok: false,
+      error: {
+        code: "invalid-request",
+      },
+    });
+  });
+
+  it("rejects missing projectId with a safe 400 response", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/requirements/generate", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          requirements: [parsedRequirement],
         }),
       }),
     );
@@ -120,7 +165,7 @@ describe("POST /api/requirements/generate", () => {
   it("returns 401 when Supabase auth is configured without a user", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
-    requireUserMock.mockResolvedValueOnce({
+    requireProjectCapabilityMock.mockResolvedValueOnce({
       message: "Authentication required.",
       ok: false,
       status: "not_authenticated",
@@ -132,7 +177,7 @@ describe("POST /api/requirements/generate", () => {
         headers: {
           "content-type": "application/json",
         },
-        body: JSON.stringify({ requirements: [parsedRequirement] }),
+        body: JSON.stringify(validRequestBody),
       }),
     );
 
@@ -140,7 +185,37 @@ describe("POST /api/requirements/generate", () => {
     await expect(response.json()).resolves.toMatchObject({
       ok: false,
       error: {
+        code: "unauthorized",
         message: "Authentication required.",
+      },
+    });
+  });
+
+  it("returns 403 when user does not have the edit_project_state capability", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
+    requireProjectCapabilityMock.mockResolvedValueOnce({
+      message: "Project access denied.",
+      ok: false,
+      status: "forbidden",
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/requirements/generate", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(validRequestBody),
+      }),
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      error: {
+        code: "forbidden",
+        message: "Project access denied.",
       },
     });
   });
@@ -154,7 +229,7 @@ describe("POST /api/requirements/generate", () => {
         },
         body: JSON.stringify({
           mode: "prototype",
-          requirements: [parsedRequirement],
+          ...validRequestBody,
         }),
       }),
     );
@@ -171,6 +246,13 @@ describe("POST /api/requirements/generate", () => {
   });
 
   it("returns a safe 503 when real mode is selected without Bedrock auth", async () => {
+    requireProjectCapabilityMock.mockResolvedValueOnce({
+      ok: true,
+      status: "success",
+      data: { id: "user1", email: "test@example.com", emailConfirmedAt: "2026-05-01T12:00:00.000Z" },
+    });
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
     vi.stubEnv("GENERATION_MODE", "real");
     vi.stubEnv("MCP_SERVER_URL", "https://example.invalid/mcp");
     vi.stubEnv("BEDROCK_MODEL_ID", "example-bedrock-model-id");
@@ -183,7 +265,7 @@ describe("POST /api/requirements/generate", () => {
         headers: {
           "content-type": "application/json",
         },
-        body: JSON.stringify({ requirements: [parsedRequirement] }),
+        body: JSON.stringify(validRequestBody),
       }),
     );
 

@@ -139,7 +139,7 @@ export default function Phase1ProjectShell({
           })}
         </nav>
 
-        <section className="min-w-0">{children}</section>
+        <section className="phase-workspace-body min-w-0">{children}</section>
       </div>
     </main>
   );

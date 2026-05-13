@@ -11,12 +11,18 @@ export type RequirementGenerationCapabilityStatus =
   | RequirementGenerationUnavailableReason;
 
 export interface RequirementGenerationRequestBody {
+  projectId: string;
   requirements: ParsedRequirement[];
   mode?: RequirementGenerationRouteMode;
 }
 
 export interface RequirementGenerationRouteError {
-  code: "invalid-request" | "real-generation-unavailable" | "generation-failed";
+  code:
+    | "invalid-request"
+    | "real-generation-unavailable"
+    | "generation-failed"
+    | "unauthorized"
+    | "forbidden";
   message: string;
   reason?: RequirementGenerationUnavailableReason;
   missingConfig?: string[];
