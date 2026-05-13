@@ -2,12 +2,12 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { getMasterDataStepPath } from "@/lib/master-data/workflow";
 import {
   getAllowedWorkflowStep,
   getPhase1StepPath,
   type Phase1WorkflowStep,
 } from "@/lib/phase1/workflow";
-import { getMasterDataStepPath } from "@/lib/master-data/workflow";
 import type { RequirementGenerationAvailabilityBody } from "@/lib/requirements/generation-api";
 import ExportStudio from "./export-studio";
 import GenerateStudio from "./generate-studio";
@@ -38,6 +38,7 @@ export default function Phase1ProjectStepRoute({
     isHydrated,
     lastGenerationMode,
     mockGenerationRun,
+    nextAction,
     project,
     reviewRequirements,
     setCurrentStep,
@@ -53,8 +54,8 @@ export default function Phase1ProjectStepRoute({
     restoreFixtureSource,
     generateRows,
   } = phase1;
-
-  const allowedStep = getAllowedWorkflowStep(workflowSnapshot, step);
+  const allowedStep =
+    isHydrated && project ? getAllowedWorkflowStep(workflowSnapshot, step) : step;
 
   useEffect(() => {
     if (!isHydrated || !project) {
@@ -88,7 +89,7 @@ export default function Phase1ProjectStepRoute({
     );
   }
 
-  if (!project) {
+  if (!project || !workspaceState) {
     return (
       <main className="app-canvas flex min-h-screen items-center justify-center px-6">
         <div className="phase-empty-state max-w-xl text-center">
@@ -117,20 +118,17 @@ export default function Phase1ProjectStepRoute({
         <div className="phase-empty-state max-w-xl text-center">
           <p className="phase-overline">Redirecting</p>
           <h1 className="mt-3 text-3xl font-semibold tracking-[-0.04em]">
-            Loading the right project step
+            Returning to the next valid stage
           </h1>
           <p className="mt-3 text-sm leading-7 text-[color:var(--shell-muted)]">
-            This stage depends on earlier Phase 1 work, so the project is being
-            reopened at the next available step.
+            The requested stage is blocked by the current review state, so the
+            workspace is taking you to the next actionable surface.
           </p>
         </div>
       </main>
     );
   }
 
-  const projectMetadata =
-    workspaceState?.reviewState.project ??
-    project.workspaceState.reviewState.project;
   const navigateToStep = (nextStep: Phase1WorkflowStep) => {
     router.push(getPhase1StepPath(project.projectId, nextStep));
   };
@@ -139,13 +137,14 @@ export default function Phase1ProjectStepRoute({
     <Phase1ProjectShell
       currentStep={step}
       email={phase1.currentUser?.email}
-      nextAction={phase1.nextAction}
+      nextAction={nextAction}
       progress={workflowProgress}
       project={project}
     >
       {step === "source" ? (
         <SourceStudio
           canUploadWorkbook={canUploadWorkbook}
+          key={currentSourceMetadata.sourceId}
           currentSourceMetadata={currentSourceMetadata}
           demoCount={summary.demoCount}
           mvpCount={summary.mvpCount}
@@ -154,7 +153,7 @@ export default function Phase1ProjectStepRoute({
           onUploadWorkbook={uploadWorkbook}
           requirements={reviewRequirements}
           sourceFeedback={sourceFeedback}
-          sourceRowCount={workflowSnapshot.sourceRowCount}
+          sourceRowCount={workspaceState.reviewState.project.sourceRowCount}
         />
       ) : null}
 
@@ -178,9 +177,7 @@ export default function Phase1ProjectStepRoute({
           approvedCount={summary.approvedCount}
           generatedCount={generatedRequirements.length}
           generatedReviewableRequirements={generatedReviewableRequirements}
-          onGenerateDemoRows={() =>
-            generateRows(demoRequirements, "recommended demo rows")
-          }
+          onGenerateDemoRows={() => generateRows(demoRequirements, "demo rows")}
           onGoToGenerate={() => navigateToStep("generate")}
           onOpenScript={() => navigateToStep("script")}
           onReviewAction={updateRequirementReview}
@@ -192,13 +189,13 @@ export default function Phase1ProjectStepRoute({
       {step === "script" ? (
         <ScriptStudio
           assembly={demoScriptAssembly}
-          draft={project.workspaceState.reviewState.demoScriptDraft}
+          draft={workspaceState.reviewState.demoScriptDraft}
           exportReady={workflowSnapshot.exportReady}
           onDraftAction={updateDemoScriptDraft}
           onGoToReview={() => navigateToStep("review")}
           onOpenExport={() => navigateToStep("export")}
-          pendingReviewCount={workflowSnapshot.generatedReviewableCount}
-          projectMetadata={projectMetadata}
+          pendingReviewCount={generatedReviewableRequirements.length}
+          projectMetadata={workspaceState.reviewState.project}
         />
       ) : null}
 
@@ -212,8 +209,8 @@ export default function Phase1ProjectStepRoute({
             setMasterDataStep("setup");
             router.push(getMasterDataStepPath(project.projectId, "setup"));
           }}
-          pendingReviewCount={workflowSnapshot.generatedReviewableCount}
-          projectMetadata={projectMetadata}
+          pendingReviewCount={generatedReviewableRequirements.length}
+          projectMetadata={workspaceState.reviewState.project}
         />
       ) : null}
     </Phase1ProjectShell>
