@@ -5,7 +5,9 @@ import {
   requireUser,
 } from "./permissions.server";
 import {
+  createProjectForUser,
   getProjectPhaseStateForUser,
+  listProjectsForUser,
   saveProjectPhaseState,
 } from "./repository.server";
 import type { CurrentUser, ProjectRole } from "./types";
@@ -117,6 +119,136 @@ describe("project repository", () => {
 
     expect(requireProjectCapabilityMock).not.toHaveBeenCalled();
     expect(createClientMock).not.toHaveBeenCalled();
+  });
+
+  it("lists projects with the current user's role", async () => {
+    requireUserMock.mockResolvedValueOnce({
+      data: {
+        email: "owner@example.com",
+        emailConfirmedAt: "2026-05-01T12:00:00.000Z",
+        id: userId,
+      },
+      ok: true,
+      status: "success",
+    });
+
+    const projectsOrder = vi.fn().mockResolvedValue({
+      data: [
+        {
+          archived_at: null,
+          created_at: "2026-05-01T12:00:00.000Z",
+          created_by: userId,
+          customer_name: "Customer X",
+          description: "Demo workspace",
+          id: projectId,
+          name: "Customer X MES demo",
+          status: "active",
+          updated_at: "2026-05-02T12:00:00.000Z",
+          updated_by: userId,
+        },
+      ],
+      error: null,
+    });
+    const projectsSelect = vi.fn().mockReturnValue({ order: projectsOrder });
+    const membershipsEq = vi.fn().mockResolvedValue({
+      data: [
+        {
+          project_id: projectId,
+          role: "owner",
+        },
+      ],
+      error: null,
+    });
+    const membershipsSelect = vi.fn().mockReturnValue({ eq: membershipsEq });
+    const from = vi.fn((table: string) =>
+      table === "projects"
+        ? { select: projectsSelect }
+        : { select: membershipsSelect },
+    );
+
+    createClientMock.mockResolvedValueOnce({
+      from,
+    } as unknown as Awaited<ReturnType<typeof createClient>>);
+
+    await expect(listProjectsForUser(userId)).resolves.toMatchObject({
+      data: [
+        {
+          currentUserRole: "owner",
+          customerName: "Customer X",
+          id: projectId,
+          name: "Customer X MES demo",
+        },
+      ],
+      ok: true,
+    });
+  });
+
+  it("creates a project with user audit fields", async () => {
+    requireUserMock.mockResolvedValueOnce({
+      data: {
+        email: "owner@example.com",
+        emailConfirmedAt: "2026-05-01T12:00:00.000Z",
+        id: userId,
+      },
+      ok: true,
+      status: "success",
+    });
+
+    const insert = vi.fn().mockResolvedValue({
+      error: null,
+    });
+    const single = vi.fn().mockResolvedValue({
+      data: {
+        archived_at: null,
+        created_at: "2026-05-01T12:00:00.000Z",
+        created_by: userId,
+        customer_name: "Customer X",
+        description: "Demo workspace",
+        id: projectId,
+        name: "Customer X MES demo",
+        status: "active",
+        updated_at: "2026-05-01T12:00:00.000Z",
+        updated_by: userId,
+      },
+      error: null,
+    });
+    const eq = vi.fn().mockReturnValue({ single });
+    const select = vi.fn().mockReturnValue({ eq });
+    const from = vi
+      .fn()
+      .mockReturnValueOnce({ insert })
+      .mockReturnValueOnce({ select });
+
+    createClientMock.mockResolvedValueOnce({
+      from,
+    } as unknown as Awaited<ReturnType<typeof createClient>>);
+
+    await expect(
+      createProjectForUser(
+        {
+          customerName: " Customer X ",
+          description: " Demo workspace ",
+          name: " Customer X MES demo ",
+        },
+        userId,
+      ),
+    ).resolves.toMatchObject({
+      data: {
+        createdBy: userId,
+        customerName: "Customer X",
+        description: "Demo workspace",
+        name: "Customer X MES demo",
+      },
+      ok: true,
+    });
+    expect(insert).toHaveBeenCalledWith({
+      created_by: userId,
+      customer_name: "Customer X",
+      description: "Demo workspace",
+      id: expect.any(String),
+      name: "Customer X MES demo",
+      updated_by: userId,
+    });
   });
 
   it("returns conflict when the expected phase state version is stale", async () => {

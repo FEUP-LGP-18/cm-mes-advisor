@@ -1,135 +1,67 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { phaseOneScope } from "@/lib/project-scope";
-import { getProjectResumePath } from "@/lib/master-data/workflow";
+import type {
+  CreateProjectActionState,
+  CurrentUser,
+  ProjectListItem,
+  ProjectRole,
+} from "@/lib/projects/types";
 import {
-  createSampleProject,
-  loadPhase1ProjectRegistry,
-  savePhase1ProjectRegistry,
-  setActivePhase1Project,
-  upsertPhase1Project,
-  type Phase1ProjectRecord,
-  type Phase1ProjectRegistry,
-} from "@/lib/phase1/project-registry";
-import { getPhase1StepPath, phase1WorkflowMeta } from "@/lib/phase1/workflow";
-import type { RequirementsWorkspaceState } from "@/lib/requirements";
+  getPhase1StepPath,
+  type Phase1WorkflowStep,
+} from "@/lib/phase1/workflow";
 import Phase1Topbar from "./phase-topbar";
 
-type ProjectSort = "recent" | "review" | "approved";
+type ProjectSort = "recent" | "customer" | "role";
 
 export default function Phase1ProjectHome({
-  fallbackWorkspaceState,
+  currentUser,
+  createProject,
+  initialCreateProjectState,
+  listError,
+  projects,
 }: {
-  fallbackWorkspaceState: RequirementsWorkspaceState;
+  currentUser: CurrentUser | null;
+  createProject: (
+    previousState: CreateProjectActionState,
+    formData: FormData,
+  ) => Promise<CreateProjectActionState>;
+  initialCreateProjectState: CreateProjectActionState;
+  listError: string | null;
+  projects: ProjectListItem[];
 }) {
   const router = useRouter();
-  const [registry, setRegistry] = useState<Phase1ProjectRegistry | null>(null);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<ProjectSort>("recent");
 
-  useEffect(() => {
-    setRegistry(
-      loadPhase1ProjectRegistry(window.localStorage, fallbackWorkspaceState),
-    );
-  }, [fallbackWorkspaceState]);
-
-  const projects = useMemo(() => registry?.projects ?? [], [registry]);
-  const activeProject = useMemo(
-    () =>
-      projects.find(
-        (project) => project.projectId === registry?.activeProjectId,
-      ) ??
-      projects[0] ??
-      null,
-    [projects, registry?.activeProjectId],
+  const filteredProjects = useMemo(
+    () => filterAndSortProjects(projects, query, sort),
+    [projects, query, sort],
   );
-
-  const filteredProjects = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    const visibleProjects = normalizedQuery
-      ? projects.filter((project) =>
-          [
-            project.projectName,
-            project.customerName,
-            project.snapshot.sourceFilename,
-            project.currentStep,
-          ]
-            .join(" ")
-            .toLowerCase()
-            .includes(normalizedQuery),
-        )
-      : projects;
-
-    return [...visibleProjects].sort((left, right) => {
-      if (sort === "review") {
-        return (
-          right.snapshot.generatedReviewableCount -
-            left.snapshot.generatedReviewableCount ||
-          right.updatedAt.localeCompare(left.updatedAt)
-        );
-      }
-
-      if (sort === "approved") {
-        return (
-          right.snapshot.approvedCount - left.snapshot.approvedCount ||
-          right.updatedAt.localeCompare(left.updatedAt)
-        );
-      }
-
-      return right.updatedAt.localeCompare(left.updatedAt);
-    });
-  }, [projects, query, sort]);
-
-  function persistRegistry(nextRegistry: Phase1ProjectRegistry) {
-    savePhase1ProjectRegistry(window.localStorage, nextRegistry);
-    setRegistry(nextRegistry);
-  }
-
-  function handleCreateSampleProject() {
-    const currentRegistry =
-      registry ??
-      loadPhase1ProjectRegistry(window.localStorage, fallbackWorkspaceState);
-    const nextProject = createSampleProject(
-      currentRegistry,
-      fallbackWorkspaceState,
-    );
-    const nextRegistry = upsertPhase1Project(currentRegistry, nextProject);
-
-    persistRegistry(nextRegistry);
-    router.push(getPhase1StepPath(nextProject.projectId, "source"));
-  }
-
-  function handleOpenProject(project: Phase1ProjectRecord, step = project.currentStep) {
-    if (!registry) {
-      return;
-    }
-
-    const nextRegistry = setActivePhase1Project(registry, project.projectId);
-    persistRegistry(nextRegistry);
-    router.push(
-      step === project.currentStep
-        ? getProjectResumePath(project)
-        : getPhase1StepPath(project.projectId, step),
-    );
-  }
+  const activeProject = filteredProjects[0] ?? projects[0] ?? null;
 
   return (
     <main className="app-canvas min-h-screen text-[color:var(--shell-ink)]">
       <div className="mx-auto flex w-full max-w-[1560px] flex-col gap-6 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
-        <Phase1Topbar />
+        <Phase1Topbar email={currentUser?.email} />
 
         <ProjectCommandDesk
           activeProject={activeProject}
-          canCreateSampleProject={registry !== null}
-          onCreateSampleProject={handleCreateSampleProject}
-          onOpenProject={handleOpenProject}
+          createProject={createProject}
+          initialCreateProjectState={initialCreateProjectState}
+          listError={listError}
+          onOpenProject={(project, step = "source") =>
+            router.push(getPhase1StepPath(project.id, step))
+          }
           onQueryChange={setQuery}
           onSortChange={setSort}
           projects={filteredProjects}
           query={query}
           sort={sort}
+          totalProjectCount={projects.length}
         />
       </div>
     </main>
@@ -138,34 +70,43 @@ export default function Phase1ProjectHome({
 
 export function ProjectCommandDesk({
   activeProject,
-  canCreateSampleProject,
-  onCreateSampleProject,
+  createProject,
+  initialCreateProjectState,
+  listError,
   onOpenProject,
   onQueryChange,
   onSortChange,
   projects,
   query,
   sort,
+  totalProjectCount,
 }: {
-  activeProject: Phase1ProjectRecord | null;
-  canCreateSampleProject: boolean;
-  onCreateSampleProject: () => void;
-  onOpenProject: (project: Phase1ProjectRecord, step?: Phase1ProjectRecord["currentStep"]) => void;
+  activeProject: ProjectListItem | null;
+  createProject: (
+    previousState: CreateProjectActionState,
+    formData: FormData,
+  ) => Promise<CreateProjectActionState>;
+  initialCreateProjectState: CreateProjectActionState;
+  listError: string | null;
+  onOpenProject: (project: ProjectListItem, step?: Phase1WorkflowStep) => void;
   onQueryChange: (query: string) => void;
   onSortChange: (sort: ProjectSort) => void;
-  projects: Phase1ProjectRecord[];
+  projects: ProjectListItem[];
   query: string;
   sort: ProjectSort;
+  totalProjectCount?: number;
 }) {
-  const totalPendingReview = projects.reduce(
-    (total, project) => total + project.snapshot.generatedReviewableCount,
-    0,
+  const [createState, createFormAction, createPending] = useActionState(
+    createProject,
+    initialCreateProjectState,
   );
-  const totalApproved = projects.reduce(
-    (total, project) => total + project.snapshot.approvedCount,
-    0,
-  );
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const hasProjects = projects.length > 0;
+  const ownedCount = projects.filter(
+    (project) => project.currentUserRole === "owner",
+  ).length;
+  const sharedCount = projects.length - ownedCount;
+  const isSearching = query.trim().length > 0;
 
   return (
     <section className="grid gap-6">
@@ -176,52 +117,65 @@ export function ProjectCommandDesk({
             Pick up the right customer project quickly.
           </h1>
           <p className="phase-command-body">
-            {phaseOneScope.productName} stays focused on one consultant workflow:
-            confirm the workbook, generate safe drafts, make consultant
-            decisions, shape the script, and export a clean Phase 1 handoff.
+            {phaseOneScope.productName} stays focused on one consultant
+            workflow: confirm the workbook, generate safe drafts, make
+            consultant decisions, shape the script, and export a clean Phase 1
+            handoff.
           </p>
         </div>
         {hasProjects ? (
           <div className="phase-command-actions">
             <button
               type="button"
-              onClick={onCreateSampleProject}
-              disabled={!canCreateSampleProject}
-              className="focus-premium theme-shell-button-secondary rounded-2xl px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={() => setCreateDialogOpen(true)}
+              className="focus-premium theme-button-primary rounded-2xl px-5 py-3 text-sm font-semibold transition"
             >
-              Create sample project
+              Create project
             </button>
           </div>
         ) : null}
       </section>
 
-      {activeProject ? (
+      {createDialogOpen ? (
+        <CreateProjectDialog
+          action={createFormAction}
+          errorMessage={
+            createState.status === "error" ? createState.message : null
+          }
+          isPending={createPending}
+          onClose={() => setCreateDialogOpen(false)}
+        />
+      ) : null}
+
+      {listError ? (
+        <section className="phase-empty-state">
+          <p className="phase-overline">Dashboard unavailable</p>
+          <h2 className="mt-2 text-3xl font-semibold">
+            Project access could not be loaded.
+          </h2>
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-[color:var(--shell-muted)]">
+            {listError}
+          </p>
+        </section>
+      ) : null}
+
+      {!listError && activeProject ? (
         <section className="phase-priority-strip">
           <div className="phase-priority-copy">
-            <p className="phase-overline">Priority project</p>
-            <h2 className="phase-section-title">{activeProject.projectName}</h2>
+            <p className="phase-overline">Next project</p>
+            <h2 className="phase-section-title">{activeProject.name}</h2>
             <p className="phase-section-body">
-              {activeProject.customerName} · {getReadableProjectStatus(activeProject).label} · Next stage{" "}
-              <strong>
-                {activeProject.activeFlow === "master-data" &&
-                activeProject.snapshot.phase2CurrentStep
-                  ? `Phase 2 ${activeProject.snapshot.phase2CurrentStep}`
-                  : phase1WorkflowMeta[activeProject.currentStep].label}
-              </strong>
+              {getCustomerLabel(activeProject)} · Your role{" "}
+              <strong>{formatRole(activeProject.currentUserRole)}</strong> ·
+              Updated {formatUpdatedAt(activeProject.updatedAt)}
             </p>
           </div>
           <div className="phase-priority-meta">
+            <PriorityMetric label="Owned" value={ownedCount} />
+            <PriorityMetric label="Shared" value={sharedCount} />
             <PriorityMetric
-              label="Pending review"
-              value={activeProject.snapshot.generatedReviewableCount}
-            />
-            <PriorityMetric
-              label="Approved"
-              value={activeProject.snapshot.approvedCount}
-            />
-            <PriorityMetric
-              label="Source rows"
-              value={activeProject.snapshot.sourceRowCount}
+              label="Visible projects"
+              value={totalProjectCount ?? projects.length}
             />
           </div>
           <div className="phase-inline-actions">
@@ -230,14 +184,7 @@ export function ProjectCommandDesk({
               onClick={() => onOpenProject(activeProject)}
               className="focus-premium theme-button-primary rounded-2xl px-5 py-3 text-sm font-semibold transition"
             >
-              Resume project
-            </button>
-            <button
-              type="button"
-              onClick={() => onOpenProject(activeProject, "review")}
-              className="focus-premium theme-shell-button-secondary rounded-2xl px-5 py-3 text-sm font-semibold transition"
-            >
-              Jump to review
+              Open project
             </button>
           </div>
         </section>
@@ -254,9 +201,12 @@ export function ProjectCommandDesk({
             </p>
           </div>
           <div className="phase-toolbar-stats">
-            <InlineStat label="Projects" value={projects.length} />
-            <InlineStat label="Pending review" value={totalPendingReview} />
-            <InlineStat label="Approved rows" value={totalApproved} />
+            <InlineStat
+              label="Projects"
+              value={totalProjectCount ?? projects.length}
+            />
+            <InlineStat label="Pending review" value={0} />
+            <InlineStat label="Approved rows" value={0} />
           </div>
         </div>
 
@@ -271,17 +221,19 @@ export function ProjectCommandDesk({
             <span>Sort</span>
             <select
               value={sort}
-              onChange={(event) => onSortChange(event.currentTarget.value as ProjectSort)}
+              onChange={(event) =>
+                onSortChange(event.currentTarget.value as ProjectSort)
+              }
               className="focus-premium theme-shell-input rounded-2xl px-4 py-3 text-sm"
             >
               <option value="recent">Most recent</option>
-              <option value="review">Most review pressure</option>
-              <option value="approved">Most approved</option>
+              <option value="customer">Customer</option>
+              <option value="role">Role</option>
             </select>
           </label>
         </div>
 
-        {projects.length > 0 ? (
+        {hasProjects ? (
           <div className="phase-project-table">
             <div className="phase-project-table-head">
               <span>Project</span>
@@ -294,92 +246,247 @@ export function ProjectCommandDesk({
             </div>
 
             <div className="grid gap-3">
-              {projects.map((project) => {
-                const status = getReadableProjectStatus(project);
+              {projects.map((project) => (
+                <article key={project.id} className="phase-project-row">
+                  <div className="min-w-0">
+                    <p className="phase-project-title">
+                      {project.name}
+                      <span className="phase-project-subtle font-normal">
+                        <span className="mx-2">·</span>
+                        {formatRole(project.currentUserRole)}
+                      </span>
+                    </p>
+                    <p className="phase-project-subtle">
+                      {getCustomerLabel(project)}
+                    </p>
+                  </div>
 
-                return (
-                  <article key={project.projectId} className="phase-project-row">
-                    <div className="min-w-0">
-                      <p className="phase-project-title">{project.projectName}</p>
-                      <p className="phase-project-subtle">{project.customerName}</p>
-                    </div>
+                  <div className="min-w-0">
+                    <p className="phase-project-subtle">
+                      No workbook selected
+                    </p>
+                    <p className="phase-project-filename">
+                      Upload workbook in Source
+                    </p>
+                  </div>
 
-                    <div className="min-w-0">
-                      <p className="phase-project-subtle">{
-                        project.snapshot.sourceKind === "fixture"
-                          ? "Sample workbook"
-                          : "Uploaded workbook"
-                      }</p>
-                      <p className="phase-project-filename">
-                        {project.snapshot.sourceFilename}
-                      </p>
-                    </div>
+                  <div>
+                    <span className="phase-project-chip phase-project-chip-muted">
+                      In source
+                    </span>
+                  </div>
 
-                    <div>
-                      <span className={status.className}>{status.label}</span>
-                    </div>
+                  <div className="phase-project-subtle">Source</div>
 
-                    <div className="phase-project-subtle">
-                      {project.activeFlow === "master-data" &&
-                      project.snapshot.phase2CurrentStep
-                        ? `Phase 2 ${project.snapshot.phase2CurrentStep}`
-                        : phase1WorkflowMeta[project.currentStep].label}
-                    </div>
+                  <div className="phase-project-subtle">
+                    0 pending · 0 approved
+                  </div>
 
-                    <div className="phase-project-subtle">
-                      {project.snapshot.generatedReviewableCount} pending ·{" "}
-                      {project.snapshot.approvedCount} approved
-                    </div>
+                  <div className="phase-project-subtle">
+                    {formatUpdatedAt(project.updatedAt)}
+                  </div>
 
-                    <div className="phase-project-subtle">
-                      {formatUpdatedAt(project.updatedAt)}
-                    </div>
-
-                    <div className="phase-project-actions">
-                      <button
-                        type="button"
-                        onClick={() => onOpenProject(project)}
-                        className="focus-premium theme-button-primary rounded-xl px-4 py-2.5 text-sm font-semibold transition"
-                      >
-                        Open
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onOpenProject(project, "review")}
-                        className="focus-premium theme-shell-button-secondary rounded-xl px-4 py-2.5 text-sm font-semibold transition"
-                      >
-                        Review
-                      </button>
-                    </div>
-                  </article>
-                );
-              })}
+                  <div className="phase-project-actions">
+                    <button
+                      type="button"
+                      onClick={() => onOpenProject(project)}
+                      className="focus-premium theme-button-primary rounded-xl px-4 py-2.5 text-sm font-semibold transition"
+                    >
+                      Open
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onOpenProject(project, "review")}
+                      className="focus-premium theme-shell-button-secondary rounded-xl px-4 py-2.5 text-sm font-semibold transition"
+                    >
+                      Review
+                    </button>
+                  </div>
+                </article>
+              ))}
             </div>
           </div>
         ) : (
-          <div className="phase-empty-state">
-            <p className="phase-overline">No projects yet</p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-[-0.04em]">
-              Start with a sample project and walk the full Phase 1 flow.
-            </h2>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-[color:var(--shell-muted)]">
-              The app is ready once a consultant can move from source to
-              generate to review to script to export with almost no
-              explanation.
-            </p>
-            <button
-              type="button"
-              onClick={onCreateSampleProject}
-              disabled={!canCreateSampleProject}
-              className="focus-premium theme-button-primary mt-5 rounded-2xl px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Start sample project
-            </button>
+          <div className="phase-empty-state flex items-center justify-between gap-6">
+            <div>
+              <p className="phase-overline">
+                {isSearching ? "No matching projects" : "No projects yet"}
+              </p>
+              <h2 className="mt-2 text-3xl font-semibold">
+                {isSearching
+                  ? "No project matches this search."
+                  : "Create the first server-backed project."}
+              </h2>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-[color:var(--shell-muted)]">
+                {isSearching
+                  ? "Clear or change the search to return to the full project list."
+                  : "New projects are saved to Supabase and the creator becomes the owner automatically."}
+              </p>
+            </div>
+            {!isSearching ? (
+              <button
+                type="button"
+                onClick={() => setCreateDialogOpen(true)}
+                className="focus-premium theme-button-primary shrink-0 rounded-2xl px-5 py-3 text-sm font-semibold transition"
+              >
+                Create project
+              </button>
+            ) : null}
           </div>
         )}
       </section>
     </section>
   );
+}
+
+function CreateProjectDialog({
+  action,
+  errorMessage,
+  isPending,
+  onClose,
+}: {
+  action: (formData: FormData) => void;
+  errorMessage: string | null;
+  isPending: boolean;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape" && !isPending) {
+        onClose();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isPending, onClose]);
+
+  return (
+    <div
+      className="phase-overlay"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !isPending) {
+          onClose();
+        }
+      }}
+    >
+      <section
+        aria-labelledby="create-project-title"
+        aria-modal="true"
+        className="phase-overlay-panel max-w-xl"
+        role="dialog"
+      >
+        <div className="phase-overlay-header">
+          <div>
+            <p className="phase-overline">New project</p>
+            <h2 id="create-project-title" className="phase-section-title">
+              Create a server-backed project
+            </h2>
+            <p className="phase-section-body">
+              Add the project details. Supabase saves the project and assigns
+              you as owner.
+            </p>
+          </div>
+        </div>
+
+        <form action={action} className="grid gap-4">
+          <div className="grid gap-3">
+            <label className="phase-select-wrap">
+              <span>Project name</span>
+              <input
+                autoFocus
+                name="name"
+                required
+                placeholder="Customer X demo"
+                className="focus-premium theme-shell-input rounded-2xl px-4 py-3 text-sm"
+              />
+            </label>
+            <label className="phase-select-wrap">
+              <span>Customer</span>
+              <input
+                name="customerName"
+                placeholder="Customer X"
+                className="focus-premium theme-shell-input rounded-2xl px-4 py-3 text-sm"
+              />
+            </label>
+            <label className="phase-select-wrap">
+              <span>Description</span>
+              <textarea
+                name="description"
+                placeholder="Optional project context"
+                rows={3}
+                className="focus-premium theme-shell-input rounded-2xl px-4 py-3 text-sm"
+              />
+            </label>
+          </div>
+
+          {errorMessage ? (
+            <p className="text-sm font-medium text-[color:var(--danger)]">
+              {errorMessage}
+            </p>
+          ) : null}
+
+          <div className="phase-inline-actions justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isPending}
+              className="focus-premium theme-shell-button-secondary rounded-2xl px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isPending}
+              className="focus-premium theme-button-primary rounded-2xl px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isPending ? "Creating project..." : "Create project"}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
+}
+
+function filterAndSortProjects(
+  projects: ProjectListItem[],
+  query: string,
+  sort: ProjectSort,
+) {
+  const normalizedQuery = query.trim().toLowerCase();
+  const visibleProjects = normalizedQuery
+    ? projects.filter((project) =>
+        [
+          project.name,
+          project.customerName,
+          project.description,
+          project.currentUserRole,
+          project.status,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedQuery),
+      )
+    : projects;
+
+  return [...visibleProjects].sort((left, right) => {
+    if (sort === "customer") {
+      return getCustomerLabel(left).localeCompare(getCustomerLabel(right));
+    }
+
+    if (sort === "role") {
+      return (
+        roleSortValue(right.currentUserRole) -
+          roleSortValue(left.currentUserRole) ||
+        right.updatedAt.localeCompare(left.updatedAt)
+      );
+    }
+
+    return right.updatedAt.localeCompare(left.updatedAt);
+  });
 }
 
 function InlineStat({ label, value }: { label: string; value: number }) {
@@ -400,38 +507,24 @@ function PriorityMetric({ label, value }: { label: string; value: number }) {
   );
 }
 
-function getReadableProjectStatus(project: Phase1ProjectRecord) {
-  if (project.activeFlow === "master-data" && project.snapshot.phase2ObjectCount > 0) {
-    return {
-      className:
-        project.snapshot.phase2NeedsReviewCount > 0
-          ? "phase-project-chip"
-          : "phase-project-chip phase-project-chip-ready",
-      label:
-        project.snapshot.phase2NeedsReviewCount > 0
-          ? "Phase 2 in review"
-          : "Phase 2 export ready",
-    };
+function getCustomerLabel(project: ProjectListItem) {
+  return project.customerName?.trim() || "No customer set";
+}
+
+function roleSortValue(role: ProjectRole) {
+  if (role === "owner") {
+    return 3;
   }
 
-  if (project.snapshot.generatedReviewableCount > 0) {
-    return {
-      className: "phase-project-chip",
-      label: "Needs review",
-    };
+  if (role === "editor") {
+    return 2;
   }
 
-  if (project.snapshot.exportReady) {
-    return {
-      className: "phase-project-chip phase-project-chip-ready",
-      label: "Ready for export",
-    };
-  }
+  return 1;
+}
 
-  return {
-    className: "phase-project-chip phase-project-chip-muted",
-    label: `In ${phase1WorkflowMeta[project.currentStep].label.toLowerCase()}`,
-  };
+function formatRole(role: ProjectRole) {
+  return `${role[0].toUpperCase()}${role.slice(1)}`;
 }
 
 function formatUpdatedAt(value: string) {

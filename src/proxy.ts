@@ -10,8 +10,6 @@ const AUTH_ROUTES = new Set([
   "/reset-password",
 ]);
 
-const PUBLIC_PHASE1_ROUTES = ["/projects/"];
-
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -23,15 +21,6 @@ export async function proxy(request: NextRequest) {
 
   // Auth pages and the Supabase PKCE callback are always public.
   if (AUTH_ROUTES.has(pathname) || pathname.startsWith("/auth/")) {
-    return NextResponse.next();
-  }
-
-  // The Phase 1 command desk is intentionally public in mock mode, even when
-  // Supabase is configured for protected APIs and future project data routes.
-  if (
-    pathname === "/" ||
-    PUBLIC_PHASE1_ROUTES.some((route) => pathname.startsWith(route))
-  ) {
     return NextResponse.next();
   }
 

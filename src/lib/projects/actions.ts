@@ -2,7 +2,43 @@
 
 import { revokeInvite, resendInvite, createInvite, listInvites } from "./invites.server";
 import { revalidatePath } from "next/cache";
-import type { ProjectRole } from "./types";
+import { redirect } from "next/navigation";
+import { getPhase1StepPath } from "@/lib/phase1/workflow";
+import { requireUser } from "./permissions.server";
+import { createProjectForUser } from "./repository.server";
+import type { CreateProjectActionState, ProjectRole } from "./types";
+
+export async function createProjectAction(
+  _previousState: CreateProjectActionState,
+  formData: FormData,
+): Promise<CreateProjectActionState> {
+  const userResult = await requireUser();
+  if (!userResult.ok) {
+    return {
+      message: userResult.message,
+      status: "error",
+    };
+  }
+
+  const result = await createProjectForUser(
+    {
+      customerName: readFormText(formData, "customerName"),
+      description: readFormText(formData, "description"),
+      name: readFormText(formData, "name") ?? "",
+    },
+    userResult.data.id,
+  );
+
+  if (!result.ok) {
+    return {
+      message: result.message,
+      status: "error",
+    };
+  }
+
+  revalidatePath("/");
+  redirect(getPhase1StepPath(result.data.id, "source"));
+}
 
 export async function listInvitesAction(projectId: string) {
   return listInvites(projectId);
@@ -29,4 +65,9 @@ export async function resendInviteAction(inviteId: string, projectId: string, or
   // Resend doesn't change list state, but might update timestamps
   revalidatePath(`/projects/${projectId}/settings`);
   return result;
+}
+
+function readFormText(formData: FormData, key: string) {
+  const value = formData.get(key);
+  return typeof value === "string" ? value : null;
 }

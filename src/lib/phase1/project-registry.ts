@@ -78,6 +78,14 @@ interface ProjectIdentity {
   projectName: string;
 }
 
+interface ServerProjectIdentity {
+  createdAt: string;
+  customerName: string | null;
+  projectId: string;
+  projectName: string;
+  updatedAt: string;
+}
+
 export function createPhase1ProjectRegistry(
   projects: Phase1ProjectRecord[] = [],
   activeProjectId: string | null = projects[0]?.projectId ?? null,
@@ -339,6 +347,29 @@ export function createSampleProject(
   return createPhase1ProjectRecordFromWorkspaceState(workspaceState, {
     currentStep: "source",
     projectId: identity.projectId,
+  });
+}
+
+export function createEmptyProjectFromServerIdentity(
+  identity: ServerProjectIdentity,
+): Phase1ProjectRecord {
+  const customerName = identity.customerName?.trim() || "No customer set";
+  const source: RequirementsSourceMetadata = {
+    customerName,
+    projectName: identity.projectName,
+    sourceFilename: "No workbook selected yet",
+    sourceId: `empty:${identity.projectId}`,
+    sourceKind: "upload",
+    sourceLabel: "No workbook selected",
+    uploadedAt: null,
+  };
+  const workspaceState = createRequirementsWorkspaceState(source, []);
+
+  return createPhase1ProjectRecordFromWorkspaceState(workspaceState, {
+    createdAt: identity.createdAt,
+    currentStep: "source",
+    projectId: identity.projectId,
+    updatedAt: identity.updatedAt,
   });
 }
 
