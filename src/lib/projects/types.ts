@@ -106,6 +106,14 @@ export type ProjectInvite = {
   updatedAt: string;
 };
 
+export type ProjectMember = {
+  email: string | null;
+  joinedAt: string;
+  name: string | null;
+  role: ProjectRole;
+  userId: string;
+};
+
 export type CreateProjectInput = {
   customerName?: string | null;
   description?: string | null;
