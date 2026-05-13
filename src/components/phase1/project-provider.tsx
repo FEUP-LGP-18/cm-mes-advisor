@@ -33,6 +33,7 @@ import type {
 import type { ParsedRequirement } from "@/lib/requirements/types";
 import {
   createFixtureWorkspaceStateForProject,
+  createEmptyProjectFromServerIdentity,
   createUploadedWorkspaceStateForProject,
   getPhase1Project,
   loadPhase1ProjectRegistry,
@@ -79,6 +80,7 @@ import {
   type MasterDataReviewStatus,
   type MasterDataWorkflowStep,
 } from "@/lib/master-data/types";
+import type { Project } from "@/lib/projects/types";
 
 type MockGenerationStageStatus = "waiting" | "running" | "complete";
 
@@ -170,9 +172,11 @@ const Phase1ProjectContext = createContext<Phase1ProjectContextValue | null>(
 export function Phase1ProjectProvider({
   children,
   fallbackWorkspaceState,
+  initialServerProject,
   routeProjectId,
 }: PropsWithChildren<{
   fallbackWorkspaceState: RequirementsWorkspaceState;
+  initialServerProject?: Project | null;
   routeProjectId: string;
 }>) {
   const [registry, setRegistry] = useState<Phase1ProjectRegistry | null>(null);
@@ -188,13 +192,27 @@ export function Phase1ProjectProvider({
     useState<MockGenerationRunState>(createIdleGenerationRun);
 
   useEffect(() => {
-    const nextRegistry = loadPhase1ProjectRegistry(
+    let nextRegistry = loadPhase1ProjectRegistry(
       window.localStorage,
       fallbackWorkspaceState,
     );
 
+    if (initialServerProject && !getPhase1Project(nextRegistry, routeProjectId)) {
+      nextRegistry = upsertPhase1Project(
+        nextRegistry,
+        createEmptyProjectFromServerIdentity({
+          createdAt: initialServerProject.createdAt,
+          customerName: initialServerProject.customerName,
+          projectId: initialServerProject.id,
+          projectName: initialServerProject.name,
+          updatedAt: initialServerProject.updatedAt,
+        }),
+      );
+      savePhase1ProjectRegistry(window.localStorage, nextRegistry);
+    }
+
     setRegistry(nextRegistry);
-  }, [fallbackWorkspaceState]);
+  }, [fallbackWorkspaceState, initialServerProject, routeProjectId]);
 
   const project = useMemo(
     () => (registry ? getPhase1Project(registry, routeProjectId) : null),

@@ -52,9 +52,7 @@ export default function Phase1ProjectStepRoute({
     generateRows,
   } = usePhase1Project();
   const allowedStep =
-    isHydrated && project
-      ? getAllowedWorkflowStep(workflowSnapshot, step)
-      : step;
+    isHydrated && project ? getAllowedWorkflowStep(workflowSnapshot, step) : step;
 
   useEffect(() => {
     if (!isHydrated || !project) {

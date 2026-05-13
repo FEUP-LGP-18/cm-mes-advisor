@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { requireProjectCapability, requireUser } from "./permissions.server";
 import {
@@ -7,12 +8,16 @@ import {
   type Project,
   type ProjectActivityEvent,
   type ProjectFailure,
+  type ProjectListItem,
   type ProjectPhaseState,
   type ProjectResult,
+  type ProjectRole,
 } from "./types";
 
 type SupabaseError = {
   code?: string;
+  details?: string;
+  hint?: string;
   message?: string;
 };
 
@@ -38,6 +43,11 @@ type ProjectPhaseStateRow = {
   version: number;
 };
 
+type ProjectMembershipRoleRow = {
+  project_id: string;
+  role: ProjectRole;
+};
+
 type ProjectActivityEventRow = {
   actor_id: string | null;
   created_at: string;
@@ -58,7 +68,7 @@ const activitySelect =
 
 export async function listProjectsForUser(
   userId: string,
-): Promise<ProjectResult<Project[]>> {
+): Promise<ProjectResult<ProjectListItem[]>> {
   const authResult = await requireRepositoryUser(userId);
   if (!authResult.ok) {
     return authResult;
@@ -74,7 +84,31 @@ export async function listProjectsForUser(
     return mapSupabaseError(error, "Projects could not be listed.");
   }
 
-  return success(((data ?? []) as ProjectRow[]).map(mapProjectRow));
+  const memberships = await supabase
+    .from("project_memberships")
+    .select("project_id,role")
+    .eq("user_id", userId);
+
+  if (memberships.error) {
+    return mapSupabaseError(
+      memberships.error,
+      "Project roles could not be listed.",
+    );
+  }
+
+  const rolesByProjectId = new Map(
+    ((memberships.data ?? []) as ProjectMembershipRoleRow[]).map(
+      (membership) => [membership.project_id, membership.role],
+    ),
+  );
+  const projects = ((data ?? []) as ProjectRow[])
+    .map(mapProjectRow)
+    .flatMap((project) => {
+      const currentUserRole = rolesByProjectId.get(project.id);
+      return currentUserRole ? [{ ...project, currentUserRole }] : [];
+    });
+
+  return success(projects);
 }
 
 export async function getProjectForUser(
@@ -124,20 +158,31 @@ export async function createProjectForUser(
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const projectId = randomUUID();
+
+  const { error } = await supabase
     .from("projects")
     .insert({
       created_by: userId,
       customer_name: parsed.data.customerName,
       description: parsed.data.description,
+      id: projectId,
       name: parsed.data.name,
       updated_by: userId,
-    })
-    .select(projectSelect)
-    .single();
+    });
 
   if (error) {
     return mapSupabaseError(error, "Project could not be created.");
+  }
+
+  const { data, error: readError } = await supabase
+    .from("projects")
+    .select(projectSelect)
+    .eq("id", projectId)
+    .single();
+
+  if (readError) {
+    return mapSupabaseError(readError, "Project could not be loaded.");
   }
 
   return success(mapProjectRow(data as ProjectRow));
