@@ -1,5 +1,7 @@
 import Phase1ProjectHome from "@/components/phase1/project-home";
 import { createProjectAction } from "@/lib/projects/actions";
+import LocalPhase1ProjectHome from "@/components/phase1/local-project-home";
+import { getFixtureWorkspaceState } from "@/lib/phase1/fixture";
 import { listProjectsForUser } from "@/lib/projects/repository.server";
 import { requireUser } from "@/lib/projects/permissions.server";
 import type { CreateProjectActionState } from "@/lib/projects/types";
@@ -13,15 +15,9 @@ const initialCreateProjectActionState: CreateProjectActionState = {
 
 export default async function Home() {
   if (!isSupabaseConfigured()) {
-    return (
-      <Phase1ProjectHome
-        currentUser={null}
-        createProject={createProjectAction}
-        initialCreateProjectState={initialCreateProjectActionState}
-        listError="Supabase Auth is not configured for this environment."
-        projects={[]}
-      />
-    );
+    const { workspaceState } = await getFixtureWorkspaceState();
+
+    return <LocalPhase1ProjectHome fallbackWorkspaceState={workspaceState} />;
   }
 
   const userResult = await requireUser();
