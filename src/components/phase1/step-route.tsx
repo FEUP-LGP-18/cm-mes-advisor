@@ -27,6 +27,7 @@ export default function Phase1ProjectStepRoute({
   const router = useRouter();
   const phase1 = usePhase1Project();
   const {
+    canEditPhase1,
     canUploadWorkbook,
     currentSourceMetadata,
     demoRequirements,
@@ -137,6 +138,7 @@ export default function Phase1ProjectStepRoute({
     >
       {step === "source" ? (
         <SourceStudio
+          canContinue={canEditPhase1}
           canUploadWorkbook={canUploadWorkbook}
           key={currentSourceMetadata.sourceId}
           currentSourceMetadata={currentSourceMetadata}
@@ -153,6 +155,7 @@ export default function Phase1ProjectStepRoute({
 
       {step === "generate" ? (
         <GenerateStudio
+          canGenerateRows={canEditPhase1}
           demoRequirements={demoRequirements}
           generatedCount={generatedRequirements.length}
           generationFeedback={generationFeedback}
@@ -169,6 +172,7 @@ export default function Phase1ProjectStepRoute({
       {step === "review" ? (
         <ReviewStudio
           approvedCount={summary.approvedCount}
+          canEditPhase1={canEditPhase1}
           generatedCount={generatedRequirements.length}
           generatedReviewableRequirements={generatedReviewableRequirements}
           onGenerateDemoRows={() => generateRows(demoRequirements, "demo rows")}

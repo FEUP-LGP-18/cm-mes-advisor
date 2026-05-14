@@ -18,6 +18,7 @@ import { RequirementsExplorer } from "@/app/requirements-review-workspace";
 const defaultGenerateFilter: RequirementReviewFilter = "demo";
 
 interface GenerateStudioProps {
+  canGenerateRows?: boolean;
   demoRequirements: ReviewRequirement[];
   generatedCount: number;
   generationFeedback: {
@@ -48,6 +49,7 @@ interface GenerateStudioProps {
 }
 
 export default function GenerateStudio({
+  canGenerateRows = true,
   demoRequirements,
   generatedCount,
   generationFeedback,
@@ -340,7 +342,9 @@ export default function GenerateStudio({
               onClick={() =>
                 handleGenerateAndAdvance(demoRequirements, "demo rows")
               }
-              disabled={demoRequirements.length === 0 || isGenerating}
+              disabled={
+                !canGenerateRows || demoRequirements.length === 0 || isGenerating
+              }
               className="focus-premium theme-button-primary rounded-2xl px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isGenerating
@@ -354,7 +358,9 @@ export default function GenerateStudio({
                 onClick={() =>
                   handleGenerateAndAdvance(mvpRequirements, "MVP rows")
                 }
-                disabled={mvpRequirements.length === 0 || isGenerating}
+                disabled={
+                  !canGenerateRows || mvpRequirements.length === 0 || isGenerating
+                }
                 className="focus-premium theme-shell-button-secondary rounded-xl px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Generate MVP rows
@@ -364,7 +370,11 @@ export default function GenerateStudio({
                 onClick={() =>
                   handleGenerateAndAdvance(selectedRequirements, "selected rows")
                 }
-                disabled={selectedRequirements.length === 0 || isGenerating}
+                disabled={
+                  !canGenerateRows ||
+                  selectedRequirements.length === 0 ||
+                  isGenerating
+                }
                 className="focus-premium theme-shell-button-secondary rounded-xl px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Generate selected rows
