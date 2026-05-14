@@ -39,6 +39,7 @@ export default function Phase1ProjectStepRoute({
     lastGenerationMode,
     mockGenerationRun,
     nextAction,
+    persistenceFeedback,
     project,
     reviewRequirements,
     setCurrentStep,
@@ -138,6 +139,7 @@ export default function Phase1ProjectStepRoute({
       currentStep={step}
       email={phase1.currentUser?.email}
       nextAction={nextAction}
+      persistenceFeedback={persistenceFeedback}
       progress={workflowProgress}
       project={project}
     >

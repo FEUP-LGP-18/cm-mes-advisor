@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type PropsWithChildren,
 } from "react";
@@ -35,6 +36,7 @@ import {
   createFixtureWorkspaceStateForProject,
   createEmptyProjectFromServerIdentity,
   createPhase1ProjectRecordFromWorkspaceState,
+  createPhase1ProjectRegistry,
   createUploadedWorkspaceStateForProject,
   getPhase1Project,
   loadPhase1ProjectRegistry,
@@ -49,6 +51,11 @@ import {
   type Phase1ProjectRecord,
   type Phase1ProjectRegistry,
 } from "@/lib/phase1/project-registry";
+import {
+  createPersistedPhase1State,
+  createProjectRecordFromPersistedPhase1State,
+  type PersistedPhase1State,
+} from "@/lib/phase1/persisted-state";
 import {
   buildReviewRequirements,
   filterReviewRequirements,
@@ -109,6 +116,11 @@ interface SourceFeedback {
   message: string;
 }
 
+interface PersistenceFeedback {
+  tone: "neutral" | "success" | "error";
+  message: string;
+}
+
 type UploadWorkbookResponse =
   | {
       ok: true;
@@ -121,7 +133,21 @@ type UploadWorkbookResponse =
       ok: false;
     };
 
+type SavePhase1StateResponse =
+  | {
+      ok: true;
+      version: number;
+    }
+  | {
+      error?: {
+        currentVersion?: number;
+        message?: string;
+      };
+      ok: false;
+    };
+
 interface Phase1ProjectContextValue {
+  canEditPhase1: boolean;
   canUploadWorkbook: boolean;
   currentUser: CurrentUser | null;
   currentSourceMetadata: RequirementsWorkspaceState["source"];
@@ -136,6 +162,7 @@ interface Phase1ProjectContextValue {
   lastGenerationMode: RequirementGenerationRouteMode | null;
   mockGenerationRun: MockGenerationRunState;
   nextAction: Phase1NextAction;
+  persistenceFeedback: PersistenceFeedback | null;
   project: Phase1ProjectRecord | null;
   registry: Phase1ProjectRegistry | null;
   reviewRequirements: ReviewRequirement[];
@@ -187,23 +214,34 @@ const Phase1ProjectContext = createContext<Phase1ProjectContextValue | null>(
 export function Phase1ProjectProvider({
   children,
   fallbackWorkspaceState,
+  initialCanEditPhase1 = true,
   initialCanUploadWorkbook = true,
   initialCurrentUser,
+  initialServerPhase1State = null,
+  initialServerPhase1Version = 0,
   initialServerProject,
   initialServerWorkspaceState,
   routeProjectId,
 }: PropsWithChildren<{
   fallbackWorkspaceState: RequirementsWorkspaceState;
+  initialCanEditPhase1?: boolean;
   initialCanUploadWorkbook?: boolean;
   initialCurrentUser?: CurrentUser | null;
+  initialServerPhase1State?: PersistedPhase1State | null;
+  initialServerPhase1Version?: number;
   initialServerProject?: Project | null;
   initialServerWorkspaceState?: RequirementsWorkspaceState | null;
   routeProjectId: string;
 }>) {
+  const hasServerProject = Boolean(initialServerProject);
+  const phase1VersionRef = useRef(initialServerPhase1Version);
+  const phase1SaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const [registry, setRegistry] = useState<Phase1ProjectRegistry | null>(null);
   const [sourceFeedback, setSourceFeedback] = useState<SourceFeedback | null>(
     null,
   );
+  const [persistenceFeedback, setPersistenceFeedback] =
+    useState<PersistenceFeedback | null>(null);
   const [generationFeedback, setGenerationFeedback] =
     useState<GenerationFeedback | null>(null);
   const [lastGenerationMode, setLastGenerationMode] =
@@ -213,12 +251,24 @@ export function Phase1ProjectProvider({
     useState<MockGenerationRunState>(createIdleGenerationRun);
 
   useEffect(() => {
-    let nextRegistry = loadPhase1ProjectRegistry(
-      window.localStorage,
-      fallbackWorkspaceState,
-    );
+    phase1VersionRef.current = initialServerPhase1Version;
+  }, [initialServerPhase1Version]);
 
-    if (initialServerProject && initialServerWorkspaceState) {
+  useEffect(() => {
+    let nextRegistry = hasServerProject
+      ? createPhase1ProjectRegistry([], routeProjectId)
+      : loadPhase1ProjectRegistry(window.localStorage, fallbackWorkspaceState);
+
+    if (initialServerProject && initialServerPhase1State) {
+      nextRegistry = upsertPhase1Project(
+        nextRegistry,
+        createProjectRecordFromPersistedPhase1State(initialServerPhase1State, {
+          createdAt: initialServerProject.createdAt,
+          projectId: initialServerProject.id,
+          updatedAt: initialServerProject.updatedAt,
+        }),
+      );
+    } else if (initialServerProject && initialServerWorkspaceState) {
       nextRegistry = upsertPhase1Project(
         nextRegistry,
         createPhase1ProjectRecordFromWorkspaceState(
@@ -230,7 +280,6 @@ export function Phase1ProjectProvider({
           },
         ),
       );
-      savePhase1ProjectRegistry(window.localStorage, nextRegistry);
     } else if (
       initialServerProject &&
       !getPhase1Project(nextRegistry, routeProjectId)
@@ -245,12 +294,13 @@ export function Phase1ProjectProvider({
           updatedAt: initialServerProject.updatedAt,
         }),
       );
-      savePhase1ProjectRegistry(window.localStorage, nextRegistry);
     }
 
     setRegistry(nextRegistry);
   }, [
     fallbackWorkspaceState,
+    hasServerProject,
+    initialServerPhase1State,
     initialServerProject,
     initialServerWorkspaceState,
     routeProjectId,
@@ -261,7 +311,6 @@ export function Phase1ProjectProvider({
     [registry, routeProjectId],
   );
   const workspaceState = project?.workspaceState ?? null;
-  const hasServerProject = Boolean(initialServerProject);
 
   const reviewRequirements = useMemo(
     () =>
@@ -378,6 +427,7 @@ export function Phase1ProjectProvider({
 
   useEffect(() => {
     if (
+      hasServerProject ||
       !project ||
       !registry ||
       registry.activeProjectId === project.projectId
@@ -388,7 +438,81 @@ export function Phase1ProjectProvider({
     const nextRegistry = setActivePhase1Project(registry, project.projectId);
     savePhase1ProjectRegistry(window.localStorage, nextRegistry);
     setRegistry(nextRegistry);
-  }, [project, registry]);
+  }, [hasServerProject, project, registry]);
+
+  const persistPhase1ProjectToServer = useCallback(
+    (nextProject: Phase1ProjectRecord) => {
+      if (!hasServerProject) {
+        return;
+      }
+
+      if (!initialCanEditPhase1) {
+        setPersistenceFeedback({
+          tone: "error",
+          message: "Viewers can inspect this project, but cannot save Phase 1 changes.",
+        });
+        return;
+      }
+
+      const persistedState = createPersistedPhase1State(nextProject);
+      setPersistenceFeedback({
+        tone: "neutral",
+        message: "Saving Phase 1 project state...",
+      });
+
+      const saveProject = async (): Promise<void> => {
+          const expectedVersion = phase1VersionRef.current;
+          const response = await fetch(
+            `/projects/${nextProject.projectId}/phase1/state`,
+            {
+              body: JSON.stringify({
+                expectedVersion,
+                state: persistedState,
+              }),
+              headers: {
+                "content-type": "application/json",
+              },
+              method: "PATCH",
+            },
+          );
+          const responseBody = (await response
+            .json()
+            .catch(() => null)) as SavePhase1StateResponse | null;
+
+          if (!response.ok || !responseBody?.ok) {
+            setPersistenceFeedback({
+              tone: "error",
+              message:
+                response.status === 409
+                  ? "This project changed in another session. Reload to review the latest saved state before continuing."
+                  : responseBody && !responseBody.ok
+                    ? responseBody.error?.message ||
+                      "Phase 1 changes could not be saved."
+                    : "Phase 1 changes could not be saved.",
+            });
+            return;
+          }
+
+          phase1VersionRef.current = responseBody.version;
+          setPersistenceFeedback({
+            tone: "success",
+            message: "Phase 1 changes saved.",
+          });
+      };
+
+      phase1SaveQueueRef.current = phase1SaveQueueRef.current.then(() =>
+        saveProject(),
+      );
+
+      phase1SaveQueueRef.current = phase1SaveQueueRef.current.catch(() => {
+        setPersistenceFeedback({
+          tone: "error",
+          message: "Phase 1 changes could not be saved.",
+        });
+      });
+    },
+    [hasServerProject, initialCanEditPhase1],
+  );
 
   const persistProject = useCallback(
     (
@@ -418,12 +542,16 @@ export function Phase1ProjectProvider({
           resolvedProject,
         );
 
-        savePhase1ProjectRegistry(window.localStorage, nextRegistry);
+        if (hasServerProject) {
+          persistPhase1ProjectToServer(resolvedProject);
+        } else {
+          savePhase1ProjectRegistry(window.localStorage, nextRegistry);
+        }
 
         return nextRegistry;
       });
     },
-    [routeProjectId],
+    [hasServerProject, persistPhase1ProjectToServer, routeProjectId],
   );
 
   const setCurrentStep = useCallback(
@@ -432,11 +560,15 @@ export function Phase1ProjectProvider({
         return;
       }
 
+      if (hasServerProject && !initialCanEditPhase1) {
+        return;
+      }
+
       persistProject((currentProject) =>
         touchPhase1ProjectStep(currentProject, step),
       );
     },
-    [persistProject, project],
+    [hasServerProject, initialCanEditPhase1, persistProject, project],
   );
 
   const updateWorkspaceState = useCallback(
@@ -449,6 +581,14 @@ export function Phase1ProjectProvider({
       nextStep?: Phase1WorkflowStep,
     ) => {
       if (!project || !workspaceState) {
+        return;
+      }
+
+      if (hasServerProject && !initialCanEditPhase1) {
+        setPersistenceFeedback({
+          tone: "error",
+          message: "Viewers can inspect this project, but cannot save Phase 1 changes.",
+        });
         return;
       }
 
@@ -466,7 +606,13 @@ export function Phase1ProjectProvider({
         );
       });
     },
-    [persistProject, project, workspaceState],
+    [
+      hasServerProject,
+      initialCanEditPhase1,
+      persistProject,
+      project,
+      workspaceState,
+    ],
   );
 
   const updateMasterDataState = useCallback(
@@ -479,11 +625,19 @@ export function Phase1ProjectProvider({
         return;
       }
 
+      if (hasServerProject && !initialCanEditPhase1) {
+        setPersistenceFeedback({
+          tone: "error",
+          message: "Viewers can inspect this project, but cannot save Phase 1 changes.",
+        });
+        return;
+      }
+
       persistProject((currentProject) =>
         updateMasterDataPhase2State(currentProject, updater),
       );
     },
-    [persistProject, project],
+    [hasServerProject, initialCanEditPhase1, persistProject, project],
   );
 
   useEffect(() => {
@@ -571,6 +725,14 @@ export function Phase1ProjectProvider({
       return;
     }
 
+    if (hasServerProject && !initialCanEditPhase1) {
+      setSourceFeedback({
+        tone: "error",
+        message: "Viewers can inspect workbook sources, but cannot replace them.",
+      });
+      return;
+    }
+
     const nextWorkspaceState = createFixtureWorkspaceStateForProject(
       project,
       fallbackWorkspaceState,
@@ -581,11 +743,25 @@ export function Phase1ProjectProvider({
       tone: "success",
       message: "Restored the sample workbook for this project.",
     });
-  }, [fallbackWorkspaceState, project, updateWorkspaceState]);
+  }, [
+    fallbackWorkspaceState,
+    hasServerProject,
+    initialCanEditPhase1,
+    project,
+    updateWorkspaceState,
+  ]);
 
   const uploadWorkbook = useCallback(
     async (file: File) => {
       if (!project) {
+        return false;
+      }
+
+      if (hasServerProject && !initialCanUploadWorkbook) {
+        setSourceFeedback({
+          tone: "error",
+          message: "Viewers can inspect workbook sources, but cannot upload or replace them.",
+        });
         return false;
       }
 
@@ -671,7 +847,12 @@ export function Phase1ProjectProvider({
         return false;
       }
     },
-    [hasServerProject, project, updateWorkspaceState],
+    [
+      hasServerProject,
+      initialCanUploadWorkbook,
+      project,
+      updateWorkspaceState,
+    ],
   );
 
   const generateRows = useCallback(
@@ -687,6 +868,14 @@ export function Phase1ProjectProvider({
         isGenerating
       ) {
         setMockGenerationRun(createIdleGenerationRun());
+        return false;
+      }
+
+      if (hasServerProject && !initialCanEditPhase1) {
+        setGenerationFeedback({
+          tone: "error",
+          message: "Viewers can inspect generated drafts, but cannot save workflow changes.",
+        });
         return false;
       }
 
@@ -838,7 +1027,14 @@ export function Phase1ProjectProvider({
         setIsGenerating(false);
       }
     },
-    [isGenerating, project, updateWorkspaceState, workspaceState],
+    [
+      hasServerProject,
+      initialCanEditPhase1,
+      isGenerating,
+      project,
+      updateWorkspaceState,
+      workspaceState,
+    ],
   );
 
   const setMasterDataStep = useCallback(
@@ -847,11 +1043,19 @@ export function Phase1ProjectProvider({
         return;
       }
 
+      if (hasServerProject && !initialCanEditPhase1) {
+        setPersistenceFeedback({
+          tone: "error",
+          message: "Viewers can inspect this project, but cannot save Phase 1 changes.",
+        });
+        return;
+      }
+
       persistProject((currentProject) =>
         touchMasterDataProjectStep(currentProject, step),
       );
     },
-    [persistProject, project],
+    [hasServerProject, initialCanEditPhase1, persistProject, project],
   );
 
   const setMasterDataMode = useCallback(
@@ -1205,6 +1409,7 @@ export function Phase1ProjectProvider({
 
   const value = useMemo<Phase1ProjectContextValue>(
     () => ({
+      canEditPhase1: initialCanEditPhase1,
       canUploadWorkbook: initialCanUploadWorkbook,
       currentUser: initialCurrentUser ?? null,
       currentSourceMetadata:
@@ -1225,6 +1430,7 @@ export function Phase1ProjectProvider({
       masterDataPhase2,
       mockGenerationRun,
       nextAction,
+      persistenceFeedback,
       project,
       registry,
       reviewRequirements,
@@ -1249,6 +1455,7 @@ export function Phase1ProjectProvider({
     }),
     [
       analyzeMasterData,
+      initialCanEditPhase1,
       initialCanUploadWorkbook,
       initialCurrentUser,
       demoRequirements,
@@ -1266,6 +1473,7 @@ export function Phase1ProjectProvider({
       masterDataPhase2,
       mockGenerationRun,
       nextAction,
+      persistenceFeedback,
       project,
       registry,
       restoreFixtureSource,

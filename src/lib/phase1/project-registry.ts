@@ -2,6 +2,7 @@ import { assembleDemoScript } from "@/lib/requirements/demo-script";
 import type { ParsedRequirement } from "@/lib/requirements/types";
 import {
   buildReviewRequirements,
+  createRequirementsReviewState,
   summarizeReviewRequirements,
 } from "@/lib/requirements/review";
 import {
@@ -653,6 +654,13 @@ function normalizeWorkspaceState(
   const normalized = createRequirementsWorkspaceState(
     source,
     parsedRequirements,
+    createRequirementsReviewState(
+      normalizeReviewProjectMetadata(
+        value.reviewState,
+        source,
+        parsedRequirements.length,
+      ),
+    ),
   );
 
   return {
@@ -661,6 +669,44 @@ function normalizeWorkspaceState(
       isRecord(value.reviewState) ? JSON.stringify(value.reviewState) : null,
       normalized.reviewState,
     ),
+  };
+}
+
+function normalizeReviewProjectMetadata(
+  value: unknown,
+  source: RequirementsSourceMetadata,
+  rowCount: number,
+) {
+  const fallbackProject = {
+    projectId: source.sourceId,
+    projectName: source.projectName,
+    customerName: source.customerName,
+    sourceFilename: source.sourceFilename,
+    sourceRowCount: rowCount,
+  };
+
+  if (!isRecord(value) || !isRecord(value.project)) {
+    return fallbackProject;
+  }
+
+  return {
+    customerName:
+      typeof value.project.customerName === "string" &&
+      value.project.customerName.trim().length > 0
+        ? value.project.customerName
+        : fallbackProject.customerName,
+    projectId:
+      typeof value.project.projectId === "string" &&
+      value.project.projectId.trim().length > 0
+        ? value.project.projectId
+        : fallbackProject.projectId,
+    projectName:
+      typeof value.project.projectName === "string" &&
+      value.project.projectName.trim().length > 0
+        ? value.project.projectName
+        : fallbackProject.projectName,
+    sourceFilename: source.sourceFilename,
+    sourceRowCount: rowCount,
   };
 }
 

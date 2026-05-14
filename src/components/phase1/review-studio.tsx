@@ -39,6 +39,7 @@ export default function ReviewStudio({
   projectId,
   reviewRequirements,
 }: ReviewStudioProps) {
+  // UI-only review explorer preferences stay local; project workflow state is persisted through the Phase 1 project provider.
   const selectionStorageKey = `cm-mes-advisor:review-selection:${projectId}`;
   const explorerFilterStorageKey = `cm-mes-advisor:review-explorer-filter:${projectId}`;
   const explorerQueryStorageKey = `cm-mes-advisor:review-explorer-query:${projectId}`;

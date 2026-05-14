@@ -16,6 +16,7 @@ export default function Phase1ProjectShell({
   currentStep,
   email,
   nextAction,
+  persistenceFeedback,
   progress,
   project,
 }: {
@@ -23,6 +24,10 @@ export default function Phase1ProjectShell({
   currentStep: Phase1WorkflowStep;
   email?: string | null;
   nextAction: Phase1NextAction;
+  persistenceFeedback?: {
+    tone: "neutral" | "success" | "error";
+    message: string;
+  } | null;
   progress: Phase1WorkflowStepState[];
   project: Phase1ProjectRecord;
 }) {
@@ -75,6 +80,16 @@ export default function Phase1ProjectShell({
             <div className="phase-shell-title-block">
               <h1 className="phase-shell-title">{project.projectName}</h1>
               <p className="phase-shell-helper">{nextAction.helper}</p>
+              {persistenceFeedback ? (
+                <p
+                  className={`phase-feedback phase-feedback-${persistenceFeedback.tone} mt-3`}
+                  role={
+                    persistenceFeedback.tone === "error" ? "alert" : "status"
+                  }
+                >
+                  {persistenceFeedback.message}
+                </p>
+              ) : null}
             </div>
 
             <div className="phase-shell-summary">

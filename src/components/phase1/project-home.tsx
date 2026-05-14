@@ -53,8 +53,10 @@ export default function Phase1ProjectHome({
           createProject={createProject}
           initialCreateProjectState={initialCreateProjectState}
           listError={listError}
-          onOpenProject={(project, step = "source") =>
-            router.push(getPhase1StepPath(project.id, step))
+          onOpenProject={(project, step) =>
+            router.push(
+              step ? getPhase1StepPath(project.id, step) : `/projects/${project.id}`,
+            )
           }
           onQueryChange={setQuery}
           onSortChange={setSort}
