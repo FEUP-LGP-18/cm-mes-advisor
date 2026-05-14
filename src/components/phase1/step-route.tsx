@@ -75,18 +75,10 @@ export default function Phase1ProjectStepRoute({
 
   if (!isHydrated) {
     return (
-      <main className="app-canvas flex min-h-screen items-center justify-center px-6">
-        <div className="phase-empty-state max-w-xl text-center">
-          <p className="phase-overline">Loading project</p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-[-0.04em]">
-            Restoring the Phase 1 workspace
-          </h1>
-          <p className="mt-3 text-sm leading-7 text-[color:var(--shell-muted)]">
-            The saved project state is loading so the correct customer
-            workspace can be restored before you continue.
-          </p>
-        </div>
-      </main>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-[1px]">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/45 border-t-white shadow-[0_0_32px_rgba(0,0,0,0.18)]" />
+        <span className="sr-only">Loading project</span>
+      </div>
     );
   }
 

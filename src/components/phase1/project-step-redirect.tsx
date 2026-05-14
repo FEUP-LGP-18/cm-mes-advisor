@@ -39,17 +39,12 @@ export default function Phase1ProjectStepRedirect({
   }, [isHydrated, mode, project, router, workflowSnapshot]);
 
   return (
-    <main className="app-canvas flex min-h-screen items-center justify-center px-6">
-      <div className="phase-empty-state max-w-xl text-center">
-        <p className="phase-overline">Redirecting</p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-[-0.04em]">
-          Loading the right project step
-        </h1>
-        <p className="mt-3 text-sm leading-7 text-[color:var(--shell-muted)]">
-          The saved workflow state is loading so this route can reopen the most
-          useful stage for the current project.
-        </p>
-      </div>
+    <main className="app-canvas relative flex min-h-screen items-center justify-center px-6">
+      <div
+        className="h-10 w-10 animate-spin rounded-full border-2 border-[color:var(--shell-border)] border-t-[color:var(--shell-accent)]"
+        role="status"
+        aria-label="Loading project"
+      />
     </main>
   );
 }

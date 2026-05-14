@@ -166,10 +166,29 @@ describe("project repository", () => {
       error: null,
     });
     const membershipsSelect = vi.fn().mockReturnValue({ eq: membershipsEq });
+    const phaseStatesIn = vi.fn().mockResolvedValue({
+      data: [
+        {
+          phase_key: "phase1",
+          project_id: projectId,
+          state_json: {
+            currentStep: "review",
+          },
+          updated_at: "2026-05-02T12:00:00.000Z",
+          updated_by: userId,
+          version: 3,
+        },
+      ],
+      error: null,
+    });
+    const phaseStatesEq = vi.fn().mockReturnValue({ in: phaseStatesIn });
+    const phaseStatesSelect = vi.fn().mockReturnValue({ eq: phaseStatesEq });
     const from = vi.fn((table: string) =>
       table === "projects"
         ? { select: projectsSelect }
-        : { select: membershipsSelect },
+        : table === "project_memberships"
+          ? { select: membershipsSelect }
+          : { select: phaseStatesSelect },
     );
 
     createClientMock.mockResolvedValueOnce({
@@ -183,10 +202,12 @@ describe("project repository", () => {
           customerName: "Customer X",
           id: projectId,
           name: "Customer X MES demo",
+          phase1CurrentStep: "review",
         },
       ],
       ok: true,
     });
+    expect(phaseStatesIn).toHaveBeenCalledWith("project_id", [projectId]);
   });
 
   it("creates a project with user audit fields", async () => {

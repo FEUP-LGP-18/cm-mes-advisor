@@ -139,6 +139,40 @@ export default function Phase1ProjectShell({
           {progress.map((stepState) => {
             const href = getPhase1StepPath(project.projectId, stepState.step);
             const isActive = currentStep === stepState.step;
+            const isBlocked = stepState.status === "blocked";
+
+            const content = (
+              <>
+                <span className="phase-stage-eyebrow">{stepState.status}</span>
+                <span className="phase-stage-title">{stepState.label}</span>
+                <span className="phase-stage-subtitle">
+                  {stepState.subtitle}
+                </span>
+              </>
+            );
+
+            if (isBlocked) {
+              return (
+                <span className="phase-stage-disabled-wrap" key={stepState.step}>
+                  <button
+                    type="button"
+                    className="phase-stage-link phase-stage-link-blocked"
+                    disabled
+                    aria-describedby={`phase-stage-blocked-${stepState.step}`}
+                  >
+                    {content}
+                  </button>
+                  <span
+                    className="phase-stage-tooltip"
+                    id={`phase-stage-blocked-${stepState.step}`}
+                    role="tooltip"
+                  >
+                    Complete the previous required step before opening{" "}
+                    {stepState.label}.
+                  </span>
+                </span>
+              );
+            }
 
             return (
               <Link
@@ -147,17 +181,9 @@ export default function Phase1ProjectShell({
                 aria-current={isActive ? "step" : undefined}
                 className={`phase-stage-link ${
                   isActive ? "phase-stage-link-active" : ""
-                } ${
-                  stepState.status === "blocked"
-                    ? "phase-stage-link-blocked"
-                    : ""
                 }`}
               >
-                <span className="phase-stage-eyebrow">{stepState.status}</span>
-                <span className="phase-stage-title">{stepState.label}</span>
-                <span className="phase-stage-subtitle">
-                  {stepState.subtitle}
-                </span>
+                {content}
               </Link>
             );
           })}

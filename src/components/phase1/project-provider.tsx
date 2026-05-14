@@ -236,7 +236,16 @@ export function Phase1ProjectProvider({
   const hasServerProject = Boolean(initialServerProject);
   const phase1VersionRef = useRef(initialServerPhase1Version);
   const phase1SaveQueueRef = useRef<Promise<void>>(Promise.resolve());
-  const [registry, setRegistry] = useState<Phase1ProjectRegistry | null>(null);
+  const [registry, setRegistry] = useState<Phase1ProjectRegistry | null>(() =>
+    initialServerProject
+      ? createServerProjectRegistry({
+          initialServerPhase1State,
+          initialServerProject,
+          initialServerWorkspaceState,
+          routeProjectId,
+        })
+      : null,
+  );
   const [sourceFeedback, setSourceFeedback] = useState<SourceFeedback | null>(
     null,
   );
@@ -255,51 +264,23 @@ export function Phase1ProjectProvider({
   }, [initialServerPhase1Version]);
 
   useEffect(() => {
-    let nextRegistry = hasServerProject
-      ? createPhase1ProjectRegistry([], routeProjectId)
-      : loadPhase1ProjectRegistry(window.localStorage, fallbackWorkspaceState);
-
-    if (initialServerProject && initialServerPhase1State) {
-      nextRegistry = upsertPhase1Project(
-        nextRegistry,
-        createProjectRecordFromPersistedPhase1State(initialServerPhase1State, {
-          createdAt: initialServerProject.createdAt,
-          projectId: initialServerProject.id,
-          updatedAt: initialServerProject.updatedAt,
-        }),
-      );
-    } else if (initialServerProject && initialServerWorkspaceState) {
-      nextRegistry = upsertPhase1Project(
-        nextRegistry,
-        createPhase1ProjectRecordFromWorkspaceState(
+    if (initialServerProject) {
+      setRegistry(
+        createServerProjectRegistry({
+          initialServerPhase1State,
+          initialServerProject,
           initialServerWorkspaceState,
-          {
-            createdAt: initialServerProject.createdAt,
-            projectId: initialServerProject.id,
-            updatedAt: initialServerProject.updatedAt,
-          },
-        ),
-      );
-    } else if (
-      initialServerProject &&
-      !getPhase1Project(nextRegistry, routeProjectId)
-    ) {
-      nextRegistry = upsertPhase1Project(
-        nextRegistry,
-        createEmptyProjectFromServerIdentity({
-          createdAt: initialServerProject.createdAt,
-          customerName: initialServerProject.customerName,
-          projectId: initialServerProject.id,
-          projectName: initialServerProject.name,
-          updatedAt: initialServerProject.updatedAt,
+          routeProjectId,
         }),
       );
+      return;
     }
 
-    setRegistry(nextRegistry);
+    setRegistry(
+      loadPhase1ProjectRegistry(window.localStorage, fallbackWorkspaceState),
+    );
   }, [
     fallbackWorkspaceState,
-    hasServerProject,
     initialServerPhase1State,
     initialServerProject,
     initialServerWorkspaceState,
@@ -1534,6 +1515,57 @@ export function usePhase1Project() {
   }
 
   return value;
+}
+
+function createServerProjectRegistry({
+  initialServerPhase1State,
+  initialServerProject,
+  initialServerWorkspaceState,
+  routeProjectId,
+}: {
+  initialServerPhase1State: PersistedPhase1State | null;
+  initialServerProject: Project;
+  initialServerWorkspaceState?: RequirementsWorkspaceState | null;
+  routeProjectId: string;
+}) {
+  let nextRegistry = createPhase1ProjectRegistry([], routeProjectId);
+
+  if (initialServerPhase1State) {
+    return upsertPhase1Project(
+      nextRegistry,
+      createProjectRecordFromPersistedPhase1State(initialServerPhase1State, {
+        createdAt: initialServerProject.createdAt,
+        projectId: initialServerProject.id,
+        updatedAt: initialServerProject.updatedAt,
+      }),
+    );
+  }
+
+  if (initialServerWorkspaceState) {
+    return upsertPhase1Project(
+      nextRegistry,
+      createPhase1ProjectRecordFromWorkspaceState(initialServerWorkspaceState, {
+        createdAt: initialServerProject.createdAt,
+        projectId: initialServerProject.id,
+        updatedAt: initialServerProject.updatedAt,
+      }),
+    );
+  }
+
+  if (!getPhase1Project(nextRegistry, routeProjectId)) {
+    nextRegistry = upsertPhase1Project(
+      nextRegistry,
+      createEmptyProjectFromServerIdentity({
+        createdAt: initialServerProject.createdAt,
+        customerName: initialServerProject.customerName,
+        projectId: initialServerProject.id,
+        projectName: initialServerProject.name,
+        updatedAt: initialServerProject.updatedAt,
+      }),
+    );
+  }
+
+  return nextRegistry;
 }
 
 function createIdleGenerationRun(): MockGenerationRunState {

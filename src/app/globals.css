@@ -1740,6 +1740,12 @@ textarea {
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
+.phase-stage-disabled-wrap {
+  position: relative;
+  display: grid;
+  min-width: 0;
+}
+
 .phase-stage-link {
   display: grid;
   gap: 0.18rem;
@@ -1756,9 +1762,25 @@ textarea {
     color 180ms ease;
 }
 
+.phase-stage-link:is(button) {
+  width: 100%;
+  appearance: none;
+  font: inherit;
+  text-align: left;
+}
+
 .phase-stage-link:hover {
   transform: translateY(-1px);
   color: var(--shell-ink);
+}
+
+.phase-stage-link:disabled {
+  cursor: not-allowed;
+}
+
+.phase-stage-link:disabled:hover {
+  transform: none;
+  color: var(--shell-muted);
 }
 
 .phase-stage-link-active {
@@ -1769,6 +1791,39 @@ textarea {
 
 .phase-stage-link-blocked {
   opacity: 0.52;
+}
+
+.phase-stage-tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.45rem);
+  z-index: 30;
+  width: max-content;
+  max-width: min(16rem, 78vw);
+  transform: translateX(-50%) translateY(0.25rem);
+  border: 1px solid color-mix(in srgb, var(--shell-border) 85%, transparent);
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, var(--shell-ink) 96%, black);
+  box-shadow: 0 16px 38px rgb(15 23 42 / 18%);
+  color: var(--shell-card-surface);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.35;
+  opacity: 0;
+  padding: 0.48rem 0.62rem;
+  pointer-events: none;
+  visibility: hidden;
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease,
+    visibility 140ms ease;
+}
+
+.phase-stage-disabled-wrap:hover .phase-stage-tooltip,
+.phase-stage-disabled-wrap:focus-within .phase-stage-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  visibility: visible;
 }
 
 .phase-stage-eyebrow,
