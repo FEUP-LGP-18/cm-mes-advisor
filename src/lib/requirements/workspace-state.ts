@@ -145,6 +145,13 @@ export function loadRequirementsWorkspaceStateForSource(
   }
 }
 
+export function parseRequirementsWorkspaceState(
+  value: unknown,
+  fallbackState: RequirementsWorkspaceState,
+): RequirementsWorkspaceState {
+  return normalizeRequirementsWorkspaceState(value, fallbackState);
+}
+
 export function saveRequirementsWorkspaceState(
   storage: StorageLike,
   state: RequirementsWorkspaceState,

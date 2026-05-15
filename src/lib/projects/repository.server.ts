@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
-import { requireProjectCapability, requireUser } from "./permissions.server";
+import {
+  isUuid,
+  requireProjectCapability,
+  requireUser,
+} from "./permissions.server";
 import {
   failure,
   success,
@@ -8,6 +12,7 @@ import {
   type Project,
   type ProjectActivityEvent,
   type ProjectFailure,
+  type ProjectFile,
   type ProjectListItem,
   type ProjectPhaseState,
   type ProjectResult,
@@ -43,6 +48,19 @@ type ProjectPhaseStateRow = {
   version: number;
 };
 
+type ProjectFileRow = {
+  checksum: string | null;
+  created_at: string;
+  filename: string;
+  id: string;
+  mime_type: string | null;
+  project_id: string;
+  size_bytes: number;
+  source_metadata_json: unknown;
+  storage_path: string;
+  uploaded_by: string | null;
+};
+
 type ProjectMembershipRoleRow = {
   project_id: string;
   role: ProjectRole;
@@ -62,6 +80,9 @@ const projectSelect =
 
 const phaseStateSelect =
   "project_id,phase_key,state_json,version,updated_by,updated_at";
+
+const fileSelect =
+  "id,project_id,storage_path,filename,mime_type,size_bytes,checksum,source_metadata_json,uploaded_by,created_at";
 
 const activitySelect =
   "id,project_id,actor_id,event_type,event_payload,created_at";
@@ -325,6 +346,139 @@ export async function saveProjectPhaseState(
   return success(mapPhaseStateRow(updated.data as ProjectPhaseStateRow));
 }
 
+export async function getProjectPhaseState(
+  projectId: string,
+  phaseKey: string,
+  userId: string,
+): Promise<ProjectResult<ProjectPhaseState | null>> {
+  const authResult = await requireRepositoryUser(userId);
+  if (!authResult.ok) {
+    return authResult;
+  }
+
+  const accessResult = await requireProjectCapability(projectId, "read_project");
+  if (!accessResult.ok) {
+    return accessResult;
+  }
+
+  if (!isValidPhaseKey(phaseKey)) {
+    return failure("validation_error", "Phase key must be valid.");
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("project_phase_states")
+    .select(phaseStateSelect)
+    .eq("project_id", projectId)
+    .eq("phase_key", phaseKey)
+    .maybeSingle();
+
+  if (error) {
+    return mapSupabaseError(error, "Project phase state could not be loaded.");
+  }
+
+  return success(data ? mapPhaseStateRow(data as ProjectPhaseStateRow) : null);
+}
+
+export async function saveProjectFileMetadata(
+  input: {
+    checksum: string;
+    filename: string;
+    mimeType: string | null;
+    projectId: string;
+    sizeBytes: number;
+    sourceMetadata: unknown;
+    storagePath: string;
+  },
+  userId: string,
+): Promise<ProjectResult<ProjectFile>> {
+  const authResult = await requireRepositoryUser(userId);
+  if (!authResult.ok) {
+    return authResult;
+  }
+
+  const accessResult = await requireProjectCapability(
+    input.projectId,
+    "upload_project_file",
+  );
+  if (!accessResult.ok) {
+    return accessResult;
+  }
+
+  if (
+    input.filename.trim().length === 0 ||
+    input.storagePath.trim().length === 0 ||
+    !Number.isSafeInteger(input.sizeBytes) ||
+    input.sizeBytes < 0
+  ) {
+    return failure("validation_error", "Project file metadata is invalid.");
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("project_files")
+    .insert({
+      checksum: input.checksum,
+      filename: input.filename,
+      mime_type: input.mimeType,
+      project_id: input.projectId,
+      size_bytes: input.sizeBytes,
+      source_metadata_json: input.sourceMetadata,
+      storage_path: input.storagePath,
+      uploaded_by: userId,
+    })
+    .select(fileSelect)
+    .single();
+
+  if (error) {
+    return mapSupabaseError(error, "Project file metadata could not be saved.");
+  }
+
+  return success(mapProjectFileRow(data as ProjectFileRow));
+}
+
+export async function deleteUploadedProjectFileMetadata(
+  input: {
+    fileId: string;
+    projectId: string;
+  },
+  userId: string,
+): Promise<ProjectResult<null>> {
+  const authResult = await requireRepositoryUser(userId);
+  if (!authResult.ok) {
+    return authResult;
+  }
+
+  const accessResult = await requireProjectCapability(
+    input.projectId,
+    "upload_project_file",
+  );
+  if (!accessResult.ok) {
+    return accessResult;
+  }
+
+  if (!isUuid(input.fileId) || !isUuid(input.projectId)) {
+    return failure("validation_error", "Project file id must be valid.");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("project_files")
+    .delete()
+    .eq("id", input.fileId)
+    .eq("project_id", input.projectId)
+    .eq("uploaded_by", userId);
+
+  if (error) {
+    return mapSupabaseError(
+      error,
+      "Project file metadata could not be deleted.",
+    );
+  }
+
+  return success(null);
+}
+
 export async function recordProjectActivity(
   projectId: string,
   eventType: string,
@@ -424,6 +578,21 @@ function mapPhaseStateRow(row: ProjectPhaseStateRow): ProjectPhaseState {
     updatedAt: row.updated_at,
     updatedBy: row.updated_by,
     version: row.version,
+  };
+}
+
+function mapProjectFileRow(row: ProjectFileRow): ProjectFile {
+  return {
+    checksum: row.checksum,
+    createdAt: row.created_at,
+    filename: row.filename,
+    id: row.id,
+    mimeType: row.mime_type,
+    projectId: row.project_id,
+    sizeBytes: row.size_bytes,
+    sourceMetadata: row.source_metadata_json,
+    storagePath: row.storage_path,
+    uploadedBy: row.uploaded_by,
   };
 }
 

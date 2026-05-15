@@ -2,12 +2,13 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import type { RequirementGenerationAvailabilityBody } from "@/lib/requirements/generation-api";
+import { getMasterDataStepPath } from "@/lib/master-data/workflow";
 import {
   getAllowedWorkflowStep,
   getPhase1StepPath,
   type Phase1WorkflowStep,
 } from "@/lib/phase1/workflow";
+import type { RequirementGenerationAvailabilityBody } from "@/lib/requirements/generation-api";
 import ExportStudio from "./export-studio";
 import GenerateStudio from "./generate-studio";
 import { usePhase1Project } from "./project-provider";
@@ -15,7 +16,6 @@ import Phase1ProjectShell from "./project-shell";
 import ReviewStudio from "./review-studio";
 import ScriptStudio from "./script-studio";
 import SourceStudio from "./source-studio";
-import { getMasterDataStepPath } from "@/lib/master-data/workflow";
 
 export default function Phase1ProjectStepRoute({
   initialGenerationAvailability = null,
@@ -25,7 +25,9 @@ export default function Phase1ProjectStepRoute({
   step: Phase1WorkflowStep;
 }) {
   const router = useRouter();
+  const phase1 = usePhase1Project();
   const {
+    canUploadWorkbook,
     currentSourceMetadata,
     demoRequirements,
     demoScriptAssembly,
@@ -40,6 +42,7 @@ export default function Phase1ProjectStepRoute({
     project,
     reviewRequirements,
     setCurrentStep,
+    setMasterDataStep,
     sourceFeedback,
     summary,
     uploadWorkbook,
@@ -50,7 +53,7 @@ export default function Phase1ProjectStepRoute({
     updateRequirementReview,
     restoreFixtureSource,
     generateRows,
-  } = usePhase1Project();
+  } = phase1;
   const allowedStep =
     isHydrated && project ? getAllowedWorkflowStep(workflowSnapshot, step) : step;
 
@@ -126,22 +129,26 @@ export default function Phase1ProjectStepRoute({
     );
   }
 
+  const navigateToStep = (nextStep: Phase1WorkflowStep) => {
+    router.push(getPhase1StepPath(project.projectId, nextStep));
+  };
+
   return (
     <Phase1ProjectShell
       currentStep={step}
+      email={phase1.currentUser?.email}
       nextAction={nextAction}
       progress={workflowProgress}
       project={project}
     >
       {step === "source" ? (
         <SourceStudio
+          canUploadWorkbook={canUploadWorkbook}
           key={currentSourceMetadata.sourceId}
           currentSourceMetadata={currentSourceMetadata}
           demoCount={summary.demoCount}
           mvpCount={summary.mvpCount}
-          onContinue={() =>
-            router.push(getPhase1StepPath(project.projectId, "generate"))
-          }
+          onContinue={() => navigateToStep("generate")}
           onRestoreFixtureSource={restoreFixtureSource}
           onUploadWorkbook={uploadWorkbook}
           requirements={reviewRequirements}
@@ -160,9 +167,7 @@ export default function Phase1ProjectStepRoute({
           lastGenerationMode={lastGenerationMode}
           mockGenerationRun={mockGenerationRun}
           onGenerateRows={generateRows}
-          onOpenReview={() =>
-            router.push(getPhase1StepPath(project.projectId, "review"))
-          }
+          onOpenReview={() => navigateToStep("review")}
           requirements={reviewRequirements}
         />
       ) : null}
@@ -173,12 +178,8 @@ export default function Phase1ProjectStepRoute({
           generatedCount={generatedRequirements.length}
           generatedReviewableRequirements={generatedReviewableRequirements}
           onGenerateDemoRows={() => generateRows(demoRequirements, "demo rows")}
-          onGoToGenerate={() =>
-            router.push(getPhase1StepPath(project.projectId, "generate"))
-          }
-          onOpenScript={() =>
-            router.push(getPhase1StepPath(project.projectId, "script"))
-          }
+          onGoToGenerate={() => navigateToStep("generate")}
+          onOpenScript={() => navigateToStep("script")}
           onReviewAction={updateRequirementReview}
           projectId={project.projectId}
           reviewRequirements={reviewRequirements}
@@ -191,12 +192,8 @@ export default function Phase1ProjectStepRoute({
           draft={workspaceState.reviewState.demoScriptDraft}
           exportReady={workflowSnapshot.exportReady}
           onDraftAction={updateDemoScriptDraft}
-          onGoToReview={() =>
-            router.push(getPhase1StepPath(project.projectId, "review"))
-          }
-          onOpenExport={() =>
-            router.push(getPhase1StepPath(project.projectId, "export"))
-          }
+          onGoToReview={() => navigateToStep("review")}
+          onOpenExport={() => navigateToStep("export")}
           pendingReviewCount={generatedReviewableRequirements.length}
           projectMetadata={workspaceState.reviewState.project}
         />
@@ -206,15 +203,12 @@ export default function Phase1ProjectStepRoute({
         <ExportStudio
           assembly={demoScriptAssembly}
           exportReady={workflowSnapshot.exportReady}
-          onGoToReview={() =>
-            router.push(getPhase1StepPath(project.projectId, "review"))
-          }
-          onGoToScript={() =>
-            router.push(getPhase1StepPath(project.projectId, "script"))
-          }
-          onOpenMasterData={() =>
-            router.push(getMasterDataStepPath(project.projectId, "setup"))
-          }
+          onGoToReview={() => navigateToStep("review")}
+          onGoToScript={() => navigateToStep("script")}
+          onOpenMasterData={() => {
+            setMasterDataStep("setup");
+            router.push(getMasterDataStepPath(project.projectId, "setup"));
+          }}
           pendingReviewCount={generatedReviewableRequirements.length}
           projectMetadata={workspaceState.reviewState.project}
         />

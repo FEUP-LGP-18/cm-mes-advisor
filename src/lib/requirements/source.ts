@@ -30,20 +30,29 @@ export function createFixtureSourceMetadata(
 export function createUploadSourceMetadata(
   fileName: string,
   workbookBytes: ArrayBuffer | Uint8Array,
+  options: {
+    customerName?: string | null;
+    projectName?: string | null;
+    sourceId?: string;
+    uploadedAt?: string;
+  } = {},
 ): RequirementsSourceMetadata {
   assertRequirementsWorkbookFilename(fileName);
 
-  const sourceId = createWorkbookSourceIdentity(fileName, workbookBytes);
+  const sourceId =
+    options.sourceId ?? createWorkbookSourceIdentity(fileName, workbookBytes);
   const baseName = createDisplayNameFromFilename(fileName);
+  const projectName = cleanOptionalText(options.projectName) ?? baseName;
+  const customerName = cleanOptionalText(options.customerName) ?? baseName;
 
   return {
     sourceId,
     sourceKind: "upload",
     sourceLabel: `Uploaded workbook: ${fileName}`,
     sourceFilename: fileName,
-    projectName: baseName,
-    customerName: baseName,
-    uploadedAt: new Date().toISOString(),
+    projectName,
+    customerName,
+    uploadedAt: options.uploadedAt ?? new Date().toISOString(),
   };
 }
 
@@ -98,4 +107,13 @@ function sanitizeFilenamePart(value: string): string {
 
 function toUnsignedHex(value: number): string {
   return (value >>> 0).toString(16).padStart(8, "0");
+}
+
+function cleanOptionalText(value: string | null | undefined) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }

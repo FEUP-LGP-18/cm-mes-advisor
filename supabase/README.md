@@ -3,8 +3,9 @@
 This directory is the source-controlled home for Supabase database migrations.
 
 The current migration set includes the project collaboration schema, role
-helpers, and RLS policies used by the auth/collaboration work. Keep future
-schema changes in timestamped migrations under `supabase/migrations/`.
+helpers, RLS policies, and the private `project-files` Storage bucket used by
+workbook uploads. Keep future schema or Storage policy changes in timestamped
+migrations under `supabase/migrations/`.
 
 ## Local Workflow
 

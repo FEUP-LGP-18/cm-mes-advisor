@@ -1,6 +1,6 @@
 # Project Context
 
-Last updated: `2026-04-28`
+Last updated: `2026-05-10`
 
 This is the current-state source of truth for the GitHub repo. Use this before relying on older discovery notes.
 
@@ -58,6 +58,7 @@ Out of scope unless explicitly requested:
 - Home screen: project home that creates or reopens local Phase 1 projects
 - Routed workflow: `src/app/projects/[projectId]/`
 - Project state: local registry and workflow snapshot helpers in `src/lib/phase1/`
+- Persistent source uploads: Supabase Storage keeps raw workbook bytes in the private `project-files` bucket, while `project_files` remains the metadata/index table. `project_files.storage_path` points to the bucket/object path, and `project_phase_states` with `phase_key = 'source'` stores the parsed Source workspace needed when collaborators reopen a project.
 - Requirements domain: parsing, review, generation, validation, and export in `src/lib/requirements/`
 - Generation boundary: `src/app/api/requirements/generate/route.ts`
 - Default fixture: `fixtures/customer-x-functional-requirements.xlsx`
