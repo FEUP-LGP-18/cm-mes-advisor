@@ -35,10 +35,16 @@ function makeDeleteRequest() {
 }
 
 const sampleProject = {
+  archivedAt: null,
+  createdAt: "2026-01-01T00:00:00.000Z",
+  createdBy: "11111111-1111-4111-8111-111111111111",
   customerName: "Acme Corp",
   description: "A test project",
   id: projectId,
   name: "Test Project",
+  status: "active" as const,
+  updatedAt: "2026-01-01T00:00:00.000Z",
+  updatedBy: null,
 };
 
 describe("PATCH /api/projects/[projectId]/settings", () => {
@@ -134,7 +140,7 @@ describe("DELETE /api/projects/[projectId]/settings", () => {
 
   it("returns 200 on successful delete", async () => {
     deleteProjectMock.mockResolvedValueOnce({
-      data: { deleted: true },
+      data: { projectId },
       ok: true,
       status: "success",
     });
@@ -143,7 +149,7 @@ describe("DELETE /api/projects/[projectId]/settings", () => {
 
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body).toMatchObject({ deleted: true });
+    expect(body).toMatchObject({ projectId });
   });
 
   it("returns 401 when the caller is not authenticated", async () => {

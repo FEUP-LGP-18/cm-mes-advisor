@@ -32,9 +32,16 @@ function makePostRequest(body: unknown) {
 }
 
 const sampleProject = {
+  archivedAt: "2026-01-01T00:00:00.000Z",
+  createdAt: "2026-01-01T00:00:00.000Z",
+  createdBy: "11111111-1111-4111-8111-111111111111",
+  customerName: null,
+  description: null,
   id: projectId,
   name: "Test Project",
-  status: "archived",
+  status: "archived" as const,
+  updatedAt: "2026-01-01T00:00:00.000Z",
+  updatedBy: null,
 };
 
 describe("POST /api/projects/[projectId]/settings/archive", () => {
@@ -60,7 +67,7 @@ describe("POST /api/projects/[projectId]/settings/archive", () => {
 
   it("returns 200 after unarchiving a project", async () => {
     unarchiveProjectMock.mockResolvedValueOnce({
-      data: { ...sampleProject, status: "active" },
+      data: { ...sampleProject, archivedAt: null, status: "active" as const },
       ok: true,
       status: "success",
     });
