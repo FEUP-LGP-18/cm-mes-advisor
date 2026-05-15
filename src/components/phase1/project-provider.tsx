@@ -33,6 +33,7 @@ import type {
 } from "@/lib/master-data/api";
 import type { ParsedRequirement } from "@/lib/requirements/types";
 import {
+  applyProjectIdentity,
   createFixtureWorkspaceStateForProject,
   createEmptyProjectFromServerIdentity,
   createPhase1ProjectRecordFromWorkspaceState,
@@ -200,6 +201,10 @@ interface Phase1ProjectContextValue {
     action: RequirementReviewAction,
   ) => void;
   restoreFixtureSource: () => void;
+  updateLocalProjectMetadata: (
+    name: string,
+    customerName: string | null,
+  ) => void;
   generateRows: (
     targetRequirements: ReviewRequirement[],
     targetLabel: string,
@@ -731,6 +736,31 @@ export function Phase1ProjectProvider({
     project,
     updateWorkspaceState,
   ]);
+
+  const updateLocalProjectMetadata = useCallback(
+    (name: string, customerName: string | null) => {
+      if (!project || hasServerProject) {
+        return;
+      }
+
+      persistProject((currentProject) => {
+        const nextWorkspaceState = applyProjectIdentity(
+          currentProject.workspaceState,
+          {
+            customerName: customerName ?? "",
+            projectId: currentProject.projectId,
+            projectName: name,
+          },
+        );
+        return updatePhase1ProjectRecord(
+          currentProject,
+          nextWorkspaceState,
+          currentProject.currentStep,
+        );
+      });
+    },
+    [hasServerProject, persistProject, project],
+  );
 
   const uploadWorkbook = useCallback(
     async (file: File) => {
@@ -1428,6 +1458,7 @@ export function Phase1ProjectProvider({
       workflowSnapshot,
       workspaceState,
       updateDemoScriptDraft: updateDemoScriptDraftAction,
+      updateLocalProjectMetadata,
       updateMasterDataObjectField,
       updateMasterDataObjectReviewStatus,
       updateRequirementReview,
@@ -1468,6 +1499,7 @@ export function Phase1ProjectProvider({
       sourceFeedback,
       summary,
       updateDemoScriptDraftAction,
+      updateLocalProjectMetadata,
       updateMasterDataObjectField,
       updateMasterDataObjectReviewStatus,
       updateRequirementReview,

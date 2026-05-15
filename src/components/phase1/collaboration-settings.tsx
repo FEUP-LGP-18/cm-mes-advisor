@@ -100,6 +100,13 @@ export function CollaborationSettingsView({
               {projectName}
             </Link>
             <span className="phase-shell-divider">/</span>
+            <Link
+              href={`/projects/${projectId}/settings/general`}
+              className="phase-product-link"
+            >
+              Settings
+            </Link>
+            <span className="phase-shell-divider">/</span>
             <span>Collaboration</span>
           </div>
           <div className="phase-shell-pill-row ml-auto flex-shrink-0">
@@ -125,6 +132,21 @@ export function CollaborationSettingsView({
           </div>
         </div>
       </header>
+
+      <nav aria-label="Settings" className="flex gap-1">
+        <Link
+          href={`/projects/${projectId}/settings/general`}
+          className="phase-stage-link text-sm"
+        >
+          General
+        </Link>
+        <span
+          aria-current="page"
+          className="phase-stage-link phase-stage-link-active text-sm"
+        >
+          Collaboration
+        </span>
+      </nav>
 
       {loading ? (
         <div className="phase-empty-state p-8 text-center">
