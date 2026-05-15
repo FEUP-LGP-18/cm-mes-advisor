@@ -20,6 +20,7 @@ import {
   updateRequirementsReviewState,
   type RequirementReviewStateByKey,
 } from "./review";
+import { parseRequirementsWorkspaceState } from "./workspace-state";
 
 const projectMetadata: ReviewProjectMetadata = {
   projectId: "customer-x-fixture",
@@ -156,6 +157,52 @@ describe("requirements workspace state", () => {
     expect(
       storage.getItem(REQUIREMENTS_WORKSPACE_ACTIVE_SOURCE_STORAGE_KEY),
     ).toBe(fixtureSource.sourceId);
+  });
+
+  it("keeps server project review state when project id differs from uploaded source id", () => {
+    const uploadSource = createUploadSourceMetadata(
+      "Customer X Upload.xlsx",
+      new Uint8Array([1, 2, 3, 4]),
+      {
+        sourceId:
+          "project-files/server-project-id/2026-05-14T12:00:00.000Z-upload.xlsx",
+      },
+    );
+    const generatedState = updateRequirementsReviewState(
+      createRequirementsReviewState({
+        ...projectMetadata,
+        projectId: "server-project-id",
+        sourceFilename: uploadSource.sourceFilename,
+        sourceRowCount: 1,
+      }),
+      parsedRequirement,
+      {
+        generatedOutput: createMockGeneratedRequirementDraft(parsedRequirement),
+        type: "storeMockGeneratedDraft",
+      },
+    );
+    const workspaceState = createRequirementsWorkspaceState(
+      uploadSource,
+      [parsedRequirement],
+      generatedState,
+    );
+
+    const parsedState = parseRequirementsWorkspaceState(
+      JSON.parse(JSON.stringify(workspaceState)),
+      createFixtureWorkspaceState(createFixtureSourceMetadata(projectMetadata), [
+        parsedRequirement,
+      ]),
+    );
+    const entry = parsedState.reviewState.requirements["3:01.01"];
+
+    expect(parsedState.reviewState.project).toMatchObject({
+      projectId: "server-project-id",
+      sourceFilename: "Customer X Upload.xlsx",
+      sourceRowCount: 1,
+    });
+    expect(entry?.generatedOutput).toMatchObject({
+      state: "mock-generated-draft",
+    });
   });
 });
 

@@ -48,6 +48,7 @@ function createDashboardProject(
     description: "Phase 1 demo workspace",
     id: "22222222-2222-4222-8222-222222222222",
     name: "Customer X MES demo",
+    phase1CurrentStep: "review",
     status: "active",
     updatedAt: "2026-05-09T10:00:00.000Z",
     updatedBy: "11111111-1111-4111-8111-111111111111",
@@ -176,6 +177,33 @@ describe("phase 1 redesigned surfaces", () => {
     expect(html).toContain("Pending review");
     expect(html).toContain("Approved");
     expect(html).toContain("Consultant decisions");
+  });
+
+  it("renders blocked phase stages as disabled controls with hover guidance", () => {
+    const baseProject = createProjectRecord();
+    const project = {
+      ...baseProject,
+      currentStep: "generate" as const,
+      snapshot: {
+        ...baseProject.snapshot,
+        generatedCount: 0,
+        generatedReviewableCount: 0,
+      },
+    };
+    const html = render(
+      <Phase1ProjectShell
+        currentStep="generate"
+        nextAction={getNextAction(project.snapshot)}
+        progress={getWorkflowProgress(project.snapshot)}
+        project={project}
+      >
+        <div>Child surface</div>
+      </Phase1ProjectShell>,
+    );
+
+    expect(html).toContain("phase-stage-link-blocked");
+    expect(html).toContain("disabled=\"\"");
+    expect(html).toContain("Complete the previous required step");
   });
 
   it("renders source as a dedicated workbook confirmation surface", () => {

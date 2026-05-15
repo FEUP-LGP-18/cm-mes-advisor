@@ -1304,6 +1304,7 @@ function GenerationShortcut({
 export function ReviewWorkflowStep({
   activeQueueIndex,
   approvedCount,
+  canEdit = true,
   currentRequirement,
   generatedCount,
   onGenerateDemoRows,
@@ -1318,6 +1319,7 @@ export function ReviewWorkflowStep({
 }: {
   activeQueueIndex: number;
   approvedCount: number;
+  canEdit?: boolean;
   currentRequirement: ReviewRequirement | null;
   generatedCount: number;
   onGenerateDemoRows: () => void | Promise<void>;
@@ -1336,6 +1338,7 @@ export function ReviewWorkflowStep({
   if (generatedCount === 0) {
     const blocker = (
       <GuidedBlockerCard
+        actionDisabled={!canEdit}
         actionLabel="Generate demo rows now"
         body="Generate draft comments and demo steps first, then come back here to review each requirement."
         onAction={onGenerateDemoRows}
@@ -1419,6 +1422,7 @@ export function ReviewWorkflowStep({
         </div>
         <div className="order-1 xl:order-2">
           <GuidedReviewCard
+            canEdit={canEdit}
             onReviewAction={onReviewAction}
             onSelectNext={onSelectNext}
             requirement={currentRequirement}
@@ -1671,10 +1675,12 @@ function MiniQueueChip({
 }
 
 export function GuidedReviewCard({
+  canEdit = true,
   onReviewAction,
   onSelectNext,
   requirement,
 }: {
+  canEdit?: boolean;
   onReviewAction: (
     requirement: ReviewRequirement,
     action: RequirementReviewAction,
@@ -1761,31 +1767,36 @@ export function GuidedReviewCard({
           <aside className="theme-shell-card rounded-[1.25rem] p-4 xl:sticky xl:top-4">
             <div className="mb-3">
               <p className="theme-shell-kicker mono-label text-[0.58rem]">
-                Consultant decision
+                {canEdit ? "Consultant decision" : "Saved decision"}
               </p>
               <p className="theme-shell-body mt-2 text-sm leading-6">
-                Approve, flag, or skip this row, then refine the comment and
-                note while the draft is still in view.
+                {canEdit
+                  ? "Approve, flag, or skip this row, then refine the comment and note while the draft is still in view."
+                  : "Viewer access can inspect the saved draft and decision, but cannot change review state."}
               </p>
             </div>
 
             <div className="grid gap-2">
               <ReviewActionButton
+                disabled={!canEdit}
                 label="Approve and next"
                 onClick={() => onReviewAction(requirement, { type: "approve" })}
                 tone="approve"
               />
               <ReviewActionButton
+                disabled={!canEdit}
                 label="Needs review"
                 onClick={() => onReviewAction(requirement, { type: "flag" })}
                 tone="review"
               />
               <ReviewActionButton
+                disabled={!canEdit}
                 label="Skip row"
                 onClick={() => onReviewAction(requirement, { type: "skip" })}
                 tone="neutral"
               />
               <ReviewActionButton
+                disabled={!canEdit}
                 label="Reset draft"
                 onClick={() =>
                   onReviewAction(requirement, { type: "resetToDraft" })
@@ -1801,6 +1812,7 @@ export function GuidedReviewCard({
                 </span>
                 <textarea
                   value={requirement.consultantComment}
+                  disabled={!canEdit}
                   onChange={(event) =>
                     onReviewAction(requirement, {
                       type: "edit",
@@ -1808,7 +1820,7 @@ export function GuidedReviewCard({
                     })
                   }
                   placeholder="Edit the customer-facing wording before approval."
-                  className="focus-premium theme-shell-input mt-2 min-h-28 w-full rounded-2xl p-3 text-sm leading-6"
+                  className="focus-premium theme-shell-input mt-2 min-h-28 w-full rounded-2xl p-3 text-sm leading-6 disabled:cursor-not-allowed disabled:opacity-50"
                 />
               </label>
 
@@ -1818,6 +1830,7 @@ export function GuidedReviewCard({
                 </span>
                 <textarea
                   value={requirement.reviewNote}
+                  disabled={!canEdit}
                   onChange={(event) =>
                     onReviewAction(requirement, {
                       type: "edit",
@@ -1825,7 +1838,7 @@ export function GuidedReviewCard({
                     })
                   }
                   placeholder="Why approve, flag, or skip this row?"
-                  className="focus-premium theme-shell-input mt-2 min-h-28 w-full rounded-2xl p-3 text-sm leading-6"
+                  className="focus-premium theme-shell-input mt-2 min-h-28 w-full rounded-2xl p-3 text-sm leading-6 disabled:cursor-not-allowed disabled:opacity-50"
                 />
               </label>
             </div>
@@ -1973,14 +1986,16 @@ export function ExportWorkflowStep({
 }
 
 function GuidedBlockerCard({
+  actionDisabled = false,
   actionLabel,
   body,
   onAction,
   title,
 }: {
-  actionLabel: string;
+  actionDisabled?: boolean;
+  actionLabel?: string;
   body: string;
-  onAction: () => void | Promise<void>;
+  onAction?: () => void | Promise<void>;
   title: string;
 }) {
   return (
@@ -1994,13 +2009,16 @@ function GuidedBlockerCard({
       <p className="theme-shell-body mt-3 max-w-2xl text-sm leading-7">
         {body}
       </p>
-      <button
-        type="button"
-        onClick={onAction}
-        className="focus-premium theme-button-primary mt-5 rounded-2xl px-5 py-3 text-sm font-black transition"
-      >
-        {actionLabel}
-      </button>
+      {actionLabel && onAction ? (
+        <button
+          type="button"
+          onClick={onAction}
+          disabled={actionDisabled}
+          className="focus-premium theme-button-primary mt-5 rounded-2xl px-5 py-3 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          {actionLabel}
+        </button>
+      ) : null}
     </section>
   );
 }
@@ -2278,6 +2296,7 @@ function searchRequirements(
 }
 
 export function WorkspaceSourcePanel({
+  canContinue = true,
   canUploadWorkbook = true,
   continueHelper,
   continueLabel,
@@ -2295,6 +2314,7 @@ export function WorkspaceSourcePanel({
   sourcePreviewExpanded,
   sourceRowCount,
 }: {
+  canContinue?: boolean;
   canUploadWorkbook?: boolean;
   continueHelper?: string;
   continueLabel?: string;
@@ -2349,34 +2369,42 @@ export function WorkspaceSourcePanel({
                 sample file only as a fallback for walkthroughs and quick demos.
               </p>
 
-              {canUploadWorkbook ? (
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <label className="focus-premium theme-button-primary inline-flex cursor-pointer justify-center rounded-2xl px-4 py-3 text-sm font-bold transition">
-                    Upload .xlsx workbook
-                    <input
-                      accept=".xlsx"
-                      type="file"
-                      onChange={onUploadWorkbook}
-                      className="sr-only"
-                    />
-                  </label>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <label
+                  className={`focus-premium theme-button-primary inline-flex justify-center rounded-2xl px-4 py-3 text-sm font-bold transition ${
+                    canUploadWorkbook
+                      ? "cursor-pointer"
+                      : "cursor-not-allowed opacity-45"
+                  }`}
+                >
+                  Upload .xlsx workbook
+                  <input
+                    accept=".xlsx"
+                    type="file"
+                    disabled={!canUploadWorkbook}
+                    onChange={onUploadWorkbook}
+                    className="sr-only"
+                  />
+                </label>
 
-                  {!isFixtureSource ? (
-                    <button
-                      type="button"
-                      onClick={onRestoreFixtureSource}
-                      className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-bold transition"
-                    >
-                      Restore sample workbook
-                    </button>
-                  ) : null}
-                </div>
-              ) : (
+                {!isFixtureSource ? (
+                  <button
+                    type="button"
+                    onClick={onRestoreFixtureSource}
+                    disabled={!canUploadWorkbook}
+                    className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    Restore sample workbook
+                  </button>
+                ) : null}
+              </div>
+
+              {!canUploadWorkbook ? (
                 <p className="tone-neutral mt-4 rounded-[1.1rem] border px-4 py-3 text-sm font-semibold leading-6">
                   Viewer access can inspect this workbook source, but cannot
                   upload or replace files here.
                 </p>
-              )}
+              ) : null}
 
               <ul className="mt-4 grid gap-2 text-sm leading-6 text-[color:var(--shell-muted)]">
                 <li>Uploading replaces the sample source for this run.</li>
@@ -2430,6 +2458,7 @@ export function WorkspaceSourcePanel({
         </section>
 
         <GuidedStepFooter
+          disabled={!canContinue}
           helper={
             continueHelper ??
             `Showing ${previewCount} of ${sourceRowCount} rows from the active workbook. Continue once the file, counts, and preview all look right.`
@@ -2706,10 +2735,12 @@ function GeneratedDraftList({
 }
 
 function ReviewActionButton({
+  disabled = false,
   label,
   onClick,
   tone,
 }: {
+  disabled?: boolean;
   label: string;
   onClick: () => void;
   tone: "approve" | "review" | "neutral";
@@ -2725,7 +2756,8 @@ function ReviewActionButton({
     <button
       type="button"
       onClick={onClick}
-      className={`focus-premium rounded-2xl border px-3 py-2 text-sm font-bold transition ${toneClass}`}
+      disabled={disabled}
+      className={`focus-premium rounded-2xl border px-3 py-2 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-45 ${toneClass}`}
     >
       {label}
     </button>

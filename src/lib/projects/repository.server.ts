@@ -14,6 +14,7 @@ import {
   type ProjectFailure,
   type ProjectFile,
   type ProjectListItem,
+  type ProjectPhase1Step,
   type ProjectPhaseState,
   type ProjectResult,
   type ProjectRole,
@@ -126,10 +127,44 @@ export async function listProjectsForUser(
     .map(mapProjectRow)
     .flatMap((project) => {
       const currentUserRole = rolesByProjectId.get(project.id);
-      return currentUserRole ? [{ ...project, currentUserRole }] : [];
+      return currentUserRole
+        ? [{ ...project, currentUserRole, phase1CurrentStep: null }]
+        : [];
     });
 
-  return success(projects);
+  if (projects.length === 0) {
+    return success(projects);
+  }
+
+  const phaseStates = await supabase
+    .from("project_phase_states")
+    .select(phaseStateSelect)
+    .eq("phase_key", "phase1")
+    .in(
+      "project_id",
+      projects.map((project) => project.id),
+    );
+
+  if (phaseStates.error) {
+    return mapSupabaseError(
+      phaseStates.error,
+      "Project workflow states could not be listed.",
+    );
+  }
+
+  const phase1StepsByProjectId = new Map(
+    ((phaseStates.data ?? []) as ProjectPhaseStateRow[]).flatMap((row) => {
+      const currentStep = getPhase1CurrentStep(row.state_json);
+      return currentStep ? [[row.project_id, currentStep]] : [];
+    }),
+  );
+
+  return success(
+    projects.map((project) => ({
+      ...project,
+      phase1CurrentStep: phase1StepsByProjectId.get(project.id) ?? null,
+    })),
+  );
 }
 
 export async function getProjectForUser(
@@ -570,6 +605,24 @@ function mapProjectRow(row: ProjectRow): Project {
   };
 }
 
+function getPhase1CurrentStep(value: unknown): ProjectPhase1Step | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  return isPhase1Step(value.currentStep) ? value.currentStep : null;
+}
+
+function isPhase1Step(value: unknown): value is ProjectPhase1Step {
+  return (
+    value === "source" ||
+    value === "generate" ||
+    value === "review" ||
+    value === "script" ||
+    value === "export"
+  );
+}
+
 function mapPhaseStateRow(row: ProjectPhaseStateRow): ProjectPhaseState {
   return {
     phaseKey: row.phase_key,
@@ -632,4 +685,8 @@ function mapSupabaseError(
 
 function isValidPhaseKey(value: string) {
   return /^[a-z0-9][a-z0-9_-]*$/.test(value);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

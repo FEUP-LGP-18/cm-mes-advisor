@@ -214,7 +214,7 @@ function normalizeWorkspaceReviewState(
   rowCount: number,
   fallbackReviewState: RequirementsReviewState,
 ): RequirementsReviewState {
-  const project = createProjectMetadataFromSource(source, rowCount);
+  const project = normalizeReviewProjectMetadata(value, source, rowCount);
   const fallbackState = createRequirementsReviewState(
     project,
     fallbackReviewState.requirements,
@@ -225,6 +225,38 @@ function normalizeWorkspaceReviewState(
     isRecord(value) ? JSON.stringify(value) : null,
     fallbackState,
   );
+}
+
+function normalizeReviewProjectMetadata(
+  value: unknown,
+  source: RequirementsSourceMetadata,
+  rowCount: number,
+): ReviewProjectMetadata {
+  const fallbackProject = createProjectMetadataFromSource(source, rowCount);
+
+  if (!isRecord(value) || !isRecord(value.project)) {
+    return fallbackProject;
+  }
+
+  return {
+    customerName:
+      typeof value.project.customerName === "string" &&
+      value.project.customerName.trim().length > 0
+        ? value.project.customerName
+        : fallbackProject.customerName,
+    projectId:
+      typeof value.project.projectId === "string" &&
+      value.project.projectId.trim().length > 0
+        ? value.project.projectId
+        : fallbackProject.projectId,
+    projectName:
+      typeof value.project.projectName === "string" &&
+      value.project.projectName.trim().length > 0
+        ? value.project.projectName
+        : fallbackProject.projectName,
+    sourceFilename: source.sourceFilename,
+    sourceRowCount: rowCount,
+  };
 }
 
 function normalizeSourceMetadata(

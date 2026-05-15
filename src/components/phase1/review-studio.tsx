@@ -15,6 +15,7 @@ type ExplorerFilter = "all" | "pending" | "review" | "approved" | "skipped";
 
 interface ReviewStudioProps {
   approvedCount: number;
+  canEditPhase1?: boolean;
   generatedCount: number;
   generatedReviewableRequirements: ReviewRequirement[];
   onGenerateDemoRows: () => Promise<boolean>;
@@ -30,6 +31,7 @@ interface ReviewStudioProps {
 
 export default function ReviewStudio({
   approvedCount,
+  canEditPhase1 = true,
   generatedCount,
   generatedReviewableRequirements,
   onGenerateDemoRows,
@@ -39,6 +41,7 @@ export default function ReviewStudio({
   projectId,
   reviewRequirements,
 }: ReviewStudioProps) {
+  // UI-only review explorer preferences stay local; project workflow state is persisted through the Phase 1 project provider.
   const selectionStorageKey = `cm-mes-advisor:review-selection:${projectId}`;
   const explorerFilterStorageKey = `cm-mes-advisor:review-explorer-filter:${projectId}`;
   const explorerQueryStorageKey = `cm-mes-advisor:review-explorer-query:${projectId}`;
@@ -175,6 +178,10 @@ export default function ReviewStudio({
 
   const handleGuidedReviewAction = useCallback(
     (requirement: ReviewRequirement, action: RequirementReviewAction) => {
+      if (!canEditPhase1) {
+        return;
+      }
+
       onReviewAction(requirement, action);
 
       if (
@@ -185,7 +192,7 @@ export default function ReviewStudio({
         handleSelectNextReviewRequirement(requirement);
       }
     },
-    [handleSelectNextReviewRequirement, onReviewAction],
+    [canEditPhase1, handleSelectNextReviewRequirement, onReviewAction],
   );
 
   useEffect(() => {
@@ -236,6 +243,10 @@ export default function ReviewStudio({
         handleSelectNextReviewRequirement(currentRequirement);
       }
 
+      if (!canEditPhase1) {
+        return;
+      }
+
       if (event.key.toLowerCase() === "a") {
         event.preventDefault();
         handleGuidedReviewAction(currentRequirement, { type: "approve" });
@@ -261,6 +272,7 @@ export default function ReviewStudio({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
     currentRequirement,
+    canEditPhase1,
     handleGuidedReviewAction,
     handleSelectNextReviewRequirement,
     handleSelectPreviousReviewRequirement,
@@ -339,6 +351,7 @@ export default function ReviewStudio({
 
           <div className="phase-review-main grid gap-6">
             <GuidedReviewCard
+              canEdit={canEditPhase1}
               onReviewAction={handleGuidedReviewAction}
               onSelectNext={handleSelectNextReviewRequirement}
               requirement={currentRequirement}
@@ -349,6 +362,7 @@ export default function ReviewStudio({
         <ReviewWorkflowStep
           activeQueueIndex={activeQueueIndex}
           approvedCount={approvedCount}
+          canEdit={canEditPhase1}
           currentRequirement={currentRequirement}
           generatedCount={generatedCount}
           onGenerateDemoRows={async () => {
@@ -375,28 +389,31 @@ export default function ReviewStudio({
         <div className="phase-mobile-review-bar grid xl:hidden">
           <button
             type="button"
+            disabled={!canEditPhase1}
             onClick={() =>
               handleGuidedReviewAction(currentRequirement, { type: "approve" })
             }
-            className="focus-premium theme-button-primary rounded-xl px-3 py-3 text-sm font-semibold transition"
+            className="focus-premium theme-button-primary rounded-xl px-3 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-45"
           >
             Approve
           </button>
           <button
             type="button"
+            disabled={!canEditPhase1}
             onClick={() =>
               handleGuidedReviewAction(currentRequirement, { type: "flag" })
             }
-            className="focus-premium theme-shell-button-secondary rounded-xl px-3 py-3 text-sm font-semibold transition"
+            className="focus-premium theme-shell-button-secondary rounded-xl px-3 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-45"
           >
             Flag
           </button>
           <button
             type="button"
+            disabled={!canEditPhase1}
             onClick={() =>
               handleGuidedReviewAction(currentRequirement, { type: "skip" })
             }
-            className="focus-premium theme-shell-button-secondary rounded-xl px-3 py-3 text-sm font-semibold transition"
+            className="focus-premium theme-shell-button-secondary rounded-xl px-3 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-45"
           >
             Skip
           </button>

@@ -6,6 +6,7 @@ import type { RequirementsSourceMetadata } from "@/lib/requirements/source";
 import { WorkspaceSourcePanel } from "@/app/requirements-review-workspace";
 
 interface SourceStudioProps {
+  canContinue?: boolean;
   canUploadWorkbook?: boolean;
   currentSourceMetadata: RequirementsSourceMetadata;
   demoCount: number;
@@ -22,6 +23,7 @@ interface SourceStudioProps {
 }
 
 export default function SourceStudio({
+  canContinue = true,
   canUploadWorkbook = true,
   currentSourceMetadata,
   demoCount,
@@ -70,6 +72,7 @@ export default function SourceStudio({
 
       <WorkspaceSourcePanel
         canUploadWorkbook={canUploadWorkbook}
+        canContinue={canContinue}
         continueHelper="Once the workbook, counts, and parsed preview look right, continue to Generate and produce the first recommended draft."
         continueLabel="Continue to Generate"
         demoCount={demoCount}

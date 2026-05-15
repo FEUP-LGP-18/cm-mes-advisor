@@ -16,6 +16,7 @@ export default function Phase1ProjectShell({
   currentStep,
   email,
   nextAction,
+  persistenceFeedback,
   progress,
   project,
 }: {
@@ -23,6 +24,10 @@ export default function Phase1ProjectShell({
   currentStep: Phase1WorkflowStep;
   email?: string | null;
   nextAction: Phase1NextAction;
+  persistenceFeedback?: {
+    tone: "neutral" | "success" | "error";
+    message: string;
+  } | null;
   progress: Phase1WorkflowStepState[];
   project: Phase1ProjectRecord;
 }) {
@@ -75,6 +80,16 @@ export default function Phase1ProjectShell({
             <div className="phase-shell-title-block">
               <h1 className="phase-shell-title">{project.projectName}</h1>
               <p className="phase-shell-helper">{nextAction.helper}</p>
+              {persistenceFeedback ? (
+                <p
+                  className={`phase-feedback phase-feedback-${persistenceFeedback.tone} mt-3`}
+                  role={
+                    persistenceFeedback.tone === "error" ? "alert" : "status"
+                  }
+                >
+                  {persistenceFeedback.message}
+                </p>
+              ) : null}
             </div>
 
             <div className="phase-shell-summary">
@@ -124,6 +139,40 @@ export default function Phase1ProjectShell({
           {progress.map((stepState) => {
             const href = getPhase1StepPath(project.projectId, stepState.step);
             const isActive = currentStep === stepState.step;
+            const isBlocked = stepState.status === "blocked";
+
+            const content = (
+              <>
+                <span className="phase-stage-eyebrow">{stepState.status}</span>
+                <span className="phase-stage-title">{stepState.label}</span>
+                <span className="phase-stage-subtitle">
+                  {stepState.subtitle}
+                </span>
+              </>
+            );
+
+            if (isBlocked) {
+              return (
+                <span className="phase-stage-disabled-wrap" key={stepState.step}>
+                  <button
+                    type="button"
+                    className="phase-stage-link phase-stage-link-blocked"
+                    disabled
+                    aria-describedby={`phase-stage-blocked-${stepState.step}`}
+                  >
+                    {content}
+                  </button>
+                  <span
+                    className="phase-stage-tooltip"
+                    id={`phase-stage-blocked-${stepState.step}`}
+                    role="tooltip"
+                  >
+                    Complete the previous required step before opening{" "}
+                    {stepState.label}.
+                  </span>
+                </span>
+              );
+            }
 
             return (
               <Link
@@ -132,17 +181,9 @@ export default function Phase1ProjectShell({
                 aria-current={isActive ? "step" : undefined}
                 className={`phase-stage-link ${
                   isActive ? "phase-stage-link-active" : ""
-                } ${
-                  stepState.status === "blocked"
-                    ? "phase-stage-link-blocked"
-                    : ""
                 }`}
               >
-                <span className="phase-stage-eyebrow">{stepState.status}</span>
-                <span className="phase-stage-title">{stepState.label}</span>
-                <span className="phase-stage-subtitle">
-                  {stepState.subtitle}
-                </span>
+                {content}
               </Link>
             );
           })}

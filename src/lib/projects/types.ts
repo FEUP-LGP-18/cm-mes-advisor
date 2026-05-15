@@ -1,5 +1,12 @@
 export type ProjectRole = "viewer" | "editor" | "owner";
 
+export type ProjectPhase1Step =
+  | "source"
+  | "generate"
+  | "review"
+  | "script"
+  | "export";
+
 export type ProjectCapability =
   | "read_project"
   | "edit_project_state"
@@ -57,6 +64,7 @@ export type Project = {
 
 export type ProjectListItem = Project & {
   currentUserRole: ProjectRole;
+  phase1CurrentStep: ProjectPhase1Step | null;
 };
 
 export type ProjectPhaseState = {

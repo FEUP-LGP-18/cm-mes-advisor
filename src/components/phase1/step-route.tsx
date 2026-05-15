@@ -27,6 +27,7 @@ export default function Phase1ProjectStepRoute({
   const router = useRouter();
   const phase1 = usePhase1Project();
   const {
+    canEditPhase1,
     canUploadWorkbook,
     currentSourceMetadata,
     demoRequirements,
@@ -39,6 +40,7 @@ export default function Phase1ProjectStepRoute({
     lastGenerationMode,
     mockGenerationRun,
     nextAction,
+    persistenceFeedback,
     project,
     reviewRequirements,
     setCurrentStep,
@@ -74,18 +76,10 @@ export default function Phase1ProjectStepRoute({
 
   if (!isHydrated) {
     return (
-      <main className="app-canvas flex min-h-screen items-center justify-center px-6">
-        <div className="phase-empty-state max-w-xl text-center">
-          <p className="phase-overline">Loading project</p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-[-0.04em]">
-            Restoring the Phase 1 workspace
-          </h1>
-          <p className="mt-3 text-sm leading-7 text-[color:var(--shell-muted)]">
-            The saved project state is loading so the correct customer
-            workspace can be restored before you continue.
-          </p>
-        </div>
-      </main>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-[1px]">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/45 border-t-white shadow-[0_0_32px_rgba(0,0,0,0.18)]" />
+        <span className="sr-only">Loading project</span>
+      </div>
     );
   }
 
@@ -138,11 +132,13 @@ export default function Phase1ProjectStepRoute({
       currentStep={step}
       email={phase1.currentUser?.email}
       nextAction={nextAction}
+      persistenceFeedback={persistenceFeedback}
       progress={workflowProgress}
       project={project}
     >
       {step === "source" ? (
         <SourceStudio
+          canContinue={canEditPhase1}
           canUploadWorkbook={canUploadWorkbook}
           key={currentSourceMetadata.sourceId}
           currentSourceMetadata={currentSourceMetadata}
@@ -159,6 +155,7 @@ export default function Phase1ProjectStepRoute({
 
       {step === "generate" ? (
         <GenerateStudio
+          canGenerateRows={canEditPhase1}
           demoRequirements={demoRequirements}
           generatedCount={generatedRequirements.length}
           generationFeedback={generationFeedback}
@@ -175,6 +172,7 @@ export default function Phase1ProjectStepRoute({
       {step === "review" ? (
         <ReviewStudio
           approvedCount={summary.approvedCount}
+          canEditPhase1={canEditPhase1}
           generatedCount={generatedRequirements.length}
           generatedReviewableRequirements={generatedReviewableRequirements}
           onGenerateDemoRows={() => generateRows(demoRequirements, "demo rows")}
