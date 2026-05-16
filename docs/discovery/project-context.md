@@ -1,16 +1,16 @@
 # Project Context
 
-Last updated: `2026-05-10`
+Last updated: `2026-05-16`
 
 This is the current-state source of truth for the GitHub repo. Use this before relying on older discovery notes.
 
 ## Product Summary
 
 - Product: Critical Manufacturing MES Demo Advisor
-- Current repo scope: Phase 1 plus optional Phase 2 continuation
+- Current repo scope: Phase 1 plus required pilot Phase 2 demo continuation
 - Primary users: Critical Manufacturing consultants and pre-sales engineers
 - Input: customer requirements Excel workbook
-- Output: consultant-reviewed requirement comments, demo guidance, a separate Markdown demo document, and an optional Master Data package continuation
+- Output: consultant-reviewed requirement comments, demo guidance, a separate Markdown demo document, and a pilot Master Data package continuation
 
 The current product direction is a project-based, route-based workflow. A user starts from project home, opens a project, then moves through:
 
@@ -20,7 +20,7 @@ The current product direction is a project-based, route-based workflow. A user s
 4. `script`
 5. `export`
 
-Optional continuation after export:
+Required pilot demo continuation after export:
 
 6. `master-data/setup`
 7. `master-data/process`
@@ -40,12 +40,15 @@ In scope now:
 - consultant review before final output
 - Markdown export for the Phase 1 handoff
 - Supabase Auth (email/password) with full auth flows and route protection
+- Supabase profiles, project roles, collaboration settings, activity records, and Phase 1 state persistence
+- Phase 2 Master Data demo path in mock mode, with export and traceability
 
 Out of scope unless explicitly requested:
 
 - direct LibreChat product UI
 - broad unstructured document ingestion
 - client-side exposure of partner or cloud credentials
+- claiming Phase 2 packages are MES-validated without manual partner import validation
 - treating historical discovery notes as the primary onboarding layer
 
 ## Current Architecture
@@ -55,7 +58,7 @@ Out of scope unless explicitly requested:
 - Auth pages: `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/auth/callback`
 - Route protection: `src/proxy.ts` via the Next.js 16 `proxy` export; gracefully skips when `NEXT_PUBLIC_SUPABASE_URL` is unset (local mock mode stays functional)
 - Supabase helpers: `src/lib/supabase/` — `client.ts` (browser), `server.ts` (server components / route handlers), `middleware.ts` (session refresh)
-- Home screen: project home that creates or reopens local Phase 1 projects
+- Home screen: project home that creates or reopens local or Supabase-backed Phase 1 projects
 - Routed workflow: `src/app/projects/[projectId]/`
 - Project state: local registry and workflow snapshot helpers in `src/lib/phase1/`
 - Persistent source uploads: Supabase Storage keeps raw workbook bytes in the private `project-files` bucket, while `project_files` remains the metadata/index table. `project_files.storage_path` points to the bucket/object path, and `project_phase_states` with `phase_key = 'source'` stores the parsed Source workspace needed when collaborators reopen a project.
@@ -71,6 +74,7 @@ Important implementation truths:
 - export is Markdown for Phase 1 and a workbook-centered ZIP package for Phase 2
 - mock mode is the safe default path for teammates
 - real mode depends on server-side environment config and partner access
+- Phase 2 package export is a pilot demo artifact until manual MES import validation happens
 
 ## Current Status
 
@@ -83,6 +87,10 @@ What is effectively present in the repo:
 - demo script assembly and Markdown download
 - Supabase Auth flows: login, signup, forgot/reset password, PKCE callback, logout
 - proxy-based route protection for all non-auth surfaces (`src/proxy.ts`)
+- authenticated global settings and profile surfaces
+- role-aware Phase 1 and owner-only settings/member controls
+- recent project activity in settings
+- Phase 2 setup, generation, review, export, and traceability for the pilot demo
 
 What is still blocked:
 
@@ -100,7 +108,7 @@ Reference:
 - Read `AGENTS.md` for coding and scope guardrails.
 - Use `.nvmrc` and `package.json` as the source of truth for local runtime and commands.
 - Use `.env.example` only for placeholder names and safe example values.
-- Do not present Phase 2 as mandatory for a successful Phase 1 workflow.
+- Do present Phase 2 as required for the pilot demo after Phase 1 approvals.
 - Do not claim the generated Phase 2 package is MES-validated until the manual import pass is complete.
 
 ## Supporting Sources And History

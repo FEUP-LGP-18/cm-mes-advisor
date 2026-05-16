@@ -8,6 +8,7 @@ import {
   deleteUploadedProjectFileMetadata,
   createProjectForUser,
   getProjectPhaseStateForUser,
+  listProjectActivity,
   listProjectsForUser,
   saveProjectFileMetadata,
   saveProjectPhaseState,
@@ -308,6 +309,49 @@ describe("project repository", () => {
       ok: false,
       status: "conflict",
     });
+  });
+
+  it("lists recent project activity for project members", async () => {
+    mockAuthenticatedUser();
+    mockCapabilityAllowed();
+
+    const limit = vi.fn().mockResolvedValue({
+      data: [
+        {
+          actor_id: userId,
+          created_at: "2026-05-12T10:00:00.000Z",
+          event_payload: { name: "Customer X MES demo" },
+          event_type: "project_metadata_updated",
+          id: "33333333-3333-4333-8333-333333333333",
+          project_id: projectId,
+        },
+      ],
+      error: null,
+    });
+    const order = vi.fn().mockReturnValue({ limit });
+    const eq = vi.fn().mockReturnValue({ order });
+    const select = vi.fn().mockReturnValue({ eq });
+    const from = vi.fn().mockReturnValue({ select });
+
+    createClientMock.mockResolvedValueOnce({
+      from,
+    } as unknown as Awaited<ReturnType<typeof createClient>>);
+
+    await expect(listProjectActivity(projectId, userId, 6)).resolves.toMatchObject({
+      data: [
+        {
+          actorId: userId,
+          eventType: "project_metadata_updated",
+          payload: { name: "Customer X MES demo" },
+        },
+      ],
+      ok: true,
+    });
+    expect(requireProjectCapabilityMock).toHaveBeenCalledWith(
+      projectId,
+      "read_project",
+    );
+    expect(limit).toHaveBeenCalledWith(6);
   });
 
   it("saves project file metadata for editors", async () => {

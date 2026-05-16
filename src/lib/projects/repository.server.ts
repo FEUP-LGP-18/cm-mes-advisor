@@ -514,6 +514,40 @@ export async function deleteUploadedProjectFileMetadata(
   return success(null);
 }
 
+export async function listProjectActivity(
+  projectId: string,
+  userId: string,
+  limit = 8,
+): Promise<ProjectResult<ProjectActivityEvent[]>> {
+  const authResult = await requireRepositoryUser(userId);
+  if (!authResult.ok) {
+    return authResult;
+  }
+
+  const accessResult = await requireProjectCapability(projectId, "read_project");
+  if (!accessResult.ok) {
+    return accessResult;
+  }
+
+  const normalizedLimit =
+    Number.isInteger(limit) && limit > 0 ? Math.min(limit, 25) : 8;
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("project_activity_events")
+    .select(activitySelect)
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: false })
+    .limit(normalizedLimit);
+
+  if (error) {
+    return mapSupabaseError(error, "Project activity could not be listed.");
+  }
+
+  return success(
+    ((data ?? []) as ProjectActivityEventRow[]).map(mapActivityRow),
+  );
+}
+
 export async function recordProjectActivity(
   projectId: string,
   eventType: string,

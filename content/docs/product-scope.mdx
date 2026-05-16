@@ -17,8 +17,9 @@ Output:
 - generated demo guidance for selected requirements
 - consultant-reviewed approvals and edits
 - a separate Markdown demo script export
+- a Phase 2 Master Data demo package when approved Phase 1 rows exist
 
-The app is intentionally route-based and project-based. A teammate should think in terms of "open a project, move it through the five steps, export the handoff."
+The app is intentionally route-based and project-based. A teammate should think in terms of "open a project, move Phase 1 through the five steps, export the handoff, then run the required pilot Phase 2 demo flow."
 
 ## Canonical Phase 1 Flow
 
@@ -44,11 +45,23 @@ The main state owner is `src/components/phase1/project-provider.tsx`.
 - Assemble approved demo guidance into an editable script.
 - Export the script as Markdown.
 
+## Pilot Phase 2 Demo Flow
+
+Phase 2 is required for the pilot demo once Phase 1 has approved rows. The
+demo path is:
+
+```text
+approved Phase 1 rows -> setup -> generate -> review -> export -> traceability
+```
+
+This flow produces a reviewable Master Data package and traceability view in
+mock mode. It is not MES-validated until a partner manually imports and accepts
+the package in the target MES environment.
+
 ## What Is Not Shipped
 
 These are non-goals for the current app:
 
-- Phase 2 Master Data generation
 - a direct LibreChat product shell
 - broad unstructured document ingestion
 - PDF, Word, or PowerPoint export
@@ -57,15 +70,13 @@ These are non-goals for the current app:
 
 ## Phase 2 Context
 
-Phase 2 is expected to explore importable MES Master Data for applicable requirements. The workspace contains Phase 2 examples and support artifacts, but the app should still present Phase 2 as later scope.
+Phase 2 explores importable MES Master Data for applicable requirements. The app now includes the pilot demo route and export package, but the package must be described as not MES-validated until manual import validation happens.
 
 If older documents mention broad heterogeneous ingestion or direct chatbot usage, treat them as historical context unless the partner explicitly changes the scope.
 
 The project collaboration and phase-state persistence model is intentionally
-phase-agnostic so future Phase 2 routes can reuse the same project ownership,
-membership, RLS, and repository contract. That contract does not mean Phase 2
-Master Data generation, import, or UI is shipped by default; those remain
-separate future feature work.
+phase-agnostic so Phase 2 and later phase routes can reuse the same project
+ownership, membership, RLS, and repository contract.
 
 ## Source Of Truth
 
@@ -86,6 +97,8 @@ Use:
 
 - "Excel-first Phase 1 workspace"
 - "consultant-reviewed generated drafts"
+- "Phase 2 is required for the pilot demo"
+- "Phase 2 package is not MES-validated yet"
 - "mock generation is the default"
 - "real generation is implemented but not live partner-validated"
 
@@ -93,6 +106,7 @@ Avoid:
 
 - "the app generates production MES configuration"
 - "the app replaces consultant review"
-- "Phase 2 is complete"
+- "Phase 2 is production-ready"
+- "Phase 2 is MES-validated"
 - "LibreChat is the product UI"
 - "real Bedrock generation is validated end to end"

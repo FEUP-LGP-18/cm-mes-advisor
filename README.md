@@ -1,8 +1,8 @@
 # Critical Manufacturing MES Demo Advisor
 
-Consultant-facing MES workspace for turning customer requirements Excel workbooks into reviewable demo outputs, with an optional Phase 2 continuation for Master Data package generation.
+Consultant-facing MES workspace for turning customer requirements Excel workbooks into reviewable demo outputs. The current completion bar is pilot-ready: Phase 1 remains the main consultant workflow, and Phase 2 is required for the pilot demo path after approved Phase 1 rows exist.
 
-The current product direction is project-based and route-based. Phase 1 remains the primary finish line:
+The current product direction is project-based and route-based. Phase 1 is the primary consultant handoff:
 
 - `source`
 - `generate`
@@ -10,7 +10,7 @@ The current product direction is project-based and route-based. Phase 1 remains 
 - `script`
 - `export`
 
-Optional Phase 2 continuation lives under:
+The required pilot Phase 2 demo continuation lives under:
 
 - `master-data/setup`
 - `master-data/process`
@@ -18,17 +18,18 @@ Optional Phase 2 continuation lives under:
 - `master-data/export`
 - `master-data/traceability`
 
-Mock generation is the default so teammates can run the app locally without partner credentials. Real grounded generation is implemented behind the server route boundary, but live validation is still blocked by partner Bedrock access.
+Mock generation is the default so teammates can run the app locally without partner credentials. Real grounded generation is implemented behind the server route boundary, but live validation is still blocked by partner Bedrock access. Phase 2 exports are not MES-validated until a partner manually imports and accepts the package.
 
 ## What The Product Does Now
 
-- Creates local Phase 1 projects with a project home and per-project workflow.
+- Creates local or Supabase-backed projects with a project home and per-project workflow.
 - Starts from the committed Customer X sample workbook or an uploaded `.xlsx` workbook.
 - Parses the `Requirements` sheet with row 2 as the real header row and preserves Excel row traceability.
 - Generates draft requirement comments and demo guidance through the server-side generation route.
 - Supports consultant review, approval, and script shaping before export.
 - Downloads a separate Markdown Phase 1 handoff document.
-- Supports an optional Phase 2 continuation that analyzes approved requirements, drafts MES Master Data objects, preserves traceability, and exports a workbook-centered package.
+- Supports the required pilot Phase 2 demo flow: approved Phase 1 rows, setup, Master Data generation, review, export, and traceability.
+- Supports project roles, invites, collaboration settings, profile persistence, activity records, and owner-only project lifecycle controls when Supabase is configured.
 
 ## Phase 1 Scope
 
@@ -44,7 +45,7 @@ Output:
 - demo guidance for selected requirements
 - separate Markdown demo document
 
-Phase 2 Master Data generation remains optional and is not required to finish a valid Phase 1 handoff.
+Phase 2 is required for the pilot demo after Phase 1 approvals. The exported package is a demo artifact and is not MES-validated until manual partner import validation is completed.
 
 ## Non-Goals
 
@@ -63,7 +64,7 @@ The current routed Phase 1 flow lives under `src/app/projects/[projectId]/`:
 4. `script`: shape the assembled consultant-facing narrative
 5. `export`: download the Markdown handoff
 
-Optional Phase 2 continuation lives under `src/app/projects/[projectId]/master-data/`:
+The required pilot Phase 2 demo continuation lives under `src/app/projects/[projectId]/master-data/`:
 
 1. `setup`: analyze applicable requirements and select object types
 2. `process`: generate Master Data drafts with template-backed defaults
@@ -71,7 +72,7 @@ Optional Phase 2 continuation lives under `src/app/projects/[projectId]/master-d
 4. `export`: download the Master Data package
 5. `traceability`: inspect the requirement-to-object audit trail
 
-The top-level home screen creates or reopens local projects. Project state is stored locally so a teammate can continue where the last review stopped.
+The top-level home screen creates or reopens projects. Without Supabase, project state stays local for mock-mode review. With Supabase, project metadata, roles, workbook source state, Phase 1 state, profile data, and activity records are persisted server-side.
 
 ## Quick Start
 
@@ -119,13 +120,15 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your-key-here
 
 If these variables are absent, the Next.js proxy skips auth entirely so local mock mode continues to work without a Supabase project.
 
-Auth routes:
+Auth and account routes:
 
 - `/login`
 - `/signup`
 - `/forgot-password`
 - `/reset-password`
 - `/auth/callback`
+- `/profile`
+- `/settings`
 
 Server-side Supabase helpers live in `src/lib/supabase/`. Use `server-config.ts` for actionable server-only config checks. `SUPABASE_SERVICE_ROLE_KEY` is optional and should only be set for explicit server-only admin operations; never expose it through `NEXT_PUBLIC_*` variables.
 
@@ -143,7 +146,7 @@ supabase start
 supabase db reset
 ```
 
-The current schema includes project metadata, memberships, invites, phase-state JSON, file metadata, activity events, role helpers, and RLS policies. See [content/docs/project-collaboration-schema.mdx](content/docs/project-collaboration-schema.mdx) for the role and permission contract.
+The current schema includes profiles, project metadata, memberships, invites, phase-state JSON, file metadata, activity events, role helpers, and RLS policies. See [content/docs/project-collaboration-schema.mdx](content/docs/project-collaboration-schema.mdx) for the role and permission contract.
 
 Apply reviewed migrations to the linked remote project deliberately with:
 
@@ -218,6 +221,7 @@ Canonical docs:
 - [docs/codex-figma-mcp.md](docs/codex-figma-mcp.md): Figma MCP readiness and manual auth steps
 - [docs/discovery/project-context.md](docs/discovery/project-context.md): current-state product and repo context
 - [docs/phase-1-epic-plan.md](docs/phase-1-epic-plan.md): current roadmap and status
+- [content/docs/release-checklist.mdx](content/docs/release-checklist.mdx): pilot-ready release checklist
 - [`../start.sh`](../start.sh): root local startup orchestrator for the full local stack
 
 Supporting project notes:
@@ -238,19 +242,19 @@ Design references:
 
 This repo should currently be understood as:
 
-- a Phase 1-only product
+- pilot-ready, not production-ready
 - project-first instead of workbook-page-first
 - route-based instead of one oversized workspace route
-- locally persistent for prototype review flows
+- locally persistent for mock-mode review flows
+- server-backed for Supabase auth, profiles, roles, collaboration, and Phase 1 state
 - server-backed for generation boundaries
-- database-ready for project-scoped auth/collaboration persistence
+- Phase 2-ready for the required pilot demo path, but not MES import-validated
 
 What is still not done:
 
 - fully validated direct real-mode partner generation
-- server-backed Phase 1 workflow persistence
-- invite and project settings UI
-- Phase 2 Master Data generation
+- manual partner MES import validation for Phase 2 packages
+- production operations hardening beyond the documented pilot checklist
 - alternative export formats such as PDF or Word
 
 ## Fixture And Artifact Rules

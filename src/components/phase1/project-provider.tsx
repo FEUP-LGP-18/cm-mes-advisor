@@ -39,6 +39,7 @@ import {
   createPhase1ProjectRecordFromWorkspaceState,
   createPhase1ProjectRegistry,
   createUploadedWorkspaceStateForProject,
+  ensureLocalProjectForRoute,
   getPhase1Project,
   loadPhase1ProjectRegistry,
   savePhase1ProjectRegistry,
@@ -89,7 +90,12 @@ import {
   type MasterDataReviewStatus,
   type MasterDataWorkflowStep,
 } from "@/lib/master-data/types";
-import type { CurrentUser, Project } from "@/lib/projects/types";
+import type {
+  CurrentUser,
+  Project,
+  ProjectCapability,
+  ProjectRole,
+} from "@/lib/projects/types";
 
 type MockGenerationStageStatus = "waiting" | "running" | "complete";
 
@@ -151,6 +157,8 @@ interface Phase1ProjectContextValue {
   canEditPhase1: boolean;
   canUploadWorkbook: boolean;
   currentUser: CurrentUser | null;
+  currentUserCapabilities: ProjectCapability[];
+  currentUserRole: ProjectRole | null;
   currentSourceMetadata: RequirementsWorkspaceState["source"];
   demoRequirements: ReviewRequirement[];
   demoScriptAssembly: ReturnType<typeof assembleDemoScript>;
@@ -221,6 +229,8 @@ export function Phase1ProjectProvider({
   fallbackWorkspaceState,
   initialCanEditPhase1 = true,
   initialCanUploadWorkbook = true,
+  initialCurrentUserCapabilities,
+  initialCurrentUserRole,
   initialCurrentUser,
   initialServerPhase1State = null,
   initialServerPhase1Version = 0,
@@ -231,6 +241,8 @@ export function Phase1ProjectProvider({
   fallbackWorkspaceState: RequirementsWorkspaceState;
   initialCanEditPhase1?: boolean;
   initialCanUploadWorkbook?: boolean;
+  initialCurrentUserCapabilities?: ProjectCapability[];
+  initialCurrentUserRole?: ProjectRole | null;
   initialCurrentUser?: CurrentUser | null;
   initialServerPhase1State?: PersistedPhase1State | null;
   initialServerPhase1Version?: number;
@@ -281,9 +293,21 @@ export function Phase1ProjectProvider({
       return;
     }
 
-    setRegistry(
-      loadPhase1ProjectRegistry(window.localStorage, fallbackWorkspaceState),
+    const localRegistry = loadPhase1ProjectRegistry(
+      window.localStorage,
+      fallbackWorkspaceState,
     );
+    const hydratedRegistry = ensureLocalProjectForRoute(
+      localRegistry,
+      fallbackWorkspaceState,
+      routeProjectId,
+    );
+
+    if (hydratedRegistry !== localRegistry) {
+      savePhase1ProjectRegistry(window.localStorage, hydratedRegistry);
+    }
+
+    setRegistry(hydratedRegistry);
   }, [
     fallbackWorkspaceState,
     initialServerPhase1State,
@@ -1422,6 +1446,9 @@ export function Phase1ProjectProvider({
     () => ({
       canEditPhase1: initialCanEditPhase1,
       canUploadWorkbook: initialCanUploadWorkbook,
+      currentUserCapabilities: initialCurrentUserCapabilities ?? [],
+      currentUserRole:
+        initialCurrentUserRole ?? (initialServerProject ? null : "owner"),
       currentUser: initialCurrentUser ?? null,
       currentSourceMetadata:
         workspaceState?.source ?? fallbackWorkspaceState.source,
@@ -1469,7 +1496,10 @@ export function Phase1ProjectProvider({
       analyzeMasterData,
       initialCanEditPhase1,
       initialCanUploadWorkbook,
+      initialCurrentUserCapabilities,
+      initialCurrentUserRole,
       initialCurrentUser,
+      initialServerProject,
       demoRequirements,
       demoScriptAssembly,
       downloadMasterDataPackage,

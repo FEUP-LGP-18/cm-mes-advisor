@@ -88,7 +88,7 @@ export function serializeDemoScriptToMarkdown({
   appendSectionHeading(lines, "Phase 1 Notes");
   appendParagraph(
     lines,
-    "Phase 2 Master Data is an optional continuation after this export; it is not required to complete the Phase 1 handoff.",
+    "Phase 2 Master Data is required for the pilot demo after this export. The generated package is not MES-validated until a partner manually imports and accepts it.",
   );
 
   return lines

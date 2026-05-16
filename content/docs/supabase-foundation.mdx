@@ -6,8 +6,8 @@ description: "Auth helpers, environment variables, and migration workflow."
 ## What Exists Now
 
 Supabase is currently used for authentication foundation and the project
-collaboration database schema. Phase 1 workflow persistence still remains a
-follow-up.
+collaboration database schema, profile persistence, project metadata, and
+Phase 1 workflow persistence.
 
 Implemented pieces:
 
@@ -17,11 +17,14 @@ Implemented pieces:
 - client-safe public config helper: `src/lib/supabase/config.ts`
 - server-side config checks: `src/lib/supabase/server-config.ts`
 - route protection: `src/proxy.ts`
+- profile repository: `src/lib/projects/profile.server.ts`
 - auth pages: `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/auth/callback`
+- account pages: `/profile`, `/settings`
 
-The Phase 1 project/review state still uses browser storage. Product tables,
-roles, and RLS policies are now available in the migration set for downstream
-repository and persistence work.
+Without Supabase config, Phase 1 project/review state still uses browser
+storage for local mock mode. With Supabase config, project metadata, roles,
+uploaded workbook metadata, Phase 1 state, profile data, and activity records
+are persisted behind RLS.
 
 ## Environment Variables
 
@@ -77,6 +80,7 @@ The first project schema migration is already present:
 
 ```text
 supabase/migrations/20260430180000_core_project_collaboration_schema.sql
+supabase/migrations/20260516000000_profiles.sql
 ```
 
 Future schema work should add new timestamped migrations rather than editing an

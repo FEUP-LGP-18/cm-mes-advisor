@@ -15,7 +15,9 @@ import type { StorageLike } from "@/lib/requirements/review-storage";
 import {
   LEGACY_PHASE1_PROJECT_REGISTRY_STORAGE_KEY,
   PHASE1_PROJECT_REGISTRY_STORAGE_KEY,
+  createPhase1ProjectRegistry,
   createPhase1ProjectRecordFromWorkspaceState,
+  ensureLocalProjectForRoute,
   loadPhase1ProjectRegistry,
 } from "./project-registry";
 
@@ -80,6 +82,60 @@ describe("phase 1 project registry", () => {
       projects: [],
     });
     expect(storage.getItem(PHASE1_PROJECT_REGISTRY_STORAGE_KEY)).toBeNull();
+  });
+
+  it("creates a fixture-backed local project for a direct project route", () => {
+    const fixtureSource = createFixtureSourceMetadata(projectMetadata);
+    const fallbackWorkspaceState = createFixtureWorkspaceState(fixtureSource, [
+      parsedRequirement,
+    ]);
+
+    const registry = ensureLocalProjectForRoute(
+      createPhase1ProjectRegistry(),
+      fallbackWorkspaceState,
+      "customer-x-demo",
+    );
+
+    expect(registry.activeProjectId).toBe("customer-x-demo");
+    expect(registry.projects).toHaveLength(1);
+    expect(registry.projects[0]).toMatchObject({
+      currentStep: "source",
+      customerName: "Customer X",
+      projectId: "customer-x-demo",
+      projectName: "Customer X Demo",
+      workspaceState: {
+        reviewState: {
+          project: {
+            projectId: "customer-x-demo",
+            projectName: "Customer X Demo",
+          },
+        },
+      },
+    });
+  });
+
+  it("activates an existing local project route without duplicating it", () => {
+    const fixtureSource = createFixtureSourceMetadata(projectMetadata);
+    const fallbackWorkspaceState = createFixtureWorkspaceState(fixtureSource, [
+      parsedRequirement,
+    ]);
+    const existingProject = createPhase1ProjectRecordFromWorkspaceState(
+      fallbackWorkspaceState,
+      {
+        currentStep: "review",
+        projectId: "customer-x-demo",
+      },
+    );
+
+    const registry = ensureLocalProjectForRoute(
+      createPhase1ProjectRegistry([existingProject], null),
+      fallbackWorkspaceState,
+      "customer-x-demo",
+    );
+
+    expect(registry.activeProjectId).toBe("customer-x-demo");
+    expect(registry.projects).toHaveLength(1);
+    expect(registry.projects[0]?.currentStep).toBe("review");
   });
 
   it("migrates the active workspace into a local project registry", () => {

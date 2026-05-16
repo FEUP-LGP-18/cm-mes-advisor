@@ -236,9 +236,9 @@ export default function MasterDataSetupStudio({
                 <h3 className="phase-rail-title">Finish Phase 1 review first.</h3>
               </div>
               <p className="text-sm leading-6 text-[color:var(--shell-muted)]">
-                Master Data stays optional and inactive until approved Phase 1
-                rows exist. Use the recovery action in the setup panel to return
-                to the right Phase 1 step.
+                Master Data stays locked until approved Phase 1 rows exist.
+                Use the recovery action in the setup panel to return to the
+                right Phase 1 step before running the required pilot demo path.
               </p>
             </section>
           ) : (

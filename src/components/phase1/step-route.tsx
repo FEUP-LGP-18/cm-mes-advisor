@@ -29,6 +29,7 @@ export default function Phase1ProjectStepRoute({
   const {
     canEditPhase1,
     canUploadWorkbook,
+    currentUserRole,
     currentSourceMetadata,
     demoRequirements,
     demoScriptAssembly,
@@ -129,7 +130,9 @@ export default function Phase1ProjectStepRoute({
 
   return (
     <Phase1ProjectShell
+      canEditPhase1={canEditPhase1}
       currentStep={step}
+      currentUserRole={currentUserRole}
       email={phase1.currentUser?.email}
       nextAction={nextAction}
       persistenceFeedback={persistenceFeedback}
@@ -199,6 +202,7 @@ export default function Phase1ProjectStepRoute({
 
       {step === "export" ? (
         <ExportStudio
+          approvedCount={summary.approvedCount}
           assembly={demoScriptAssembly}
           exportReady={workflowSnapshot.exportReady}
           onGoToReview={() => navigateToStep("review")}

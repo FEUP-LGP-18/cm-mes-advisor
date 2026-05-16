@@ -1,0 +1,50 @@
+---
+title: "Release Checklist"
+description: "Compact checklist for deciding whether a build is pilot-ready."
+---
+
+## Pilot-ready release checklist
+
+Use this checklist before calling the app complete for the pilot. The bar is
+pilot-ready, not production-ready.
+
+## Required Product Flow
+
+- A fresh user can sign up or sign in when Supabase is configured.
+- The user can create or open a project from the project desk.
+- Phase 1 runs end to end: source, generate, review, script, export.
+- Phase 2 is required for the pilot demo and runs end to end in mock mode:
+  setup, generate, review, export, traceability.
+- Phase 2 export copy stays explicit that the package is not MES-validated.
+
+## Supabase-backed multi-user QA
+
+Run the multi-user path against a seeded Supabase project before release:
+
+- Owner creates a project.
+- Owner invites editor and viewer test users.
+- Editor accepts the invite and edits Phase 1 state.
+- Viewer can inspect the project but cannot mutate source, review, Phase 2, members, or settings.
+- Editor cannot manage project members or owner-only settings.
+- Non-member direct project URLs are denied.
+- A stale save reports a conflict and does not overwrite newer state.
+
+## Local Gates
+
+Run from the app root:
+
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm storybook:build
+pnpm test:e2e
+pnpm review:ui
+```
+
+## External Blockers To Keep Visible
+
+- Real Bedrock generation needs partner credentials and access.
+- MES import validation needs a manual partner import pass.
+- Production operations need reviewed Supabase, Vercel, email, redirect, and storage settings.

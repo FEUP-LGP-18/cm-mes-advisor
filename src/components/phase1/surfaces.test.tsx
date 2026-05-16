@@ -81,6 +81,21 @@ describe("phase 1 redesigned surfaces", () => {
     expect(html).toContain("MES Demo Advisor");
   });
 
+  it("renders authenticated global navigation when Supabase auth is configured", () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
+
+    const html = render(<Phase1Topbar email="owner@example.com" />);
+
+    expect(html).toContain('href="/"');
+    expect(html).toContain('href="/settings"');
+    expect(html).toContain('href="/profile"');
+    expect(html).toContain("Projects");
+    expect(html).toContain("Settings");
+    expect(html).toContain("Profile");
+    expect(html).toContain("Sign out");
+  });
+
   it("renders the command desk empty state with one blunt starting action", () => {
     const html = render(
       <ProjectCommandDesk
@@ -163,7 +178,9 @@ describe("phase 1 redesigned surfaces", () => {
     };
     const html = render(
       <Phase1ProjectShell
+        canEditPhase1={false}
         currentStep="review"
+        currentUserRole="viewer"
         nextAction={getNextAction(project.snapshot)}
         progress={getWorkflowProgress(project.snapshot)}
         project={project}
@@ -177,6 +194,10 @@ describe("phase 1 redesigned surfaces", () => {
     expect(html).toContain("Pending review");
     expect(html).toContain("Approved");
     expect(html).toContain("Consultant decisions");
+    expect(html).toContain("Viewer");
+    expect(html).toContain("Read-only workspace");
+    expect(html).toContain("Last saved");
+    expect(html).toContain("Copy project link");
   });
 
   it("renders blocked phase stages as disabled controls with hover guidance", () => {
@@ -355,6 +376,7 @@ describe("phase 1 redesigned surfaces", () => {
     const assembly = assembleDemoScript(reviewRequirements, draft);
     const html = render(
       <ExportStudio
+        approvedCount={2}
         assembly={assembly}
         exportReady
         onGoToReview={vi.fn()}
@@ -369,5 +391,8 @@ describe("phase 1 redesigned surfaces", () => {
     expect(html).toContain("Ready to download");
     expect(html).toContain("Download Markdown");
     expect(html).toContain("Format:");
+    expect(html).toContain("Required pilot demo");
+    expect(html).toContain("Start Phase 2 demo");
+    expect(html).toContain("approved Phase 1 rows");
   });
 });

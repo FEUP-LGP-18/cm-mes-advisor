@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Phase1Topbar from "./phase-topbar";
 import { usePhase1Project } from "./project-provider";
-import type { Project } from "@/lib/projects/types";
+import CopyProjectLinkButton from "./copy-project-link-button";
+import type { Project, ProjectActivityEvent } from "@/lib/projects/types";
 
 interface ActionFeedback {
   message: string;
@@ -25,6 +26,7 @@ export interface GeneralSettingsViewProps {
   project: Project | null;
   projectId: string;
   projectName: string;
+  recentActivityEvents: ProjectActivityEvent[];
   formCustomerName: string;
   formDescription: string;
   formName: string;
@@ -56,6 +58,7 @@ export function GeneralSettingsView({
   project,
   projectId,
   projectName,
+  recentActivityEvents,
   formCustomerName,
   formDescription,
   formName,
@@ -128,6 +131,9 @@ export function GeneralSettingsView({
           <div className="phase-shell-title-block">
             <h1 className="phase-shell-title">General settings</h1>
             <p className="phase-shell-helper">{helperText}</p>
+          </div>
+          <div className="phase-inline-actions">
+            <CopyProjectLinkButton projectId={projectId} />
           </div>
         </div>
       </header>
@@ -386,6 +392,48 @@ export function GeneralSettingsView({
           )}
         </section>
       )}
+
+      {isServerBacked ? (
+        <section
+          aria-labelledby="general-activity-heading"
+          className="phase-section-card"
+        >
+          <div className="phase-section-copy">
+            <h2 className="phase-section-title" id="general-activity-heading">
+              Recent activity
+            </h2>
+            <p className="phase-section-body">
+              Latest lifecycle, membership, invite, and settings events recorded
+              for this project.
+            </p>
+          </div>
+
+          {recentActivityEvents.length > 0 ? (
+            <div className="phase-status-list">
+              {recentActivityEvents.map((event) => (
+                <div className="phase-status-item" key={event.id}>
+                  <span className="phase-status-dot phase-status-complete" />
+                  <div>
+                    <p className="phase-status-label">
+                      {formatActivityEvent(event)}
+                    </p>
+                    <p className="phase-status-meta">
+                      {formatActivityDate(event.createdAt)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="phase-empty-state">
+              <p className="phase-overline">No activity yet</p>
+              <h3 className="mt-2 text-2xl font-semibold">
+                Project events will appear here after the first saved action.
+              </h3>
+            </div>
+          )}
+        </section>
+      ) : null}
     </div>
   );
 }
@@ -394,11 +442,13 @@ export default function GeneralSettings({
   isOwner,
   isServerBacked,
   projectId,
+  recentActivityEvents = [],
   serverProject,
 }: {
   isOwner: boolean;
   isServerBacked: boolean;
   projectId: string;
+  recentActivityEvents?: ProjectActivityEvent[];
   serverProject: Project | null;
 }) {
   const { project: localProject, updateLocalProjectMetadata } =
@@ -626,6 +676,7 @@ export default function GeneralSettings({
         project={project}
         projectId={projectId}
         projectName={projectName}
+        recentActivityEvents={recentActivityEvents}
         onArchiveCancel={() => setArchiveConfirmOpen(false)}
         onArchiveConfirm={handleArchiveConfirm}
         onArchiveRequest={() => setArchiveConfirmOpen(true)}
@@ -644,4 +695,48 @@ export default function GeneralSettings({
       />
     </main>
   );
+}
+
+function formatActivityEvent(event: ProjectActivityEvent) {
+  switch (event.eventType) {
+    case "project_metadata_updated":
+      return "Project details updated";
+    case "project_archived":
+      return "Project archived";
+    case "project_unarchived":
+      return "Project restored";
+    case "project_member_added":
+      return "Project member added";
+    case "project_member_removed":
+      return "Project member removed";
+    case "project_member_role_updated":
+      return "Project member role updated";
+    case "project_invite_created":
+      return "Invite created";
+    case "project_invite_revoked":
+      return "Invite revoked";
+    case "project_invite_accepted":
+      return "Invite accepted";
+    default:
+      return event.eventType
+        .split("_")
+        .filter(Boolean)
+        .map((part) => `${part[0]?.toUpperCase() ?? ""}${part.slice(1)}`)
+        .join(" ");
+  }
+}
+
+function formatActivityDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Unknown time";
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    month: "short",
+  }).format(date);
 }

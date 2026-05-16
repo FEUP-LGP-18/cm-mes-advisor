@@ -5,6 +5,7 @@ import type { DemoScriptAssembly } from "@/lib/requirements/demo-script";
 import type { ReviewProjectMetadata } from "@/lib/requirements/review";
 
 interface ExportStudioProps {
+  approvedCount: number;
   assembly: DemoScriptAssembly;
   exportReady: boolean;
   onGoToReview: () => void;
@@ -15,6 +16,7 @@ interface ExportStudioProps {
 }
 
 export default function ExportStudio({
+  approvedCount,
   assembly,
   exportReady,
   onGoToReview,
@@ -49,23 +51,24 @@ export default function ExportStudio({
       <section className="phase-section-card">
         <div className="phase-toolbar">
           <div className="phase-toolbar-copy">
-            <p className="phase-overline">Optional continuation</p>
+            <p className="phase-overline">Required pilot demo</p>
             <h3 className="phase-section-title">
-              Continue into Master Data generation when Phase 1 is complete.
+              Start Phase 2 from approved Phase 1 rows.
             </h3>
             <p className="phase-section-body">
-              Phase 1 remains a valid finish line on its own. Move into Phase 2
-              only when the team wants a reviewable MES Master Data package for
-              the selected demo scope.
+              The pilot demo requires the Master Data path after the Phase 1
+              handoff: approved rows, setup, generation, review, export, and
+              traceability. The app still does not claim MES import validation.
             </p>
           </div>
 
           <button
             type="button"
             onClick={onOpenMasterData}
-            className="focus-premium theme-shell-button-secondary rounded-2xl px-5 py-3 text-sm font-semibold transition"
+            disabled={!exportReady || approvedCount === 0}
+            className="focus-premium theme-shell-button-secondary rounded-2xl px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Generate Master Data
+            Start Phase 2 demo
           </button>
         </div>
       </section>

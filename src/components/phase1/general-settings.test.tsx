@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { GeneralSettingsView } from "./general-settings";
 import type { GeneralSettingsViewProps } from "./general-settings";
-import type { Project } from "@/lib/projects/types";
+import type { Project, ProjectActivityEvent } from "@/lib/projects/types";
 
 const activeProject: Project = {
   archivedAt: null,
@@ -22,6 +22,27 @@ const archivedProject: Project = {
   archivedAt: "2026-05-11T10:00:00.000Z",
   status: "archived",
 };
+
+const activityEvents: ProjectActivityEvent[] = [
+  {
+    actorId: "11111111-1111-4111-8111-111111111111",
+    createdAt: "2026-05-12T09:00:00.000Z",
+    eventType: "project_metadata_updated",
+    id: "33333333-3333-4333-8333-333333333333",
+    payload: {
+      name: "Customer X MES demo",
+    },
+    projectId: activeProject.id,
+  },
+  {
+    actorId: "11111111-1111-4111-8111-111111111111",
+    createdAt: "2026-05-12T10:00:00.000Z",
+    eventType: "project_archived",
+    id: "44444444-4444-4444-8444-444444444444",
+    payload: {},
+    projectId: activeProject.id,
+  },
+];
 
 const noop = vi.fn();
 
@@ -45,6 +66,7 @@ function makeProps(
     project: activeProject,
     projectId: activeProject.id,
     projectName: activeProject.name,
+    recentActivityEvents: [],
     onArchiveCancel: noop,
     onArchiveConfirm: noop,
     onArchiveRequest: noop,
@@ -250,6 +272,19 @@ describe("GeneralSettingsView", () => {
     expect(html).toContain('href="/"');
     expect(html).toContain(`href="/projects/${activeProject.id}"`);
     expect(html).toContain("General");
+  });
+
+  it("surfaces recent lifecycle activity and copy-link affordance", () => {
+    const html = renderToStaticMarkup(
+      <GeneralSettingsView
+        {...makeProps({ recentActivityEvents: activityEvents })}
+      />,
+    );
+
+    expect(html).toContain("Copy project link");
+    expect(html).toContain("Recent activity");
+    expect(html).toContain("Project details updated");
+    expect(html).toContain("Project archived");
   });
 
   it("renders without crashing when project is null", () => {
