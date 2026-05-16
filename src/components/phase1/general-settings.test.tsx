@@ -40,6 +40,7 @@ function makeProps(
     isArchiving: false,
     isDeleting: false,
     isOwner: true,
+    isServerBacked: true,
     isSaving: false,
     project: activeProject,
     projectId: activeProject.id,
@@ -62,9 +63,7 @@ function makeProps(
 
 describe("GeneralSettingsView", () => {
   it("renders the project name form for an owner", () => {
-    const html = renderToStaticMarkup(
-      <GeneralSettingsView {...makeProps()} />,
-    );
+    const html = renderToStaticMarkup(<GeneralSettingsView {...makeProps()} />);
 
     expect(html).toContain("Customer X MES demo");
     expect(html).toContain("Save changes");
@@ -116,11 +115,20 @@ describe("GeneralSettingsView", () => {
     expect(html).toContain("Delete project");
   });
 
+  it("hides server-only fields and lifecycle actions for local projects", () => {
+    const html = renderToStaticMarkup(
+      <GeneralSettingsView {...makeProps({ isServerBacked: false })} />,
+    );
+
+    expect(html).toContain("Update project metadata for this local project.");
+    expect(html).not.toContain("Description");
+    expect(html).not.toContain("Archive project");
+    expect(html).not.toContain("Delete project");
+  });
+
   it("shows archive confirmation panel when archiveConfirmOpen is true", () => {
     const html = renderToStaticMarkup(
-      <GeneralSettingsView
-        {...makeProps({ archiveConfirmOpen: true })}
-      />,
+      <GeneralSettingsView {...makeProps({ archiveConfirmOpen: true })} />,
     );
 
     expect(html).toContain("Confirm archive");
@@ -129,9 +137,7 @@ describe("GeneralSettingsView", () => {
 
   it("shows delete confirmation panel with text input when deleteConfirmOpen is true", () => {
     const html = renderToStaticMarkup(
-      <GeneralSettingsView
-        {...makeProps({ deleteConfirmOpen: true })}
-      />,
+      <GeneralSettingsView {...makeProps({ deleteConfirmOpen: true })} />,
     );
 
     expect(html).toContain("Type project name to confirm deletion");
@@ -175,7 +181,10 @@ describe("GeneralSettingsView", () => {
     const html = renderToStaticMarkup(
       <GeneralSettingsView
         {...makeProps({
-          actionFeedback: { message: "Project details saved.", tone: "success" },
+          actionFeedback: {
+            message: "Project details saved.",
+            tone: "success",
+          },
         })}
       />,
     );
@@ -188,7 +197,10 @@ describe("GeneralSettingsView", () => {
     const html = renderToStaticMarkup(
       <GeneralSettingsView
         {...makeProps({
-          actionFeedback: { message: "Changes could not be saved.", tone: "error" },
+          actionFeedback: {
+            message: "Changes could not be saved.",
+            tone: "error",
+          },
         })}
       />,
     );
@@ -217,9 +229,7 @@ describe("GeneralSettingsView", () => {
 
   it("shows Archived pill in the header when the project is archived", () => {
     const html = renderToStaticMarkup(
-      <GeneralSettingsView
-        {...makeProps({ project: archivedProject })}
-      />,
+      <GeneralSettingsView {...makeProps({ project: archivedProject })} />,
     );
 
     expect(html).toContain("phase-shell-pill");
@@ -235,9 +245,7 @@ describe("GeneralSettingsView", () => {
   });
 
   it("shows breadcrumb links to Projects and the project page", () => {
-    const html = renderToStaticMarkup(
-      <GeneralSettingsView {...makeProps()} />,
-    );
+    const html = renderToStaticMarkup(<GeneralSettingsView {...makeProps()} />);
 
     expect(html).toContain('href="/"');
     expect(html).toContain(`href="/projects/${activeProject.id}"`);

@@ -28,8 +28,12 @@ function makePatchRequest(body: unknown) {
   });
 }
 
-function makeDeleteRequest() {
+function makeDeleteRequest(
+  body: unknown = { confirmationName: "Test Project" },
+) {
   return new Request(`http://localhost/api/projects/${projectId}/settings`, {
+    body: JSON.stringify(body),
+    headers: { "Content-Type": "application/json" },
     method: "DELETE",
   });
 }
@@ -64,7 +68,10 @@ describe("PATCH /api/projects/[projectId]/settings", () => {
 
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body).toMatchObject({ name: "Test Project", customerName: "Acme Corp" });
+    expect(body).toMatchObject({
+      name: "Test Project",
+      customerName: "Acme Corp",
+    });
   });
 
   it("returns 400 when name field is missing", async () => {
@@ -81,7 +88,11 @@ describe("PATCH /api/projects/[projectId]/settings", () => {
   it("returns 400 when request body is invalid JSON", async () => {
     const request = new Request(
       `http://localhost/api/projects/${projectId}/settings`,
-      { body: "not-json", headers: { "Content-Type": "application/json" }, method: "PATCH" },
+      {
+        body: "not-json",
+        headers: { "Content-Type": "application/json" },
+        method: "PATCH",
+      },
     );
 
     const response = await PATCH(request, { params });
@@ -97,7 +108,9 @@ describe("PATCH /api/projects/[projectId]/settings", () => {
       status: "not_authenticated",
     });
 
-    const response = await PATCH(makePatchRequest({ name: "Test" }), { params });
+    const response = await PATCH(makePatchRequest({ name: "Test" }), {
+      params,
+    });
 
     expect(response.status).toBe(401);
   });
@@ -109,7 +122,9 @@ describe("PATCH /api/projects/[projectId]/settings", () => {
       status: "forbidden",
     });
 
-    const response = await PATCH(makePatchRequest({ name: "Test" }), { params });
+    const response = await PATCH(makePatchRequest({ name: "Test" }), {
+      params,
+    });
 
     expect(response.status).toBe(403);
   });
@@ -121,15 +136,21 @@ describe("PATCH /api/projects/[projectId]/settings", () => {
       status: "internal_error",
     });
 
-    const response = await PATCH(makePatchRequest({ name: "Test" }), { params });
+    const response = await PATCH(makePatchRequest({ name: "Test" }), {
+      params,
+    });
 
     expect(response.status).toBe(500);
   });
 
   it("returns 500 when the handler throws unexpectedly", async () => {
-    updateProjectMetadataMock.mockRejectedValueOnce(new Error("Unexpected failure"));
+    updateProjectMetadataMock.mockRejectedValueOnce(
+      new Error("Unexpected failure"),
+    );
 
-    const response = await PATCH(makePatchRequest({ name: "Test" }), { params });
+    const response = await PATCH(makePatchRequest({ name: "Test" }), {
+      params,
+    });
 
     expect(response.status).toBe(500);
   });
@@ -150,6 +171,14 @@ describe("DELETE /api/projects/[projectId]/settings", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body).toMatchObject({ projectId });
+    expect(deleteProjectMock).toHaveBeenCalledWith(projectId, "Test Project");
+  });
+
+  it("returns 400 when confirmation name is missing", async () => {
+    const response = await DELETE(makeDeleteRequest({}), { params });
+
+    expect(response.status).toBe(400);
+    expect(deleteProjectMock).not.toHaveBeenCalled();
   });
 
   it("returns 401 when the caller is not authenticated", async () => {
