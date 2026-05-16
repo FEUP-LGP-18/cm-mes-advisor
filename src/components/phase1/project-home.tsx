@@ -259,6 +259,11 @@ export function ProjectCommandDesk({
                         <span className="mx-2">·</span>
                         {formatRole(project.currentUserRole)}
                       </span>
+                      {project.status === "archived" && (
+                        <span className="phase-project-subtle ml-2 font-normal italic">
+                          Archived
+                        </span>
+                      )}
                     </p>
                     <p className="phase-project-subtle">
                       {getCustomerLabel(project)}
@@ -274,10 +279,15 @@ export function ProjectCommandDesk({
                     </p>
                   </div>
 
-                  <div>
+                  <div className="flex flex-wrap gap-1.5">
                     <span className="phase-project-chip phase-project-chip-muted">
                       {formatRole(project.currentUserRole)}
                     </span>
+                    {project.status === "archived" && (
+                      <span className="phase-project-chip phase-project-chip-muted opacity-70">
+                        Archived
+                      </span>
+                    )}
                   </div>
 
                   <div className="phase-project-subtle">Source</div>

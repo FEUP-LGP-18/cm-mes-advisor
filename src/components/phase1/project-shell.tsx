@@ -53,7 +53,7 @@ export default function Phase1ProjectShell({
               <span>{project.projectName}</span>
               <span className="phase-shell-divider">·</span>
               <Link
-                href={`/projects/${project.projectId}/settings/collaboration`}
+                href={`/projects/${project.projectId}/settings/general`}
                 className="phase-product-link"
               >
                 Settings

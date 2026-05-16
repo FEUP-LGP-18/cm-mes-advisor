@@ -128,6 +128,12 @@ export type CreateProjectInput = {
   name: string;
 };
 
+export type UpdateProjectMetadataInput = {
+  customerName?: string | null;
+  description?: string | null;
+  name: string;
+};
+
 export type CreateProjectActionState = {
   message: string | null;
   status: "idle" | "error";
