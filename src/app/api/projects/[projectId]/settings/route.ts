@@ -52,12 +52,15 @@ export async function PATCH(
       { status: toHttpStatus(result.status) },
     );
   } catch {
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 },
+    );
   }
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ projectId: string }> },
 ) {
   try {
@@ -70,7 +73,15 @@ export async function DELETE(
       );
     }
 
-    const result = await deleteProject(projectId);
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body.confirmationName !== "string") {
+      return NextResponse.json(
+        { error: "Request body must include a confirmationName field." },
+        { status: 400 },
+      );
+    }
+
+    const result = await deleteProject(projectId, body.confirmationName);
 
     if (result.ok) {
       return NextResponse.json(result.data);
@@ -81,6 +92,9 @@ export async function DELETE(
       { status: toHttpStatus(result.status) },
     );
   } catch {
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 },
+    );
   }
 }

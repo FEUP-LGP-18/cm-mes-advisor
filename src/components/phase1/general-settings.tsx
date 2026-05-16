@@ -21,6 +21,7 @@ export interface GeneralSettingsViewProps {
   isDeleting: boolean;
   isSaving: boolean;
   isOwner: boolean;
+  isServerBacked: boolean;
   project: Project | null;
   projectId: string;
   projectName: string;
@@ -51,6 +52,7 @@ export function GeneralSettingsView({
   isDeleting,
   isSaving,
   isOwner,
+  isServerBacked,
   project,
   projectId,
   projectName,
@@ -72,7 +74,13 @@ export function GeneralSettingsView({
   onUnarchiveRequest,
 }: GeneralSettingsViewProps) {
   const isArchived = project?.status === "archived";
+  const canManageLifecycle = isOwner && isServerBacked;
   const deleteMatchesName = deleteConfirmInput.trim() === projectName.trim();
+  const helperText = !isOwner
+    ? "View project metadata. Contact an owner to make changes."
+    : isServerBacked
+      ? "Update project metadata, archive, or permanently delete this project."
+      : "Update project metadata for this local project.";
 
   return (
     <div className="mx-auto flex w-full max-w-[1560px] flex-col gap-6 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
@@ -119,11 +127,7 @@ export function GeneralSettingsView({
         <div className="phase-shell-header-main">
           <div className="phase-shell-title-block">
             <h1 className="phase-shell-title">General settings</h1>
-            <p className="phase-shell-helper">
-              {isOwner
-                ? "Update project metadata, archive, or permanently delete this project."
-                : "View project metadata. Contact an owner to make changes."}
-            </p>
+            <p className="phase-shell-helper">{helperText}</p>
           </div>
         </div>
       </header>
@@ -178,11 +182,16 @@ export function GeneralSettingsView({
           onSubmit={onFormSubmit}
         >
           <div className="flex flex-col gap-1">
-            <label className="mono-label text-xs" htmlFor="general-project-name">
+            <label
+              className="mono-label text-xs"
+              htmlFor="general-project-name"
+            >
               Project name
             </label>
             <input
-              aria-describedby={formNameError ? "general-name-error" : undefined}
+              aria-describedby={
+                formNameError ? "general-name-error" : undefined
+              }
               aria-invalid={!!formNameError}
               disabled={!isOwner || isSaving}
               id="general-project-name"
@@ -221,23 +230,25 @@ export function GeneralSettingsView({
             />
           </div>
 
-          <div className="flex flex-col gap-1">
-            <label
-              className="mono-label text-xs"
-              htmlFor="general-description"
-            >
-              Description
-            </label>
-            <textarea
-              disabled={!isOwner || isSaving}
-              id="general-description"
-              placeholder="Optional"
-              rows={3}
-              value={formDescription}
-              onChange={(e) => onFormDescriptionChange(e.target.value)}
-              className="focus-premium rounded-xl border border-[color:var(--shell-border)] bg-[color:var(--shell-surface-strong)] px-3 py-2 text-sm transition placeholder:text-[color:var(--shell-muted)] disabled:opacity-50"
-            />
-          </div>
+          {isServerBacked && (
+            <div className="flex flex-col gap-1">
+              <label
+                className="mono-label text-xs"
+                htmlFor="general-description"
+              >
+                Description
+              </label>
+              <textarea
+                disabled={!isOwner || isSaving}
+                id="general-description"
+                placeholder="Optional"
+                rows={3}
+                value={formDescription}
+                onChange={(e) => onFormDescriptionChange(e.target.value)}
+                className="focus-premium rounded-xl border border-[color:var(--shell-border)] bg-[color:var(--shell-surface-strong)] px-3 py-2 text-sm transition placeholder:text-[color:var(--shell-muted)] disabled:opacity-50"
+              />
+            </div>
+          )}
 
           {isOwner && (
             <div className="flex items-center gap-3">
@@ -254,7 +265,7 @@ export function GeneralSettingsView({
       </section>
 
       {/* Archive */}
-      {isOwner && (
+      {canManageLifecycle && (
         <section
           aria-labelledby="general-archive-heading"
           className="phase-section-card"
@@ -315,7 +326,7 @@ export function GeneralSettingsView({
       )}
 
       {/* Delete */}
-      {isOwner && (
+      {canManageLifecycle && (
         <section
           aria-labelledby="general-delete-heading"
           className="phase-section-card"
@@ -390,19 +401,22 @@ export default function GeneralSettings({
   projectId: string;
   serverProject: Project | null;
 }) {
-  const { project: localProject, updateLocalProjectMetadata } = usePhase1Project();
+  const { project: localProject, updateLocalProjectMetadata } =
+    usePhase1Project();
   const router = useRouter();
 
   const [project, setProject] = useState<Project | null>(serverProject);
-  const projectName = project?.name ?? localProject?.projectName ?? "Project";
+  const sourceFormName = project?.name ?? localProject?.projectName ?? "";
+  const sourceFormCustomerName =
+    project?.customerName ?? localProject?.customerName ?? "";
+  const sourceFormDescription = project?.description ?? "";
+  const projectName = sourceFormName || "Project";
 
-  const [formName, setFormName] = useState(project?.name ?? "");
+  const [formName, setFormName] = useState(sourceFormName);
   const [formCustomerName, setFormCustomerName] = useState(
-    project?.customerName ?? "",
+    sourceFormCustomerName,
   );
-  const [formDescription, setFormDescription] = useState(
-    project?.description ?? "",
-  );
+  const [formDescription, setFormDescription] = useState(sourceFormDescription);
   const [formNameError, setFormNameError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -424,11 +438,21 @@ export default function GeneralSettings({
     };
   }, []);
 
+  useEffect(() => {
+    setFormName(sourceFormName);
+    setFormCustomerName(sourceFormCustomerName);
+    setFormDescription(sourceFormDescription);
+    setFormNameError(null);
+  }, [sourceFormCustomerName, sourceFormDescription, sourceFormName]);
+
   const showFeedback = useCallback(
     (message: string, tone: "error" | "success") => {
       if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
       setActionFeedback({ message, tone });
-      feedbackTimerRef.current = setTimeout(() => setActionFeedback(null), 5000);
+      feedbackTimerRef.current = setTimeout(
+        () => setActionFeedback(null),
+        5000,
+      );
     },
     [],
   );
@@ -485,7 +509,15 @@ export default function GeneralSettings({
         setIsSaving(false);
       }
     },
-    [formCustomerName, formDescription, formName, isServerBacked, projectId, showFeedback, updateLocalProjectMetadata],
+    [
+      formCustomerName,
+      formDescription,
+      formName,
+      isServerBacked,
+      projectId,
+      showFeedback,
+      updateLocalProjectMetadata,
+    ],
   );
 
   const handleArchiveConfirm = useCallback(async () => {
@@ -552,6 +584,8 @@ export default function GeneralSettings({
 
     try {
       const res = await fetch(`/api/projects/${projectId}/settings`, {
+        body: JSON.stringify({ confirmationName: projectName }),
+        headers: { "content-type": "application/json" },
         method: "DELETE",
       });
 
@@ -570,7 +604,7 @@ export default function GeneralSettings({
       showFeedback("Could not reach the server. Please try again.", "error");
       setIsDeleting(false);
     }
-  }, [projectId, router, showFeedback]);
+  }, [projectId, projectName, router, showFeedback]);
 
   return (
     <main className="app-canvas min-h-screen text-[color:var(--shell-ink)]">
@@ -587,6 +621,7 @@ export default function GeneralSettings({
         isArchiving={isArchiving}
         isDeleting={isDeleting}
         isOwner={isOwner}
+        isServerBacked={isServerBacked}
         isSaving={isSaving}
         project={project}
         projectId={projectId}

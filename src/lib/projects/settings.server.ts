@@ -1,5 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
-import { isUuid, requireProjectCapability, requireUser } from "./permissions.server";
+import {
+  isUuid,
+  requireProjectCapability,
+  requireUser,
+} from "./permissions.server";
 import { recordProjectActivity } from "./repository.server";
 import {
   failure,
@@ -20,6 +24,10 @@ type ProjectRow = {
   status: Project["status"];
   updated_at: string;
   updated_by: string | null;
+};
+
+type ProjectNameRow = {
+  name: string;
 };
 
 type SupabaseError = {
@@ -173,6 +181,7 @@ export async function unarchiveProject(
 
 export async function deleteProject(
   projectId: string,
+  confirmationName: string,
 ): Promise<ProjectResult<{ projectId: string }>> {
   const userResult = await requireUser();
   if (!userResult.ok) return userResult;
@@ -191,12 +200,49 @@ export async function deleteProject(
     return failure("forbidden", "Cannot access data for another user.");
   }
 
+  const confirmedName = confirmationName.trim();
+  if (confirmedName.length === 0) {
+    return failure(
+      "validation_error",
+      "Project name confirmation is required.",
+    );
+  }
+
   const supabase = await createClient();
-  const { error } = await supabase.from("projects").delete().eq("id", projectId);
+  const current = await supabase
+    .from("projects")
+    .select("name")
+    .eq("id", projectId)
+    .maybeSingle();
+
+  if (current.error) {
+    return mapSupabaseError(current.error, "Project could not be loaded.");
+  }
+
+  if (!current.data) {
+    return failure("not_found", "Project not found.");
+  }
+
+  const projectName = (current.data as ProjectNameRow).name;
+  if (projectName !== confirmedName) {
+    return failure(
+      "validation_error",
+      "Project name confirmation does not match.",
+    );
+  }
+
+  const { error } = await supabase
+    .from("projects")
+    .delete()
+    .eq("id", projectId)
+    .eq("name", projectName);
 
   if (error) {
     const msg = (error as SupabaseError).message ?? "";
-    if (msg.toLowerCase().includes("last") && msg.toLowerCase().includes("owner")) {
+    if (
+      msg.toLowerCase().includes("last") &&
+      msg.toLowerCase().includes("owner")
+    ) {
       return failure(
         "conflict",
         "Cannot delete a project while you are the sole owner. Transfer ownership or remove the project members first.",
