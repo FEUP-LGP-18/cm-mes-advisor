@@ -9,9 +9,10 @@ export default async function CollaborationSettingsPage({
 }) {
   const { projectId } = await params;
 
+  const isServerBacked = isSupabaseConfigured();
   let isOwner = true;
 
-  if (isSupabaseConfigured()) {
+  if (isServerBacked) {
     const capResult = await requireProjectCapability(
       projectId,
       "manage_project_members",
@@ -19,5 +20,11 @@ export default async function CollaborationSettingsPage({
     isOwner = capResult.ok;
   }
 
-  return <CollaborationSettings isOwner={isOwner} projectId={projectId} />;
+  return (
+    <CollaborationSettings
+      isOwner={isOwner}
+      isServerBacked={isServerBacked}
+      projectId={projectId}
+    />
+  );
 }

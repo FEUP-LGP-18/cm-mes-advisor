@@ -70,6 +70,7 @@ function makeProps(
     inviteRole: "editor",
     invites: [],
     isOwner: true,
+    isServerBacked: true,
     isSubmittingInvite: false,
     loading: false,
     memberActionId: null,
@@ -278,6 +279,22 @@ describe("CollaborationSettingsView", () => {
       expect(markup).toContain("Test Project");
       expect(markup).toContain("Collaboration");
       expect(markup).toContain("/projects/p1");
+    });
+  });
+
+  describe("local mode", () => {
+    it("hides server-only collaboration controls", () => {
+      const markup = renderToStaticMarkup(
+        <CollaborationSettingsView
+          {...makeProps({ isServerBacked: false, members: [], invites: [] })}
+        />,
+      );
+
+      expect(markup).toContain("Collaboration unavailable in local mode");
+      expect(markup).not.toContain("Team members");
+      expect(markup).not.toContain("Invite a collaborator");
+      expect(markup).not.toContain("Pending invites");
+      expect(markup).not.toContain("Send invite");
     });
   });
 
