@@ -44,6 +44,7 @@ export interface CollaborationSettingsViewProps {
   inviteRole: ProjectRole;
   invites: ProjectInvite[];
   isOwner: boolean;
+  isServerBacked: boolean;
   isSubmittingInvite: boolean;
   loading: boolean;
   memberActionId: string | null;
@@ -68,6 +69,7 @@ export function CollaborationSettingsView({
   inviteRole,
   invites,
   isOwner,
+  isServerBacked,
   isSubmittingInvite,
   loading,
   memberActionId,
@@ -83,6 +85,11 @@ export function CollaborationSettingsView({
   onMemberRoleChange,
 }: CollaborationSettingsViewProps) {
   const pendingInvites = invites.filter((inv) => inv.status === "pending");
+  const helperText = !isServerBacked
+    ? "Server-backed collaboration is unavailable for this local project."
+    : isOwner
+      ? "Manage team members and pending invitations for this project."
+      : "View the team for this project. Contact an owner to change members or roles.";
 
   return (
     <div className="mx-auto flex w-full max-w-[1560px] flex-col gap-6 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
@@ -124,11 +131,7 @@ export function CollaborationSettingsView({
         <div className="phase-shell-header-main">
           <div className="phase-shell-title-block">
             <h1 className="phase-shell-title">Collaboration</h1>
-            <p className="phase-shell-helper">
-              {isOwner
-                ? "Manage team members and pending invitations for this project."
-                : "View the team for this project. Contact an owner to change members or roles."}
-            </p>
+            <p className="phase-shell-helper">{helperText}</p>
           </div>
         </div>
       </header>
@@ -159,6 +162,21 @@ export function CollaborationSettingsView({
         <div className="phase-feedback phase-feedback-error" role="alert">
           {error}
         </div>
+      ) : !isServerBacked ? (
+        <section
+          aria-labelledby="collab-local-heading"
+          className="phase-section-card"
+        >
+          <div className="phase-section-copy">
+            <h2 className="phase-section-title" id="collab-local-heading">
+              Collaboration unavailable in local mode
+            </h2>
+            <p className="phase-section-body">
+              Local sample projects do not manage real members or invitations.
+              Configure Supabase to review owner, editor, and viewer access.
+            </p>
+          </div>
+        </section>
       ) : (
         <div className="flex flex-col gap-6">
           {actionFeedback ? (
@@ -485,9 +503,11 @@ export function CollaborationSettingsView({
 
 export default function CollaborationSettings({
   isOwner,
+  isServerBacked,
   projectId,
 }: {
   isOwner: boolean;
+  isServerBacked: boolean;
   projectId: string;
 }) {
   const { project } = usePhase1Project();
@@ -495,7 +515,7 @@ export default function CollaborationSettings({
 
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [invites, setInvites] = useState<ProjectInvite[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(isServerBacked);
   const [error, setError] = useState<string | null>(null);
 
   const [inviteEmail, setInviteEmail] = useState("");
@@ -510,6 +530,14 @@ export default function CollaborationSettings({
   );
 
   const loadData = useCallback(async () => {
+    if (!isServerBacked) {
+      setMembers([]);
+      setInvites([]);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -537,7 +565,7 @@ export default function CollaborationSettings({
     } finally {
       setLoading(false);
     }
-  }, [isOwner, projectId]);
+  }, [isOwner, isServerBacked, projectId]);
 
   useEffect(() => {
     void loadData();
@@ -742,6 +770,7 @@ export default function CollaborationSettings({
         inviteRole={inviteRole}
         invites={invites}
         isOwner={isOwner}
+        isServerBacked={isServerBacked}
         isSubmittingInvite={isSubmittingInvite}
         loading={loading}
         memberActionId={memberActionId}

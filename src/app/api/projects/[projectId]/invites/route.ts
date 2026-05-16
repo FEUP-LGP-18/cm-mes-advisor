@@ -44,6 +44,14 @@ export async function POST(
 ) {
   try {
     const { projectId } = await params;
+
+    if (!isSupabaseConfigured()) {
+      return NextResponse.json(
+        { error: "Server-side collaboration requires Supabase." },
+        { status: 501 },
+      );
+    }
+
     let body: Record<string, unknown>;
 
     try {

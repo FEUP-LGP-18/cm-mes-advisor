@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createInvite, listInvites } from "@/lib/projects/invites.server";
 import { GET, POST } from "./route";
 
 vi.mock("@/lib/supabase/config", () => ({
-  isSupabaseConfigured: () => true,
+  isSupabaseConfigured: vi.fn(() => true),
 }));
 
 vi.mock("@/lib/projects/invites.server", () => ({
@@ -12,6 +13,7 @@ vi.mock("@/lib/projects/invites.server", () => ({
 }));
 
 const createInviteMock = vi.mocked(createInvite);
+const isSupabaseConfiguredMock = vi.mocked(isSupabaseConfigured);
 const listInvitesMock = vi.mocked(listInvites);
 
 const projectId = "22222222-2222-4222-8222-222222222222";
@@ -46,7 +48,10 @@ const pendingInvite = {
 };
 
 describe("GET /api/projects/[projectId]/invites", () => {
-  afterEach(() => vi.clearAllMocks());
+  afterEach(() => {
+    vi.clearAllMocks();
+    isSupabaseConfiguredMock.mockReturnValue(true);
+  });
 
   it("returns 200 with the invite list", async () => {
     listInvitesMock.mockResolvedValueOnce({
@@ -89,7 +94,10 @@ describe("GET /api/projects/[projectId]/invites", () => {
 });
 
 describe("POST /api/projects/[projectId]/invites", () => {
-  afterEach(() => vi.clearAllMocks());
+  afterEach(() => {
+    vi.clearAllMocks();
+    isSupabaseConfiguredMock.mockReturnValue(true);
+  });
 
   it("returns 201 with the created invite", async () => {
     createInviteMock.mockResolvedValueOnce({
@@ -201,6 +209,21 @@ describe("POST /api/projects/[projectId]/invites", () => {
 
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: "Invalid JSON body." });
+    expect(createInviteMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 501 when Supabase is not configured", async () => {
+    isSupabaseConfiguredMock.mockReturnValueOnce(false);
+
+    const response = await POST(
+      makePostRequest({ email: "collaborator@example.com", role: "editor" }),
+      { params },
+    );
+
+    expect(response.status).toBe(501);
+    expect(await response.json()).toEqual({
+      error: "Server-side collaboration requires Supabase.",
+    });
     expect(createInviteMock).not.toHaveBeenCalled();
   });
 });
