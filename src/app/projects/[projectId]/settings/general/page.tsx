@@ -2,11 +2,14 @@ import {
   getProjectCapabilities,
   requireProjectCapability,
 } from "@/lib/projects/permissions.server";
-import { getProjectForUser } from "@/lib/projects/repository.server";
+import {
+  getProjectForUser,
+  listProjectActivity,
+} from "@/lib/projects/repository.server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { notFound } from "next/navigation";
 import GeneralSettings from "@/components/phase1/general-settings";
-import type { Project } from "@/lib/projects/types";
+import type { Project, ProjectActivityEvent } from "@/lib/projects/types";
 
 export default async function GeneralSettingsPage({
   params,
@@ -17,6 +20,7 @@ export default async function GeneralSettingsPage({
 
   let isOwner = true;
   let serverProject: Project | null = null;
+  let recentActivityEvents: ProjectActivityEvent[] = [];
 
   if (isSupabaseConfigured()) {
     const readResult = await requireProjectCapability(projectId, "read_project");
@@ -37,6 +41,13 @@ export default async function GeneralSettingsPage({
       notFound();
     }
     serverProject = projectResult.data;
+
+    const activityResult = await listProjectActivity(
+      projectId,
+      readResult.data.id,
+      8,
+    );
+    recentActivityEvents = activityResult.ok ? activityResult.data : [];
   }
 
   return (
@@ -44,6 +55,7 @@ export default async function GeneralSettingsPage({
       isOwner={isOwner}
       isServerBacked={isSupabaseConfigured()}
       projectId={projectId}
+      recentActivityEvents={recentActivityEvents}
       serverProject={serverProject}
     />
   );

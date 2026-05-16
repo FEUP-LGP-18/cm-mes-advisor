@@ -221,6 +221,35 @@ export function setActivePhase1Project(
   };
 }
 
+export function ensureLocalProjectForRoute(
+  registry: Phase1ProjectRegistry,
+  fallbackWorkspaceState: RequirementsWorkspaceState,
+  projectId: string,
+): Phase1ProjectRegistry {
+  const existingProject = getPhase1Project(registry, projectId);
+
+  if (existingProject) {
+    return registry.activeProjectId === projectId
+      ? registry
+      : setActivePhase1Project(registry, projectId);
+  }
+
+  const fallbackProject = fallbackWorkspaceState.reviewState.project;
+  const workspaceState = applyProjectIdentity(fallbackWorkspaceState, {
+    customerName:
+      fallbackProject.customerName || fallbackWorkspaceState.source.customerName,
+    projectId,
+    projectName:
+      fallbackProject.projectName || fallbackWorkspaceState.source.projectName,
+  });
+  const project = createPhase1ProjectRecordFromWorkspaceState(workspaceState, {
+    currentStep: "source",
+    projectId,
+  });
+
+  return upsertPhase1Project(registry, project);
+}
+
 export function createPhase1ProjectRecordFromWorkspaceState(
   workspaceState: RequirementsWorkspaceState,
   options?: {

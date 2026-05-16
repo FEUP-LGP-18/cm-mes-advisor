@@ -40,6 +40,7 @@ Start with the job you are trying to do:
 
 - **Change UI safely:** [UI System](/docs/ui-system)
 - **Run tests and QA:** [Testing And Quality](/docs/testing-quality)
+- **Confirm pilot readiness:** [Release Checklist](/docs/release-checklist)
 - **Deploy and understand CI:** [Deployment And CI](/docs/deployment-ci)
 - **Keep these docs updated:** [Maintenance](/docs/maintenance)
 
@@ -76,7 +77,7 @@ These folders are not the product workflow, but they matter for day-to-day devel
 
 ## The Product Truth
 
-Phase 1 is Excel-first and human-reviewed. The current shipped workflow produces requirement-level comments, demo guidance, and a Markdown demo script. Phase 2 Master Data generation is later scope, not required for this Phase 1 product.
+Phase 1 is Excel-first and human-reviewed. The current shipped workflow produces requirement-level comments, demo guidance, and a Markdown demo script. Phase 2 is required for the pilot demo path after approved Phase 1 rows exist, but the package is not MES-validated until manual partner import validation happens.
 
 The app must not expose Bedrock, AWS, MCP, MES, or partner credentials in the browser.
 
@@ -103,7 +104,8 @@ For the full local support stack, run `./start.sh` from the workspace root, one 
 ## Things To Remember
 
 - The project unit is the local Phase 1 project, not a single global workbook page.
-- The current route flow is canonical: `source -> generate -> review -> script -> export`.
+- The current Phase 1 route flow is canonical: `source -> generate -> review -> script -> export`.
+- The pilot Phase 2 demo flow is canonical: `setup -> process -> review -> export -> traceability`.
 - Mock mode is the default and safe path for teammate onboarding.
 - Real mode is implemented behind server routes, but should not be described as partner-validated yet.
 - Do not treat local duplicate files with ` 2` in the filename as canonical source files.

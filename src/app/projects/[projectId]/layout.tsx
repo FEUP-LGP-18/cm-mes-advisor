@@ -2,13 +2,19 @@ import { Phase1ProjectProvider } from "@/components/phase1/project-provider";
 import { getFixtureWorkspaceState } from "@/lib/phase1/fixture";
 import {
   getProjectCapabilities,
+  getProjectRole,
   requireProjectCapability,
 } from "@/lib/projects/permissions.server";
 import {
   getProjectForUser,
   getProjectPhaseState,
 } from "@/lib/projects/repository.server";
-import type { CurrentUser, Project } from "@/lib/projects/types";
+import type {
+  CurrentUser,
+  Project,
+  ProjectCapability,
+  ProjectRole,
+} from "@/lib/projects/types";
 import {
   createProjectRecordFromPersistedPhase1State,
   PHASE1_PERSISTED_STATE_KEY,
@@ -51,6 +57,8 @@ export default async function ProjectLayout({
   let initialServerPhase1State: PersistedPhase1State | null = null;
   let initialServerPhase1Version = 0;
   let initialCurrentUser: CurrentUser | null = null;
+  let initialCurrentUserCapabilities: ProjectCapability[] = [];
+  let initialCurrentUserRole: ProjectRole | null = null;
   let initialCanUploadWorkbook = true;
   let initialCanEditPhase1 = true;
 
@@ -67,12 +75,15 @@ export default async function ProjectLayout({
       projectId,
       capabilityResult.data.id,
     );
+    initialCurrentUserCapabilities = capabilitiesResult.ok
+      ? capabilitiesResult.data
+      : [];
     initialCanUploadWorkbook =
-      capabilitiesResult.ok &&
-      capabilitiesResult.data.includes("upload_project_file");
+      initialCurrentUserCapabilities.includes("upload_project_file");
     initialCanEditPhase1 =
-      capabilitiesResult.ok &&
-      capabilitiesResult.data.includes("edit_project_state");
+      initialCurrentUserCapabilities.includes("edit_project_state");
+    const roleResult = await getProjectRole(projectId, capabilityResult.data.id);
+    initialCurrentUserRole = roleResult.ok ? roleResult.data : null;
 
     const projectResult = await getProjectForUser(
       projectId,
@@ -134,7 +145,9 @@ export default async function ProjectLayout({
       fallbackWorkspaceState={workspaceState}
       initialCanEditPhase1={initialCanEditPhase1}
       initialCanUploadWorkbook={initialCanUploadWorkbook}
+      initialCurrentUserCapabilities={initialCurrentUserCapabilities}
       initialCurrentUser={initialCurrentUser}
+      initialCurrentUserRole={initialCurrentUserRole}
       initialServerPhase1State={initialServerPhase1State}
       initialServerPhase1Version={initialServerPhase1Version}
       initialServerProject={initialServerProject}

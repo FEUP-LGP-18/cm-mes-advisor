@@ -9,19 +9,25 @@ import {
   type Phase1WorkflowStepState,
 } from "@/lib/phase1/workflow";
 import type { Phase1ProjectRecord } from "@/lib/phase1/project-registry";
+import type { ProjectRole } from "@/lib/projects/types";
+import CopyProjectLinkButton from "./copy-project-link-button";
 import Phase1Topbar from "./phase-topbar";
 
 export default function Phase1ProjectShell({
+  canEditPhase1 = true,
   children,
   currentStep,
+  currentUserRole = "owner",
   email,
   nextAction,
   persistenceFeedback,
   progress,
   project,
 }: {
+  canEditPhase1?: boolean;
   children: React.ReactNode;
   currentStep: Phase1WorkflowStep;
+  currentUserRole?: ProjectRole | null;
   email?: string | null;
   nextAction: Phase1NextAction;
   persistenceFeedback?: {
@@ -37,6 +43,7 @@ export default function Phase1ProjectShell({
     currentStep === "script" ||
     currentStep === "export" ||
     project.snapshot.exportReady;
+  const roleLabel = formatRole(currentUserRole ?? "owner");
 
   return (
     <main className="app-canvas min-h-screen text-[color:var(--shell-ink)]">
@@ -63,6 +70,9 @@ export default function Phase1ProjectShell({
             <div className="phase-shell-pill-row">
               <span className="phase-shell-pill">Phase 1</span>
               <span className="phase-shell-pill phase-shell-pill-muted">
+                {roleLabel}
+              </span>
+              <span className="phase-shell-pill phase-shell-pill-muted">
                 {currentStepMeta.label}
               </span>
               <span className="phase-shell-pill phase-shell-pill-muted">
@@ -80,6 +90,12 @@ export default function Phase1ProjectShell({
             <div className="phase-shell-title-block">
               <h1 className="phase-shell-title">{project.projectName}</h1>
               <p className="phase-shell-helper">{nextAction.helper}</p>
+              {!canEditPhase1 ? (
+                <p className="phase-feedback mt-3" role="status">
+                  Read-only workspace. You can inspect the workflow, but only
+                  editors and owners can save changes.
+                </p>
+              ) : null}
               {persistenceFeedback ? (
                 <p
                   className={`phase-feedback phase-feedback-${persistenceFeedback.tone} mt-3`}
@@ -102,6 +118,10 @@ export default function Phase1ProjectShell({
                 <SummaryItem
                   label="Workbook"
                   value={project.snapshot.sourceFilename}
+                />
+                <SummaryItem
+                  label="Last saved"
+                  value={formatDateTime(project.updatedAt)}
                 />
               </div>
 
@@ -130,6 +150,9 @@ export default function Phase1ProjectShell({
                     tone={project.snapshot.exportReady ? "positive" : "default"}
                   />
                 ) : null}
+              </div>
+              <div className="mt-4 flex flex-wrap justify-end gap-2">
+                <CopyProjectLinkButton projectId={project.projectId} />
               </div>
             </div>
           </div>
@@ -193,6 +216,25 @@ export default function Phase1ProjectShell({
       </div>
     </main>
   );
+}
+
+function formatRole(role: ProjectRole) {
+  return `${role[0].toUpperCase()}${role.slice(1)}`;
+}
+
+function formatDateTime(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Unknown";
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    month: "short",
+  }).format(date);
 }
 
 function SummaryItem({

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import ThemeToggle from "@/app/theme-toggle";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
@@ -23,22 +24,24 @@ export default function Phase1Topbar({ email }: { email?: string | null }) {
     <nav aria-label="Product" className="top-shell animate-enter">
       <div className="top-shell-brand">
         <div className="brand-lockup">
-          <Image
-            alt="Critical Manufacturing"
-            className="theme-logo theme-logo-light h-7 w-auto sm:h-8"
-            height={44}
-            priority
-            src="/brand/critical-manufacturing.svg"
-            width={178}
-          />
-          <Image
-            alt="Critical Manufacturing"
-            className="theme-logo theme-logo-dark h-7 w-auto sm:h-8"
-            height={44}
-            priority
-            src="/brand/critical-manufacturing-white.svg"
-            width={178}
-          />
+          <Link href="/" aria-label="Projects">
+            <Image
+              alt="Critical Manufacturing"
+              className="theme-logo theme-logo-light h-7 w-auto sm:h-8"
+              height={44}
+              priority
+              src="/brand/critical-manufacturing.svg"
+              width={178}
+            />
+            <Image
+              alt="Critical Manufacturing"
+              className="theme-logo theme-logo-dark h-7 w-auto sm:h-8"
+              height={44}
+              priority
+              src="/brand/critical-manufacturing-white.svg"
+              width={178}
+            />
+          </Link>
         </div>
 
         <div className="top-shell-copy">
@@ -50,6 +53,28 @@ export default function Phase1Topbar({ email }: { email?: string | null }) {
       </div>
 
       <div className="top-shell-partner">
+        {supabaseConfigured ? (
+          <div className="hidden items-center gap-2 lg:flex">
+            <Link
+              href="/"
+              className="focus-premium theme-shell-button-secondary rounded-xl px-3 py-2 text-xs font-semibold transition"
+            >
+              Projects
+            </Link>
+            <Link
+              href="/settings"
+              className="focus-premium theme-shell-button-secondary rounded-xl px-3 py-2 text-xs font-semibold transition"
+            >
+              Settings
+            </Link>
+            <Link
+              href="/profile"
+              className="focus-premium theme-shell-button-secondary rounded-xl px-3 py-2 text-xs font-semibold transition"
+            >
+              Profile
+            </Link>
+          </div>
+        ) : null}
         <span className="mono-label top-shell-partner-label">
           In collaboration with
         </span>
@@ -71,7 +96,10 @@ export default function Phase1Topbar({ email }: { email?: string | null }) {
         </div>
       </div>
 
-      <div className="top-shell-toggle" style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+      <div
+        className="top-shell-toggle"
+        style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
+      >
         {email ? (
           <span className="mono-label top-shell-partner-label hidden sm:inline">
             {email}

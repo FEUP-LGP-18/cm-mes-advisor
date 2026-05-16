@@ -73,6 +73,22 @@ It covers:
 - mobile ordering expectations
 - screenshots and artifacts
 
+## Supabase Permission QA
+
+When Supabase credentials and seeded test users are available, run the
+multi-user path before calling a release pilot-ready:
+
+- owner creates a project and invites editor/viewer test users
+- editor accepts the invite and saves Phase 1 state
+- viewer can inspect but cannot upload, review, generate, edit, or save
+- editor cannot manage members, invites, archive/delete, or project settings
+- non-member direct URLs are denied
+- stale save returns a conflict and does not overwrite newer state
+
+If local Supabase credentials or seeded users are unavailable, record that this
+path is partially unverified and rely on route/unit tests plus static review for
+the server-backed permission boundaries.
+
 ## Storybook
 
 Config:

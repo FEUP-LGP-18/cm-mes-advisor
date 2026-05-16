@@ -13,6 +13,7 @@ Schema migration:
 
 ```text
 supabase/migrations/20260430180000_core_project_collaboration_schema.sql
+supabase/migrations/20260516000000_profiles.sql
 ```
 
 ## Tables
@@ -21,6 +22,7 @@ The core tables are:
 
 | Table                     | Purpose                                               |
 | ------------------------- | ----------------------------------------------------- |
+| `profiles`                | User display name and safe account metadata           |
 | `projects`                | Project metadata, status, owner-created audit fields  |
 | `project_memberships`     | User membership and project role                      |
 | `project_invites`         | Invite records for later invite UI/email flows        |

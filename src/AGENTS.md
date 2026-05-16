@@ -7,7 +7,7 @@ These rules narrow the root `AGENTS.md` guidance for the Phase 1 product code in
 - Treat `src/app/projects/[projectId]/`, `src/components/phase1/`, `src/lib/phase1/`, and `src/lib/requirements/` as the main consultant-facing product surface.
 - The work unit is the `project`, not a single oversized workbook page.
 - Preserve the routed Phase 1 flow: `source -> generate -> review -> script -> export`.
-- Treat the routed `master-data/*` subtree as the optional Phase 2 continuation rather than as extra Phase 1 steps.
+- Treat the routed `master-data/*` subtree as the required pilot Phase 2 demo continuation rather than as extra Phase 1 steps.
 - Prefer shared shell, routed step, and queue/detail patterns over pushing everything back into one monolithic screen.
 
 ## UI Expectations
@@ -25,7 +25,7 @@ These rules narrow the root `AGENTS.md` guidance for the Phase 1 product code in
 
 ## Do Not
 
-- Do not imply that Phase 2 is the default finish line for every project, or that broad document ingestion or direct LibreChat UI is part of the default shipped scope.
+- Do not imply that Phase 2 is MES-validated, production-ready, or the default finish line outside the pilot demo; broad document ingestion and direct LibreChat UI are not part of the default shipped scope.
 - Do not let workflow chrome outrank the current task.
 - Do not repeat the same instruction across the title, intro, and support regions.
 - Do not call meaningful UI work in this subtree ready without browser evidence.

@@ -47,11 +47,30 @@ Vercel preview and production are expected to use:
 
 ```text
 GENERATION_MODE=mock
+NEXT_PUBLIC_SUPABASE_URL=<Supabase project URL>
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<Supabase publishable key>
 ```
 
 This keeps review deployments usable without partner credentials.
 
 Real mode should only be enabled when server-side MCP and Bedrock credentials are available and the team intentionally wants to validate that path.
+
+## Supabase Deployment Setup
+
+Before a Supabase-backed preview or production release:
+
+1. Apply reviewed migrations with `supabase db push`.
+2. Confirm `profiles`, project collaboration tables, storage bucket policies, and RLS are present.
+3. Configure Supabase Auth email/password providers and site URL for the Vercel deployment.
+4. Add redirect URLs for local, preview, and production callback paths:
+   `http://localhost:3000/auth/callback`,
+   `https://<preview-domain>/auth/callback`, and
+   `https://<production-domain>/auth/callback`.
+5. Confirm email templates link back to the configured app URL.
+6. Keep `SUPABASE_SERVICE_ROLE_KEY` unset unless a reviewed server-only admin task needs it.
+7. Verify the private `project-files` bucket exists and that workbook uploads are not public.
+
+Do not expose Supabase secret values in `/settings`, docs, screenshots, issue comments, or generated exports. The global settings page should only show safe configured/not-configured indicators.
 
 ## Pull Request Flow
 

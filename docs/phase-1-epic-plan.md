@@ -25,6 +25,8 @@ Phase 1 should be understood as a consultant-reviewed, Excel-first workflow that
 - Real generation path behind the server provider boundary
 - Demo script assembly and Markdown export
 - Supabase Auth: login, signup, forgot/reset password, PKCE callback, logout, and middleware-based route protection
+- Supabase profiles, global settings status, project roles, activity visibility, and Phase 1 state persistence
+- Required pilot Phase 2 demo path: setup, generation, review, export, and traceability
 
 ## Current Direction
 
@@ -34,7 +36,7 @@ The next meaningful work should stay aligned with this product shape:
 - keep the review workspace as the core Phase 1 artifact surface
 - keep setup and onboarding docs aligned with the current project-first model, with the root `start.sh` script as the preferred full-stack local startup entrypoint
 - improve real-mode confidence only after the partner access blocker is resolved
-- preserve honest scope language so Phase 1 feels complete without forcing the optional Phase 2 continuation
+- preserve honest scope language so Phase 2 is required for the pilot demo without implying MES import validation
 
 ## External Blockers
 
@@ -57,8 +59,8 @@ These are not part of current Phase 1 completion unless the task explicitly chan
 - direct LibreChat product shell
 - broader heterogeneous document ingestion
 - alternative export formats such as PDF or Word
-- production-grade backend persistence replacing the current local prototype storage
-- team collaboration or settings/template systems beyond what the repo already contains
+- production operations hardening beyond the documented pilot checklist
+- team settings/template systems beyond what the repo already contains
 
 ## Delivery Rule
 
@@ -79,4 +81,4 @@ Use these to guide specific workstreams:
 - [docs/design/phase1-ui-audit-2026-04-21.md](design/phase1-ui-audit-2026-04-21.md)
 - [docs/discovery/rui-answers-2026-04-14.md](discovery/rui-answers-2026-04-14.md)
 
-Note: Phase 2 Master Data generation now exists as a separate optional continuation under the routed project shell, but it should still be discussed as a follow-on workflow rather than a Phase 1 requirement.
+Note: Phase 2 Master Data generation now exists as the required pilot demo continuation under the routed project shell. It should still be discussed as not MES-validated until manual partner import validation happens.
