@@ -78,6 +78,8 @@ function makeProps(
     onFormDescriptionChange: noop,
     onFormNameChange: noop,
     onFormSubmit: noop,
+    onRemoveLocalProject: noop,
+    onResetLocalProject: noop,
     onUnarchiveRequest: noop,
     ...overrides,
   };
@@ -137,7 +139,7 @@ describe("GeneralSettingsView", () => {
     expect(html).toContain("Delete project");
   });
 
-  it("hides server-only fields and lifecycle actions for local projects", () => {
+  it("hides server-only fields and exposes local demo recovery actions for local projects", () => {
     const html = renderToStaticMarkup(
       <GeneralSettingsView {...makeProps({ isServerBacked: false })} />,
     );
@@ -146,6 +148,9 @@ describe("GeneralSettingsView", () => {
     expect(html).not.toContain("Description");
     expect(html).not.toContain("Archive project");
     expect(html).not.toContain("Delete project");
+    expect(html).toContain("Local demo controls");
+    expect(html).toContain("Reset to sample start");
+    expect(html).toContain("Remove from local list");
   });
 
   it("shows archive confirmation panel when archiveConfirmOpen is true", () => {

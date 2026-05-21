@@ -91,8 +91,8 @@ describe("guided requirements workflow", () => {
       step: "export",
       label: "Export",
       subtitle: "Download handoff",
-      status: "complete",
-      statusLabel: "Export complete",
+      status: "ready",
+      statusLabel: "Export ready",
     });
   });
 
@@ -116,8 +116,8 @@ describe("guided requirements workflow", () => {
       step: "export",
       label: "Export",
       subtitle: "Download handoff",
-      status: "complete",
-      statusLabel: "Export complete",
+      status: "ready",
+      statusLabel: "Export ready",
     });
   });
 

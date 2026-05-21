@@ -91,6 +91,34 @@ describe("MasterDataSetupStudio", () => {
     );
   });
 
+  it("shows approved rows as not analyzed yet before the first Phase 2 analysis", () => {
+    const html = render(
+      <MasterDataSetupStudio
+        applicableRequirements={[]}
+        approvedCount={2}
+        feedback="Approve at least one Phase 1 row before starting Phase 2. Master Data setup only analyzes the approved consultant slice."
+        hasAnalysisRun={false}
+        hasGeneratedPhase1Drafts
+        mode="mock"
+        onAnalyze={async () => true}
+        onContinueToProcess={vi.fn()}
+        onModeChange={vi.fn()}
+        onOpenPhase1Generate={vi.fn()}
+        onOpenPhase1Review={vi.fn()}
+        onToggleObjectType={vi.fn()}
+        onToggleRequirement={vi.fn()}
+        selectedObjectTypes={["enterprise", "site"]}
+        selectedRequirementKeys={[]}
+      />,
+    );
+
+    expect(html).toContain("Not analyzed yet");
+    expect(html).toContain("Analyze approved rows");
+    expect(html).not.toContain(
+      "Approve at least one Phase 1 row before starting Phase 2",
+    );
+  });
+
   it("renders the approved-slice table once applicable rows exist", () => {
     const html = render(
       <MasterDataSetupStudio
@@ -117,6 +145,6 @@ describe("MasterDataSetupStudio", () => {
     expect(html).toContain("Approved in Phase 1");
     expect(html).toContain("Generation mode");
     expect(html).toContain("Prototype drafts");
-    expect(html).toContain("Generate Master Data");
+    expect(html).toContain("Continue to processing");
   });
 });

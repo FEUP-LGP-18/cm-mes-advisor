@@ -81,6 +81,7 @@ import {
   type Phase1WorkflowStepState,
 } from "@/lib/phase1/workflow";
 import {
+  MASTER_DATA_APPROVAL_REQUIRED_FEEDBACK,
   createInitialMasterDataPhase2State,
   flattenMasterDataObjects,
   type MasterDataDraftObject,
@@ -213,6 +214,8 @@ interface Phase1ProjectContextValue {
     name: string,
     customerName: string | null,
   ) => void;
+  resetLocalProjectProgress: () => void;
+  removeLocalProjectFromQueue: () => void;
   generateRows: (
     targetRequirements: ReviewRequirement[],
     targetLabel: string,
@@ -411,15 +414,19 @@ export function Phase1ProjectProvider({
       storedMasterDataPhase2.selectedRequirementKeys.filter((requirementKey) =>
         applicableRequirementKeySet.has(requirementKey),
       );
+    const generationFeedback =
+      approvedRequirementKeySet.size === 0 &&
+      storedMasterDataPhase2.currentStep === "setup"
+        ? MASTER_DATA_APPROVAL_REQUIRED_FEEDBACK
+        : storedMasterDataPhase2.generationFeedback ===
+            MASTER_DATA_APPROVAL_REQUIRED_FEEDBACK
+          ? null
+          : storedMasterDataPhase2.generationFeedback;
 
     return {
       ...storedMasterDataPhase2,
       applicableRequirements,
-      generationFeedback:
-        approvedRequirementKeySet.size === 0 &&
-        storedMasterDataPhase2.currentStep === "setup"
-          ? "Approve at least one Phase 1 row before starting Phase 2. Master Data setup only analyzes the approved consultant slice."
-          : storedMasterDataPhase2.generationFeedback,
+      generationFeedback,
       mode: storedMasterDataPhase2.active
         ? storedMasterDataPhase2.mode
         : "mock",
@@ -785,6 +792,54 @@ export function Phase1ProjectProvider({
     },
     [hasServerProject, persistProject, project],
   );
+
+  const resetLocalProjectProgress = useCallback(() => {
+    if (!project || hasServerProject) {
+      return;
+    }
+
+    persistProject((currentProject) => {
+      const resetWorkspaceState = createFixtureWorkspaceStateForProject(
+        currentProject,
+        fallbackWorkspaceState,
+      );
+
+      return createPhase1ProjectRecordFromWorkspaceState(resetWorkspaceState, {
+        activeFlow: "phase1",
+        createdAt: currentProject.createdAt,
+        currentStep: "source",
+        phase2: createInitialMasterDataPhase2State(),
+        projectId: currentProject.projectId,
+      });
+    });
+  }, [fallbackWorkspaceState, hasServerProject, persistProject, project]);
+
+  const removeLocalProjectFromQueue = useCallback(() => {
+    if (!project || hasServerProject) {
+      return;
+    }
+
+    setRegistry((currentRegistry) => {
+      if (!currentRegistry) {
+        return currentRegistry;
+      }
+
+      const nextProjects = currentRegistry.projects.filter(
+        (entry) => entry.projectId !== project.projectId,
+      );
+      const nextActiveProjectId =
+        currentRegistry.activeProjectId === project.projectId
+          ? (nextProjects[0]?.projectId ?? null)
+          : currentRegistry.activeProjectId;
+      const nextRegistry = createPhase1ProjectRegistry(
+        nextProjects,
+        nextActiveProjectId,
+      );
+
+      savePhase1ProjectRegistry(window.localStorage, nextRegistry);
+      return nextRegistry;
+    });
+  }, [hasServerProject, project]);
 
   const uploadWorkbook = useCallback(
     async (file: File) => {
@@ -1486,6 +1541,8 @@ export function Phase1ProjectProvider({
       workspaceState,
       updateDemoScriptDraft: updateDemoScriptDraftAction,
       updateLocalProjectMetadata,
+      resetLocalProjectProgress,
+      removeLocalProjectFromQueue,
       updateMasterDataObjectField,
       updateMasterDataObjectReviewStatus,
       updateRequirementReview,
@@ -1518,6 +1575,8 @@ export function Phase1ProjectProvider({
       persistenceFeedback,
       project,
       registry,
+      removeLocalProjectFromQueue,
+      resetLocalProjectProgress,
       restoreFixtureSource,
       reviewRequirements,
       routeProjectId,

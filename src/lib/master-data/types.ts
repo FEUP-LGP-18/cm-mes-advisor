@@ -20,6 +20,9 @@ export type MasterDataGenerationStatus = "idle" | "running" | "ready" | "error";
 
 export type MasterDataReviewStatus = "pending" | "review" | "approved";
 
+export const MASTER_DATA_APPROVAL_REQUIRED_FEEDBACK =
+  "Approve at least one Phase 1 row before starting Phase 2. Master Data setup only analyzes the approved consultant slice.";
+
 export type MasterDataDraftFieldSource =
   | "template"
   | "default"

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  MASTER_DATA_APPROVAL_REQUIRED_FEEDBACK,
   masterDataObjectTypeLabels,
   masterDataObjectTypes,
   type MasterDataApplicableRequirement,
@@ -43,6 +44,10 @@ export default function MasterDataSetupStudio({
 }) {
   const hasAnalysis = applicableRequirements.length > 0;
   const isPhase2Locked = approvedCount === 0;
+  const visibleFeedback =
+    !isPhase2Locked && feedback === MASTER_DATA_APPROVAL_REQUIRED_FEEDBACK
+      ? null
+      : feedback;
   const primaryUnlockLabel = hasGeneratedPhase1Drafts
     ? "Open Phase 1 review"
     : "Generate Phase 1 drafts";
@@ -69,7 +74,13 @@ export default function MasterDataSetupStudio({
             <strong>{approvedCount}</strong> approved rows
           </span>
           <span>
-            <strong>{applicableRequirements.length}</strong> applicable rows
+            {hasAnalysisRun || hasAnalysis ? (
+              <>
+                <strong>{applicableRequirements.length}</strong> applicable rows
+              </>
+            ) : (
+              "Not analyzed yet"
+            )}
           </span>
           <span>
             <strong>{selectedRequirementKeys.length}</strong> selected
@@ -215,7 +226,7 @@ export default function MasterDataSetupStudio({
             </div>
           ) : (
             <div className="phase-empty-state">
-              <p className="phase-overline">No analysis yet</p>
+              <p className="phase-overline">Not analyzed yet</p>
               <h3 className="mt-3 text-2xl font-semibold tracking-[-0.04em]">
                 Run the first applicability pass
               </h3>
@@ -307,9 +318,9 @@ export default function MasterDataSetupStudio({
               </div>
             </div>
 
-            {feedback ? (
+            {visibleFeedback ? (
               <div className="rounded-2xl border px-4 py-3 text-sm tone-neutral">
-                {feedback}
+                {visibleFeedback}
               </div>
             ) : null}
 
@@ -323,7 +334,7 @@ export default function MasterDataSetupStudio({
               }
               className="focus-premium theme-button-primary phase-setup-generate-button rounded-2xl px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Generate Master Data
+              Continue to processing
             </button>
           </section>
           )}

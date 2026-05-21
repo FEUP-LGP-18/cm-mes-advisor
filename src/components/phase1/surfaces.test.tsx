@@ -334,7 +334,33 @@ describe("phase 1 redesigned surfaces", () => {
     expect(html).toContain("Review generated requirements");
     expect(html).toContain("Pending requirements");
     expect(html).toContain("Search and filter generated rows");
+    expect(html).toContain("Approve ready rows");
+    expect(html).toContain("Skip remaining rows");
     expect(html).toContain("Approve");
+  });
+
+  it("renders the cleared review queue as a ready state, not a blocked state", () => {
+    const reviewRequirements = createPhase1UiFixtureReviewRequirements({
+      "01.01": "approved",
+      "01.02": "approved",
+    });
+    const html = render(
+      <ReviewStudio
+        approvedCount={2}
+        generatedCount={2}
+        generatedReviewableRequirements={[]}
+        onGenerateDemoRows={async () => false}
+        onGoToGenerate={vi.fn()}
+        onOpenScript={vi.fn()}
+        onReviewAction={vi.fn()}
+        projectId={phase1UiFixtureProjectMetadata.projectId}
+        reviewRequirements={reviewRequirements}
+      />,
+    );
+
+    expect(html).toContain("Review queue cleared");
+    expect(html).toContain("Ready state");
+    expect(html).not.toContain("Blocked state");
   });
 
   it("renders script as blocked while pending review work remains", () => {
@@ -390,6 +416,7 @@ describe("phase 1 redesigned surfaces", () => {
     expect(draft.title).toContain(phase1UiFixtureProjectMetadata.projectName);
     expect(html).toContain("Ready to download");
     expect(html).toContain("Download Markdown");
+    expect(html).toContain("Not downloaded yet");
     expect(html).toContain("Format:");
     expect(html).toContain("Required pilot demo");
     expect(html).toContain("Start Phase 2 demo");

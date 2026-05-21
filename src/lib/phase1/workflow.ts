@@ -10,7 +10,11 @@ export type LegacyPhase1WorkflowStep =
   | "setup"
   | "handoff";
 
-export type Phase1WorkflowStepStatus = "available" | "blocked" | "complete";
+export type Phase1WorkflowStepStatus =
+  | "available"
+  | "blocked"
+  | "complete"
+  | "ready";
 
 export interface Phase1WorkflowSnapshot {
   sourceRowCount: number;
@@ -250,6 +254,6 @@ function getStepStatus(
         return "blocked";
       }
 
-      return "complete";
+      return "ready";
   }
 }

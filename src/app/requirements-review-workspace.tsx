@@ -1364,6 +1364,7 @@ export function ReviewWorkflowStep({
       <GuidedBlockerCard
         actionLabel="Open script"
         body="Approved rows are ready to be assembled into the Phase 1 handoff."
+        eyebrow="Ready state"
         onAction={onOpenScript}
         title="Review queue cleared"
       />
@@ -1450,21 +1451,29 @@ export function ReviewWorkflowStep({
 export function ReviewQueueNavigator({
   activeQueueIndex,
   approvedCount,
+  canEdit = true,
   currentRequirement,
+  onApproveReadyRows,
   onOpenScript,
   onSelectNext,
   onSelectPrevious,
   onSelectQueueRequirement,
+  onSkipRemainingRows,
+  readyBulkCount = 0,
   reviewQueue,
   stickyOnDesktop = true,
 }: {
   activeQueueIndex: number;
   approvedCount: number;
+  canEdit?: boolean;
   currentRequirement: ReviewRequirement | null;
+  onApproveReadyRows?: () => void;
   onOpenScript: () => void;
   onSelectNext: (requirement: ReviewRequirement | null) => void;
   onSelectPrevious: (requirement: ReviewRequirement | null) => void;
   onSelectQueueRequirement: (requirement: ReviewRequirement) => void;
+  onSkipRemainingRows?: () => void;
+  readyBulkCount?: number;
   reviewQueue: ReviewRequirement[];
   stickyOnDesktop?: boolean;
 }) {
@@ -1517,6 +1526,44 @@ export function ReviewQueueNavigator({
           suffix={activeQueueIndex >= 0 ? `/${reviewQueue.length}` : ""}
         />
       </div>
+
+      {onApproveReadyRows || onSkipRemainingRows ? (
+        <div className="theme-shell-card-soft mt-4 rounded-[1.15rem] p-4">
+          <p className="theme-shell-subtle mono-label text-[0.56rem]">
+            Bulk decisions
+          </p>
+          <p className="theme-shell-body mt-2 text-xs leading-5">
+            Use this only for demo-speed review. Row-level decisions stay
+            available in the main card.
+          </p>
+          <div className="mt-3 grid gap-2">
+            {onApproveReadyRows ? (
+              <button
+                type="button"
+                onClick={onApproveReadyRows}
+                disabled={!canEdit || readyBulkCount === 0}
+                className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-2.5 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Approve ready rows
+              </button>
+            ) : null}
+            {onSkipRemainingRows ? (
+              <button
+                type="button"
+                onClick={onSkipRemainingRows}
+                disabled={!canEdit || reviewQueue.length === 0}
+                className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-2.5 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Skip remaining rows
+              </button>
+            ) : null}
+          </div>
+          <p className="theme-shell-subtle mt-2 text-xs leading-5">
+            {readyBulkCount} pending row{readyBulkCount === 1 ? "" : "s"} have
+            no validation flags.
+          </p>
+        </div>
+      ) : null}
 
       <details className="theme-shell-card-soft mt-4 rounded-[1.15rem] p-4 xl:hidden">
         <summary className="theme-shell-title cursor-pointer text-sm font-bold">
@@ -1989,19 +2036,21 @@ function GuidedBlockerCard({
   actionDisabled = false,
   actionLabel,
   body,
+  eyebrow = "Blocked state",
   onAction,
   title,
 }: {
   actionDisabled?: boolean;
   actionLabel?: string;
   body: string;
+  eyebrow?: string;
   onAction?: () => void | Promise<void>;
   title: string;
 }) {
   return (
     <section className="theme-shell-card-slate rounded-2xl border border-dashed p-6">
       <p className="theme-shell-kicker mono-label text-[0.68rem]">
-        Blocked state
+        {eyebrow}
       </p>
       <h3 className="theme-shell-title mt-2 text-3xl font-black tracking-[-0.04em]">
         {title}

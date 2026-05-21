@@ -158,6 +158,7 @@ describe("demo script panels", () => {
     expect(markup).toContain("Finalize the Phase 1 deliverable");
     expect(markup).toContain("Ready to download");
     expect(markup).toContain("Download Markdown");
+    expect(markup).toContain("Not downloaded yet");
     expect(markup).toContain("Included requirements");
     expect(markup).not.toContain("Script title");
   });

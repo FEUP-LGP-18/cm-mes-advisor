@@ -59,31 +59,21 @@ async function assertNoHorizontalOverflow(page: Page) {
 }
 
 async function approveGeneratedMasterDataObjects(page: Page) {
-  await page.evaluate((storageKey) => {
-    const rawRegistry = window.localStorage.getItem(storageKey);
+  const approveButton = page.getByRole("button", {
+    name: "Approve and next object",
+  });
+  const openExportButton = page.getByRole("button", { name: "Open export" });
 
-    if (!rawRegistry) {
-      throw new Error("Project registry was not seeded.");
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    if (await openExportButton.isEnabled()) {
+      return;
     }
 
-    const registry = JSON.parse(rawRegistry) as Phase1ProjectRegistry;
-    const project = registry.projects[0];
+    await expect(approveButton).toBeEnabled();
+    await approveButton.click();
+  }
 
-    if (!project) {
-      throw new Error("Project registry did not contain a project.");
-    }
-
-    Object.values(project.phase2.generatedObjects).forEach((objects) => {
-      objects.forEach((objectDraft) => {
-        objectDraft.reviewStatus = "approved";
-      });
-    });
-    project.activeFlow = "master-data";
-    project.phase2.active = true;
-    project.phase2.currentStep = "export";
-
-    window.localStorage.setItem(storageKey, JSON.stringify(registry));
-  }, PHASE1_PROJECT_REGISTRY_STORAGE_KEY);
+  await expect(openExportButton).toBeEnabled();
 }
 
 test("locked Phase 2 setup hides inactive generation controls", async ({
@@ -152,12 +142,12 @@ test("approved Phase 1 rows can move through Phase 2 draft review and traceabili
   await page.getByRole("button", { name: "Analyze approved rows" }).click();
   await expect(page.getByText("Batch review support")).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Generate Master Data" }),
+    page.getByRole("button", { name: "Continue to processing" }),
   ).toBeEnabled();
   await assertNoHorizontalOverflow(page);
   await attachFullPageScreenshot(page, testInfo, "phase2-setup-ready");
 
-  await page.getByRole("button", { name: "Generate Master Data" }).click();
+  await page.getByRole("button", { name: "Continue to processing" }).click();
   await expect(
     page.getByRole("heading", { name: "Review package ready" }),
   ).toBeVisible();

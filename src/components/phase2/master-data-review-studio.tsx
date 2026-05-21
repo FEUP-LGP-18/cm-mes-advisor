@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   masterDataObjectTypeLabels,
   masterDataObjectTypes,
+  type MasterDataDraftObject,
   type MasterDataPhase2State,
   type MasterDataReviewStatus,
 } from "@/lib/master-data/types";
@@ -27,14 +28,21 @@ export default function MasterDataReviewStudio({
   phase2: MasterDataPhase2State;
 }) {
   const objectGroups = phase2.generatedObjects;
+  const allObjects = masterDataObjectTypes.flatMap(
+    (objectType) => objectGroups[objectType] ?? [],
+  );
   const availableObjectTypes = masterDataObjectTypes.filter(
     (objectType) => objectGroups[objectType].length > 0,
   );
+  const initialReviewObject =
+    allObjects.find((objectDraft) => objectDraft.reviewStatus !== "approved") ??
+    allObjects[0] ??
+    null;
   const [activeObjectType, setActiveObjectType] = useState(
-    availableObjectTypes[0] ?? "enterprise",
+    initialReviewObject?.objectType ?? availableObjectTypes[0] ?? "enterprise",
   );
   const [activeObjectId, setActiveObjectId] = useState<string | null>(
-    objectGroups[availableObjectTypes[0] ?? "enterprise"]?.[0]?.objectId ?? null,
+    initialReviewObject?.objectId ?? null,
   );
   const resolvedActiveObjectType = availableObjectTypes.includes(activeObjectType)
     ? activeObjectType
@@ -44,9 +52,34 @@ export default function MasterDataReviewStudio({
     visibleObjects.find((objectDraft) => objectDraft.objectId === activeObjectId) ??
     visibleObjects[0] ??
     null;
-  const allApproved = Object.values(objectGroups)
-    .flat()
-    .every((objectDraft) => objectDraft.reviewStatus === "approved");
+  const activeObjectIndex = activeObject
+    ? allObjects.findIndex(
+        (objectDraft) => objectDraft.objectId === activeObject.objectId,
+      )
+    : -1;
+  const approvedObjectCount = allObjects.filter(
+    (objectDraft) => objectDraft.reviewStatus === "approved",
+  ).length;
+  const pendingDecisionCount = allObjects.length - approvedObjectCount;
+  const allApproved = allObjects.length > 0 && pendingDecisionCount === 0;
+
+  function selectObject(objectDraft: MasterDataDraftObject) {
+    setActiveObjectType(objectDraft.objectType);
+    setActiveObjectId(objectDraft.objectId);
+  }
+
+  function handleApproveAndNextObject() {
+    if (!activeObject) {
+      return;
+    }
+
+    onUpdateReviewStatus(activeObject.objectId, "approved");
+    const nextObject = findNextReviewObject(allObjects, activeObject);
+
+    if (nextObject) {
+      selectObject(nextObject);
+    }
+  }
 
   return (
     <section className="grid gap-6">
@@ -62,6 +95,11 @@ export default function MasterDataReviewStudio({
             validate outside the app.
           </p>
         </div>
+        <div className="phase-inline-metrics">
+          <span>{allObjects.length} objects</span>
+          <span>{approvedObjectCount} approved</span>
+          <span>{pendingDecisionCount} need decisions</span>
+        </div>
       </section>
 
       {activeObject ? (
@@ -69,62 +107,62 @@ export default function MasterDataReviewStudio({
           <aside className="phase-rail">
             <section className="phase-rail-card grid gap-4">
               <div>
-                <p className="phase-overline">Object types</p>
+                <p className="phase-overline">Object navigation</p>
                 <h3 className="phase-rail-title">Review queue</h3>
               </div>
 
-              <div className="grid gap-2">
-                {availableObjectTypes.map((objectType) => (
-                  <button
-                    key={objectType}
-                    type="button"
-                    onClick={() => {
-                      setActiveObjectType(objectType);
-                      setActiveObjectId(objectGroups[objectType][0]?.objectId ?? null);
-                    }}
-                    className={`theme-shell-card rounded-2xl px-4 py-3 text-left text-sm font-semibold transition ${
-                      objectType === resolvedActiveObjectType
-                        ? "theme-shell-card-active"
-                        : ""
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <span>{masterDataObjectTypeLabels[objectType]}</span>
-                      <span className="shell-chip shell-chip-neutral">
-                        {objectGroups[objectType].length}
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
+              <div className="grid gap-3">
+                {availableObjectTypes.map((objectType) => {
+                  const typeObjects = objectGroups[objectType] ?? [];
+                  const typeApprovedCount = typeObjects.filter(
+                    (objectDraft) => objectDraft.reviewStatus === "approved",
+                  ).length;
 
-              <div className="phase-sidebar-panel">
-                <div className="phase-sidebar-copy">
-                  <p className="phase-overline">Objects</p>
-                  <h4 className="theme-shell-title text-base font-semibold">
-                    {masterDataObjectTypeLabels[resolvedActiveObjectType]}
-                  </h4>
-                </div>
-
-                <div className="grid gap-2">
-                  {visibleObjects.map((objectDraft) => (
-                    <button
-                      key={objectDraft.objectId}
-                      type="button"
-                      onClick={() => setActiveObjectId(objectDraft.objectId)}
-                      className={`theme-shell-card rounded-2xl px-4 py-3 text-left transition ${
-                        objectDraft.objectId === activeObject.objectId
-                          ? "theme-shell-card-active"
-                          : ""
-                      }`}
+                  return (
+                    <div
+                      key={objectType}
+                      className="rounded-2xl border border-[color:var(--shell-border)] p-3"
                     >
-                      <strong className="block text-sm">{objectDraft.name}</strong>
-                      <span className="mt-1 block text-xs text-[color:var(--shell-subtle)]">
-                        {objectDraft.reviewStatus}
-                      </span>
-                    </button>
-                  ))}
-                </div>
+                      <button
+                        type="button"
+                        onClick={() => selectObject(typeObjects[0])}
+                        className={`focus-premium w-full rounded-xl px-2 py-2 text-left text-sm font-semibold transition ${
+                          objectType === resolvedActiveObjectType
+                            ? "theme-shell-card-active"
+                            : ""
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <span>{masterDataObjectTypeLabels[objectType]}</span>
+                          <span className="shell-chip shell-chip-neutral">
+                            {typeApprovedCount}/{typeObjects.length} approved
+                          </span>
+                        </div>
+                      </button>
+                      <div className="mt-2 grid gap-2">
+                        {typeObjects.map((objectDraft) => (
+                          <button
+                            key={objectDraft.objectId}
+                            type="button"
+                            onClick={() => selectObject(objectDraft)}
+                            className={`focus-premium rounded-xl border px-3 py-2.5 text-left transition ${
+                              objectDraft.objectId === activeObject.objectId
+                                ? "theme-shell-card-active"
+                                : "theme-shell-card-soft"
+                            }`}
+                          >
+                            <strong className="block text-sm">
+                              {objectDraft.name}
+                            </strong>
+                            <span className="mt-1 block text-xs text-[color:var(--shell-subtle)]">
+                              {formatReviewStatus(objectDraft.reviewStatus)}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </section>
           </aside>
@@ -141,38 +179,43 @@ export default function MasterDataReviewStudio({
                   </p>
                 </div>
 
-                <div className="flex flex-wrap gap-3">
+                <div className="grid gap-3 sm:min-w-[240px]">
+                  <p className="phase-overline">Review decision</p>
                   <button
                     type="button"
-                    onClick={() =>
-                      onUpdateReviewStatus(activeObject.objectId, "pending")
-                    }
-                    className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-semibold transition"
-                  >
-                    Mark pending
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onUpdateReviewStatus(activeObject.objectId, "review")
-                    }
-                    className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-semibold transition"
-                  >
-                    Needs review
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onUpdateReviewStatus(activeObject.objectId, "approved")
-                    }
+                    onClick={handleApproveAndNextObject}
                     className="focus-premium theme-button-primary rounded-2xl px-4 py-3 text-sm font-semibold transition"
                   >
-                    Approve object
+                    Approve and next object
                   </button>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onUpdateReviewStatus(activeObject.objectId, "pending")
+                      }
+                      className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-semibold transition"
+                    >
+                      Mark pending
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onUpdateReviewStatus(activeObject.objectId, "review")
+                      }
+                      className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-semibold transition"
+                    >
+                      Needs review
+                    </button>
+                  </div>
                 </div>
               </div>
 
               <div className="phase-inline-metrics">
+                <span>
+                  {activeObjectIndex + 1} of {allObjects.length} objects
+                </span>
+                <span>{pendingDecisionCount} need decisions</span>
                 <span>
                   <strong>{activeObject.sourceRequirementKeys.length}</strong> source rows
                 </span>
@@ -183,7 +226,7 @@ export default function MasterDataReviewStudio({
                   <strong>{activeObject.confidence.level}</strong> confidence
                 </span>
                 <span>
-                  <strong>{activeObject.reviewStatus}</strong> status
+                  <strong>{formatReviewStatus(activeObject.reviewStatus)}</strong> status
                 </span>
               </div>
 
@@ -283,4 +326,32 @@ export default function MasterDataReviewStudio({
       )}
     </section>
   );
+}
+
+function findNextReviewObject(
+  objects: MasterDataDraftObject[],
+  activeObject: MasterDataDraftObject,
+) {
+  const activeIndex = objects.findIndex(
+    (objectDraft) => objectDraft.objectId === activeObject.objectId,
+  );
+  const isNextCandidate = (objectDraft: MasterDataDraftObject) =>
+    objectDraft.objectId !== activeObject.objectId &&
+    objectDraft.reviewStatus !== "approved";
+  const nextAfterCurrent = objects
+    .slice(activeIndex + 1)
+    .find(isNextCandidate);
+
+  return nextAfterCurrent ?? objects.find(isNextCandidate) ?? null;
+}
+
+function formatReviewStatus(status: MasterDataReviewStatus) {
+  switch (status) {
+    case "approved":
+      return "Approved";
+    case "pending":
+      return "Pending";
+    case "review":
+      return "Needs review";
+  }
 }

@@ -42,6 +42,8 @@ export interface GeneralSettingsViewProps {
   onFormDescriptionChange: (value: string) => void;
   onFormNameChange: (value: string) => void;
   onFormSubmit: (e: React.FormEvent) => void;
+  onRemoveLocalProject: () => void;
+  onResetLocalProject: () => void;
   onUnarchiveRequest: () => void;
 }
 
@@ -74,6 +76,8 @@ export function GeneralSettingsView({
   onFormDescriptionChange,
   onFormNameChange,
   onFormSubmit,
+  onRemoveLocalProject,
+  onResetLocalProject,
   onUnarchiveRequest,
 }: GeneralSettingsViewProps) {
   const isArchived = project?.status === "archived";
@@ -270,6 +274,40 @@ export function GeneralSettingsView({
         </form>
       </section>
 
+      {isOwner && !isServerBacked ? (
+        <section
+          aria-labelledby="general-local-demo-heading"
+          className="phase-section-card"
+        >
+          <div className="phase-section-copy">
+            <h2 className="phase-section-title" id="general-local-demo-heading">
+              Local demo controls
+            </h2>
+            <p className="phase-section-body">
+              Reset this browser-only project for another walkthrough, or
+              remove it from the local project list when the demo run is done.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={onResetLocalProject}
+              className="focus-premium theme-shell-button-secondary rounded-2xl px-5 py-2.5 text-sm font-semibold transition"
+            >
+              Reset to sample start
+            </button>
+            <button
+              type="button"
+              onClick={onRemoveLocalProject}
+              className="focus-premium theme-shell-button-secondary rounded-2xl px-5 py-2.5 text-sm font-semibold transition"
+            >
+              Remove from local list
+            </button>
+          </div>
+        </section>
+      ) : null}
+
       {/* Archive */}
       {canManageLifecycle && (
         <section
@@ -451,8 +489,12 @@ export default function GeneralSettings({
   recentActivityEvents?: ProjectActivityEvent[];
   serverProject: Project | null;
 }) {
-  const { project: localProject, updateLocalProjectMetadata } =
-    usePhase1Project();
+  const {
+    project: localProject,
+    removeLocalProjectFromQueue,
+    resetLocalProjectProgress,
+    updateLocalProjectMetadata,
+  } = usePhase1Project();
   const router = useRouter();
 
   const [project, setProject] = useState<Project | null>(serverProject);
@@ -569,6 +611,25 @@ export default function GeneralSettings({
       updateLocalProjectMetadata,
     ],
   );
+
+  const handleResetLocalProject = useCallback(() => {
+    resetLocalProjectProgress();
+    showFeedback("Local demo reset to the sample workbook start.", "success");
+    router.push(`/projects/${encodeURIComponent(projectId)}/source`);
+  }, [projectId, resetLocalProjectProgress, router, showFeedback]);
+
+  const handleRemoveLocalProject = useCallback(() => {
+    const confirmed = window.confirm(
+      "Remove this local project from the project list on this browser?",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    removeLocalProjectFromQueue();
+    router.push("/");
+  }, [removeLocalProjectFromQueue, router]);
 
   const handleArchiveConfirm = useCallback(async () => {
     setIsArchiving(true);
@@ -691,6 +752,8 @@ export default function GeneralSettings({
         onFormDescriptionChange={setFormDescription}
         onFormNameChange={setFormName}
         onFormSubmit={handleFormSubmit}
+        onRemoveLocalProject={handleRemoveLocalProject}
+        onResetLocalProject={handleResetLocalProject}
         onUnarchiveRequest={handleUnarchiveRequest}
       />
     </main>

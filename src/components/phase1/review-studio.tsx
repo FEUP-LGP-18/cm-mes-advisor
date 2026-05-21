@@ -5,6 +5,8 @@ import type {
   RequirementReviewAction,
   ReviewRequirement,
 } from "@/lib/requirements/review";
+import { assessRequirementSupport } from "@/lib/requirements/generation";
+import { evaluateRequirementValidation } from "@/lib/requirements/validation";
 import {
   GuidedReviewCard,
   ReviewQueueNavigator,
@@ -46,6 +48,10 @@ export default function ReviewStudio({
   const explorerFilterStorageKey = `cm-mes-advisor:review-explorer-filter:${projectId}`;
   const explorerQueryStorageKey = `cm-mes-advisor:review-explorer-query:${projectId}`;
   const reviewQueue = generatedReviewableRequirements;
+  const readyBulkReviewRequirements = useMemo(
+    () => reviewQueue.filter(isRequirementReadyForBulkApproval),
+    [reviewQueue],
+  );
   const generatedInventory = useMemo(
     () =>
       reviewRequirements.filter(
@@ -195,6 +201,45 @@ export default function ReviewStudio({
     [canEditPhase1, handleSelectNextReviewRequirement, onReviewAction],
   );
 
+  const handleApproveReadyRows = useCallback(() => {
+    if (!canEditPhase1 || readyBulkReviewRequirements.length === 0) {
+      return;
+    }
+
+    const approvedRequirementKeys = new Set(
+      readyBulkReviewRequirements.map(
+        (requirement) => requirement.requirementKey,
+      ),
+    );
+
+    readyBulkReviewRequirements.forEach((requirement) => {
+      onReviewAction(requirement, { type: "approve" });
+    });
+
+    const nextRequirement =
+      reviewQueue.find(
+        (requirement) =>
+          !approvedRequirementKeys.has(requirement.requirementKey),
+      ) ?? null;
+    setSelectedRequirementKey(nextRequirement?.requirementKey ?? null);
+  }, [
+    canEditPhase1,
+    onReviewAction,
+    readyBulkReviewRequirements,
+    reviewQueue,
+  ]);
+
+  const handleSkipRemainingRows = useCallback(() => {
+    if (!canEditPhase1 || reviewQueue.length === 0) {
+      return;
+    }
+
+    reviewQueue.forEach((requirement) => {
+      onReviewAction(requirement, { type: "skip" });
+    });
+    setSelectedRequirementKey(null);
+  }, [canEditPhase1, onReviewAction, reviewQueue]);
+
   useEffect(() => {
     if (!activeRequirementKey) {
       return;
@@ -302,13 +347,17 @@ export default function ReviewStudio({
                 <ReviewQueueNavigator
                   activeQueueIndex={activeQueueIndex}
                   approvedCount={approvedCount}
+                  canEdit={canEditPhase1}
                   currentRequirement={currentRequirement}
+                  onApproveReadyRows={handleApproveReadyRows}
                   onOpenScript={onOpenScript}
                   onSelectNext={handleSelectNextReviewRequirement}
                   onSelectPrevious={handleSelectPreviousReviewRequirement}
                   onSelectQueueRequirement={(requirement) =>
                     setSelectedRequirementKey(requirement.requirementKey)
                   }
+                  onSkipRemainingRows={handleSkipRemainingRows}
+                  readyBulkCount={readyBulkReviewRequirements.length}
                   reviewQueue={reviewQueue}
                   stickyOnDesktop={false}
                 />
@@ -428,6 +477,13 @@ export default function ReviewStudio({
       ) : null}
     </section>
   );
+}
+
+function isRequirementReadyForBulkApproval(requirement: ReviewRequirement) {
+  const assessment = assessRequirementSupport(requirement);
+  const validation = evaluateRequirementValidation(requirement, assessment);
+
+  return validation.isSafeToApprove;
 }
 
 function ReviewInventoryContent({

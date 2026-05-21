@@ -395,6 +395,7 @@ export function DemoScriptExportPanel({
   const blockerCopy = assembly.emptyState
     ? getDemoScriptEmptyStateCopy(assembly.emptyState)
     : null;
+  const [downloadedAt, setDownloadedAt] = useState<string | null>(null);
 
   if (assembly.emptyState) {
     return (
@@ -516,22 +517,40 @@ export function DemoScriptExportPanel({
                   ready={exportReady}
                   value={exportReady ? "Ready to download" : "Blocked"}
                 />
+                <DocumentChecklistItem
+                  label="Download status"
+                  ready={downloadedAt !== null}
+                  value={
+                    downloadedAt ? `Downloaded at ${downloadedAt}` : "Not downloaded yet"
+                  }
+                />
               </div>
 
               <div className="phase-rail-stack">
                 <button
                   type="button"
                   disabled={!exportReady}
-                  onClick={() =>
+                  onClick={() => {
                     downloadDemoScriptMarkdown({
                       assembly,
                       projectMetadata,
-                    })
-                  }
+                    });
+                    setDownloadedAt(formatExportDownloadTime(new Date()));
+                  }}
                   className="focus-premium theme-button-primary rounded-2xl px-4 py-3 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Download Markdown
                 </button>
+                <div
+                  role="status"
+                  className={`rounded-2xl border px-4 py-3 text-sm ${
+                    downloadedAt ? "tone-positive" : "tone-neutral"
+                  }`}
+                >
+                  {downloadedAt
+                    ? `Markdown downloaded at ${downloadedAt}.`
+                    : "Not downloaded yet"}
+                </div>
                 <button
                   type="button"
                   onClick={onSwitchToScript}
@@ -931,6 +950,13 @@ export function getDemoScriptEmptyStateCopy(
         body: "The script assembly state could not be determined from the current review data.",
       };
   }
+}
+
+function formatExportDownloadTime(date: Date) {
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
 }
 
 export function downloadDemoScriptMarkdown({
