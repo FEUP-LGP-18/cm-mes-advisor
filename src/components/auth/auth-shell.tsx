@@ -6,8 +6,8 @@ export default function AuthShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="fv-auth-bg">
+    <main className="fv-auth-bg">
       {children}
-    </div>
+    </main>
   );
 }

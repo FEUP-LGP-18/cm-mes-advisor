@@ -14,7 +14,7 @@ export function GlobalSettingsView({
   supabaseMissing: string[];
 }) {
   return (
-    <div style={{ display: "grid", gap: "1.5rem" }}>
+    <div className="fv-settings-stack">
       <div>
         <nav className="fv-breadcrumb" aria-label="Breadcrumb">
           <Link href="/" className="fv-breadcrumb-link">Projects</Link>
@@ -32,7 +32,7 @@ export function GlobalSettingsView({
         <p style={{ fontSize: "0.8rem", color: "var(--muted-fg)", marginBottom: "1rem", marginTop: "-0.25rem" }}>
           These indicators show whether required capabilities are configured. Secret values are intentionally hidden.
         </p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "0.75rem" }}>
+        <div className="fv-settings-status-grid">
           <StatusTile
             label="Supabase auth"
             value={supabaseConfigured ? "Configured" : "Not configured"}
@@ -84,7 +84,7 @@ export function GlobalSettingsView({
             </div>
             <div className="fv-card-title" style={{ marginBottom: "0.25rem" }}>Pilot checklist</div>
             <p style={{ fontSize: "0.8rem", color: "var(--muted-fg)", margin: 0 }}>
-              Use the checklist before calling a build complete. Phase 2 is a required demo flow, but MES import validation remains external.
+              Use the checklist before calling a build complete. Phase 1 is complete on its own; Phase 2 is an optional continuation for Master Data validation.
             </p>
           </div>
           <Link href="/docs/release-checklist" className="fv-btn-secondary" style={{ flexShrink: 0 }}>
@@ -107,26 +107,15 @@ function StatusTile({
   tone: "default" | "positive" | "warning";
   value: string;
 }) {
-  const borderColor =
-    tone === "positive" ? "var(--status-approved)" :
-    tone === "warning" ? "var(--status-flagged)" :
-    "var(--surface-border)";
-
   return (
-    <div style={{
-      padding: "0.875rem 1rem",
-      border: "1px solid var(--surface-border)",
-      borderLeft: `3px solid ${borderColor}`,
-      borderRadius: "6px",
-      background: "#ffffff",
-    }}>
-      <div style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted-fg)", marginBottom: "0.375rem" }}>
+    <div className={`fv-status-tile fv-status-tile-${tone}`}>
+      <div className="fv-status-tile-label">
         {label}
       </div>
-      <div style={{ fontSize: "1rem", fontWeight: 700, color: "var(--foreground)", marginBottom: "0.375rem" }}>
+      <div className="fv-status-tile-value">
         {value}
       </div>
-      <p style={{ fontSize: "0.75rem", color: "var(--muted-fg)", margin: 0, lineHeight: 1.5 }}>
+      <p className="fv-status-tile-detail">
         {detail}
       </p>
     </div>

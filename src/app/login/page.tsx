@@ -12,6 +12,7 @@ import {
 } from "@/lib/supabase/auth-messages";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import AuthShell from "@/components/auth/auth-shell";
+import MesLogo from "@/components/brand/mes-logo";
 
 function LoginForm() {
   const router = useRouter();
@@ -56,30 +57,16 @@ function LoginForm() {
 
   return (
     <AuthShell>
-      <div className="fv-auth-card">
-        {/* Brand */}
+      <div className="fv-auth-card fv-auth-card-compact">
         <div className="fv-auth-logo-wrap">
-          <div className="fv-auth-logo-icon">
-            <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <rect x="3" y="3" width="14" height="4" rx="1" fill="currentColor" opacity="0.9" />
-              <rect x="3" y="9" width="14" height="4" rx="1" fill="currentColor" opacity="0.7" />
-              <rect x="3" y="15" width="14" height="2" rx="1" fill="currentColor" opacity="0.5" />
-            </svg>
-          </div>
-          <div>
-            <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "#0f172a", letterSpacing: "-0.02em" }}>
-              MES Advisor
-            </div>
-            <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>Critical Manufacturing</div>
-          </div>
+          <MesLogo className="fv-auth-logo-full" tone="color" />
         </div>
 
-        {/* Heading */}
         <h1 className="fv-auth-heading">Sign in to continue</h1>
         <p className="fv-auth-sub">Access your MES configuration workspace</p>
 
-        <form onSubmit={handleSubmit} style={{ display: "grid", gap: "1rem" }} noValidate>
-          <div>
+        <form onSubmit={handleSubmit} className="fv-auth-form" noValidate>
+          <div className="fv-auth-field">
             <label htmlFor="email" className="fv-auth-field-label">Email address</label>
             <input
               id="email"
@@ -93,7 +80,7 @@ function LoginForm() {
             />
           </div>
 
-          <div>
+          <div className="fv-auth-field">
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.375rem" }}>
               <label htmlFor="password" className="fv-auth-field-label" style={{ marginBottom: 0 }}>Password</label>
               <Link href="/forgot-password" className="fv-auth-forgot">Forgot password?</Link>
@@ -111,13 +98,13 @@ function LoginForm() {
           </div>
 
           {setupMessage ? (
-            <div role="alert" style={{ fontSize: "0.8rem", color: "#991b1b", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "6px", padding: "0.625rem 0.75rem" }}>
+            <div role="alert" className="fv-auth-alert">
               {setupMessage}
             </div>
           ) : null}
 
           {error ? (
-            <div role="alert" style={{ fontSize: "0.8rem", color: "#991b1b", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "6px", padding: "0.625rem 0.75rem" }}>
+            <div role="alert" className="fv-auth-alert">
               {error}
             </div>
           ) : null}

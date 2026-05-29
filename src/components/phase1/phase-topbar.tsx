@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import MesLogo from "@/components/brand/mes-logo";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 function getInitials(email?: string | null): string {
@@ -40,24 +41,11 @@ export default function Phase1Topbar({
 
   return (
     <nav aria-label="Product" className="fv-topbar">
-      {/* Brand */}
-      <div className="fv-topbar-brand">
-        <Link href="/" aria-label="Projects" className="fv-topbar-brand">
-          <div className="fv-topbar-logo">
-            <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <rect x="3" y="3" width="14" height="4" rx="1" fill="currentColor" opacity="0.9" />
-              <rect x="3" y="9" width="14" height="4" rx="1" fill="currentColor" opacity="0.7" />
-              <rect x="3" y="15" width="14" height="2" rx="1" fill="currentColor" opacity="0.5" />
-            </svg>
-          </div>
-          <div>
-            <div className="fv-topbar-name">MES Advisor</div>
-            <div className="fv-topbar-sub">Critical Manufacturing</div>
-          </div>
-        </Link>
-      </div>
+      <Link href="/" aria-label="Projects" className="fv-topbar-brand">
+        <MesLogo className="fv-topbar-logo-full" tone="white" />
+        <span className="fv-topbar-sub">Critical Manufacturing</span>
+      </Link>
 
-      {/* Right */}
       <div className="fv-topbar-right">
         {projectId ? (
           <span className="fv-topbar-project-pill">{projectId}</span>

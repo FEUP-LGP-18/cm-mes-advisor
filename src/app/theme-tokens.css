@@ -1,25 +1,26 @@
 :root {
   /* ── Sidebar (always dark navy) ──────────────────── */
-  --sidebar-bg: #1e2a3a;
-  --sidebar-fg: #e2e8f0;
-  --sidebar-muted: #94a3b8;
-  --sidebar-active-bg: #2d3f55;
+  --sidebar-bg: #1f2a3a;
+  --sidebar-fg: #e5edf7;
+  --sidebar-muted: #9aa7b8;
+  --sidebar-active-bg: #263f64;
   --sidebar-active-fg: #ffffff;
   --sidebar-border: rgba(255, 255, 255, 0.08);
-  --sidebar-section-label: #64748b;
+  --sidebar-section-label: #718096;
 
   /* ── Topbar (always dark navy) ───────────────────── */
-  --topbar-bg: #1e2a3a;
-  --topbar-fg: #e2e8f0;
-  --topbar-muted: #94a3b8;
+  --topbar-bg: #1f2a3a;
+  --topbar-fg: #f8fafc;
+  --topbar-muted: #9aa7b8;
   --topbar-border: rgba(255, 255, 255, 0.08);
 
   /* ── Content surface (light) ─────────────────────── */
-  --background: #f8fafc;
+  --background: #f6f8fb;
   --surface: #ffffff;
-  --surface-border: #e2e8f0;
-  --surface-muted: #f1f5f9;
-  --surface-hover: #f8fafc;
+  --surface-raised: #ffffff;
+  --surface-border: #dce3ec;
+  --surface-muted: #f1f4f8;
+  --surface-hover: #f7f9fc;
 
   /* ── Text ─────────────────────────────────────────── */
   --foreground: #0f172a;
@@ -49,8 +50,8 @@
   --document-ink: #0f172a;
   --document-muted: #64748b;
   --document-subtle: #94a3b8;
-  --document-contrast-surface: #1e2a3a;
-  --document-contrast-ink: #f8f7f4;
+  --document-contrast-surface: #1f2a3a;
+  --document-contrast-ink: #f8fafc;
 
   /* ── Lines ───────────────────────────────────────── */
   --line: #e2e8f0;
@@ -61,6 +62,8 @@
   --brand-primary-hover: #1d4ed8;
   --brand-accent: #3b82f6;
   --brand-accent-soft: #eff6ff;
+  --brand-primary-bg: #eff6ff;
+  --brand-primary-border: #bfdbfe;
   --brand-slate: #6f7d8a;
   --brand-slate-soft: #e8edf1;
 
@@ -100,6 +103,18 @@
   --shadow-modal: 0 20px 40px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06);
   --shadow-button-primary: 0 2px 8px rgba(37, 99, 235, 0.24);
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06);
+
+  /* ── Foundation shape / focus ────────────────────── */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.16);
+
+  /* ── Auth background ─────────────────────────────── */
+  --auth-bg: #1f2a3a;
+  --auth-orb: rgba(63, 92, 139, 0.28);
 }
 
 @theme inline {

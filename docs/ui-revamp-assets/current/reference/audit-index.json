@@ -1,0 +1,145 @@
+[
+  {
+    "name": "01-home-empty",
+    "url": "http://127.0.0.1:3002/",
+    "headings": [
+      "Pick up the right customer project quickly.",
+      "Project queue",
+      "Start with a sample project and walk the full Phase 1 flow."
+    ]
+  },
+  {
+    "name": "02-source",
+    "url": "http://127.0.0.1:3002/projects/customer-x-demo/source",
+    "headings": [
+      "Customer X Demo",
+      "Confirm the source for this run"
+    ]
+  },
+  {
+    "name": "03-generate",
+    "url": "http://127.0.0.1:3002/projects/customer-x-demo/generate",
+    "headings": [
+      "Customer X Demo",
+      "Produce the first credible draft without losing control of the slice."
+    ]
+  },
+  {
+    "name": "04-review",
+    "url": "http://127.0.0.1:3002/projects/customer-x-demo/generate",
+    "headings": [
+      "Customer X Demo",
+      "Produce the first credible draft without losing control of the slice."
+    ]
+  },
+  {
+    "name": "05-script",
+    "url": "http://127.0.0.1:3002/projects/customer-x-demo/generate",
+    "headings": [
+      "Customer X Demo",
+      "Produce the first credible draft without losing control of the slice."
+    ]
+  },
+  {
+    "name": "06-export",
+    "url": "http://127.0.0.1:3002/projects/customer-x-demo/generate",
+    "headings": [
+      "Customer X Demo",
+      "Produce the first credible draft without losing control of the slice."
+    ]
+  },
+  {
+    "name": "07-master-setup",
+    "url": "http://127.0.0.1:3002/projects/customer-x-demo/master-data/setup",
+    "headings": [
+      "Master Data continuation",
+      "Approve Phase 1 rows before you continue into Master Data."
+    ]
+  },
+  {
+    "name": "08-master-process",
+    "url": "http://127.0.0.1:3002/projects/customer-x-demo/master-data/setup",
+    "headings": [
+      "Master Data continuation",
+      "Approve Phase 1 rows before you continue into Master Data."
+    ]
+  },
+  {
+    "name": "09-master-review",
+    "url": "http://127.0.0.1:3002/projects/customer-x-demo/master-data/setup",
+    "headings": [
+      "Master Data continuation",
+      "Approve Phase 1 rows before you continue into Master Data."
+    ]
+  },
+  {
+    "name": "10-master-export",
+    "url": "http://127.0.0.1:3002/projects/customer-x-demo/master-data/setup",
+    "headings": [
+      "Master Data continuation",
+      "Approve Phase 1 rows before you continue into Master Data."
+    ]
+  },
+  {
+    "name": "11-master-traceability",
+    "url": "http://127.0.0.1:3002/projects/customer-x-demo/master-data/setup",
+    "headings": [
+      "Master Data continuation",
+      "Approve Phase 1 rows before you continue into Master Data."
+    ]
+  },
+  {
+    "name": "12-project-settings-general",
+    "url": "http://127.0.0.1:3002/projects/customer-x-demo/settings/general",
+    "headings": [
+      "General settings",
+      "Project details",
+      "Local demo controls"
+    ]
+  },
+  {
+    "name": "13-project-settings-collaboration",
+    "url": "http://127.0.0.1:3002/projects/customer-x-demo/settings/collaboration",
+    "headings": [
+      "Collaboration",
+      "Collaboration unavailable in local mode"
+    ]
+  },
+  {
+    "name": "14-global-settings",
+    "url": "http://127.0.0.1:3002/settings",
+    "headings": [
+      "Workspace settings",
+      "Environment status",
+      "Pilot checklist"
+    ]
+  },
+  {
+    "name": "15-profile",
+    "url": "http://127.0.0.1:3002/profile",
+    "headings": [
+      "Supabase is not configured."
+    ]
+  },
+  {
+    "name": "16-login-mock",
+    "url": "http://127.0.0.1:3002/login",
+    "headings": [
+      "Sign in"
+    ]
+  },
+  {
+    "name": "17-signup-mock",
+    "url": "http://127.0.0.1:3002/signup",
+    "headings": [
+      "Create account"
+    ]
+  },
+  {
+    "name": "18-forgot-password-mock",
+    "url": "http://127.0.0.1:3002/forgot-password",
+    "headings": [
+      "Reset your password"
+    ]
+  }
+]
