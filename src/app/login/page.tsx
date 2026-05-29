@@ -56,110 +56,105 @@ function LoginForm() {
 
   return (
     <AuthShell>
-      <div className="w-full max-w-sm animate-enter">
-        <div className="premium-panel rounded-3xl p-8 grid gap-6">
-          <div className="grid gap-1">
-            <h1 className="text-2xl font-semibold tracking-tight text-[color:var(--shell-ink)]">
-              Sign in
-            </h1>
-            <p className="text-sm text-[color:var(--shell-muted)]">
-              Pick up where you left off.
-            </p>
+      <div className="fv-auth-card">
+        {/* Brand */}
+        <div className="fv-auth-logo-wrap">
+          <div className="fv-auth-logo-icon">
+            <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <rect x="3" y="3" width="14" height="4" rx="1" fill="currentColor" opacity="0.9" />
+              <rect x="3" y="9" width="14" height="4" rx="1" fill="currentColor" opacity="0.7" />
+              <rect x="3" y="15" width="14" height="2" rx="1" fill="currentColor" opacity="0.5" />
+            </svg>
+          </div>
+          <div>
+            <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "#0f172a", letterSpacing: "-0.02em" }}>
+              MES Advisor
+            </div>
+            <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>Critical Manufacturing</div>
+          </div>
+        </div>
+
+        {/* Heading */}
+        <h1 className="fv-auth-heading">Sign in to continue</h1>
+        <p className="fv-auth-sub">Access your MES configuration workspace</p>
+
+        <form onSubmit={handleSubmit} style={{ display: "grid", gap: "1rem" }} noValidate>
+          <div>
+            <label htmlFor="email" className="fv-auth-field-label">Email address</label>
+            <input
+              id="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.currentTarget.value)}
+              placeholder="consultant@criticalmanufacturing.com"
+              className="fv-auth-input"
+            />
           </div>
 
-          <form onSubmit={handleSubmit} className="grid gap-4" noValidate>
-            <div className="grid gap-1.5">
-              <label
-                htmlFor="email"
-                className="mono-label text-[0.68rem] text-[color:var(--shell-subtle)]"
-              >
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.currentTarget.value)}
-                placeholder="you@example.com"
-                className="focus-premium theme-shell-input w-full rounded-2xl px-4 py-3 text-sm"
-              />
+          <div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.375rem" }}>
+              <label htmlFor="password" className="fv-auth-field-label" style={{ marginBottom: 0 }}>Password</label>
+              <Link href="/forgot-password" className="fv-auth-forgot">Forgot password?</Link>
             </div>
+            <input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.currentTarget.value)}
+              placeholder="Enter your password"
+              className="fv-auth-input"
+            />
+          </div>
 
-            <div className="grid gap-1.5">
-              <div className="flex items-center justify-between">
-                <label
-                  htmlFor="password"
-                  className="mono-label text-[0.68rem] text-[color:var(--shell-subtle)]"
-                >
-                  Password
-                </label>
-                <Link
-                  href="/forgot-password"
-                  className="text-xs text-[color:var(--shell-muted)] hover:text-[color:var(--shell-ink)] transition-colors"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-              <input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.currentTarget.value)}
-                placeholder="••••••••"
-                className="focus-premium theme-shell-input w-full rounded-2xl px-4 py-3 text-sm"
-              />
+          {setupMessage ? (
+            <div role="alert" style={{ fontSize: "0.8rem", color: "#991b1b", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "6px", padding: "0.625rem 0.75rem" }}>
+              {setupMessage}
             </div>
+          ) : null}
 
-            {setupMessage ? (
-              <div
-                role="alert"
-                className="phase-feedback phase-feedback-error rounded-2xl text-sm"
-              >
-                {setupMessage}
-              </div>
-            ) : null}
+          {error ? (
+            <div role="alert" style={{ fontSize: "0.8rem", color: "#991b1b", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "6px", padding: "0.625rem 0.75rem" }}>
+              {error}
+            </div>
+          ) : null}
 
-            {error ? (
-              <div
-                role="alert"
-                className="phase-feedback phase-feedback-error rounded-2xl text-sm"
-              >
-                {error}
-              </div>
-            ) : null}
+          <button
+            type="submit"
+            disabled={loading || !supabaseConfigured}
+            className="fv-auth-submit"
+            style={{ marginTop: "0.25rem" }}
+          >
+            {loading ? "Signing in…" : "Sign In →"}
+          </button>
+        </form>
 
-            <button
-              type="submit"
-              disabled={loading || !supabaseConfigured}
-              className="focus-premium theme-button-primary w-full rounded-2xl px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {loading ? "Signing in…" : "Sign in"}
-            </button>
-          </form>
-
-          {!supabaseConfigured ? (
+        {!supabaseConfigured ? (
+          <div style={{ marginTop: "1rem" }}>
             <Link
               href="/"
-              className="focus-premium theme-shell-button-secondary w-full rounded-2xl px-5 py-3 text-sm font-semibold text-center transition"
+              className="fv-auth-submit"
+              style={{ display: "flex", textDecoration: "none" }}
             >
               Continue in mock mode
             </Link>
-          ) : (
-            <p className="text-center text-sm text-[color:var(--shell-muted)]">
-              No account?{" "}
-              <Link
-                href={next ? `/signup?next=${encodeURIComponent(next)}` : "/signup"}
-                className="font-semibold text-[color:var(--shell-ink)] hover:text-[color:var(--brand-accent-soft)] transition-colors"
-              >
-                Sign up
-              </Link>
-            </p>
-          )}
-        </div>
+          </div>
+        ) : (
+          <p className="fv-auth-footer" style={{ marginTop: "1rem" }}>
+            No account?{" "}
+            <Link
+              href={next ? `/signup?next=${encodeURIComponent(next)}` : "/signup"}
+              style={{ color: "var(--brand-primary)", fontWeight: 600 }}
+            >
+              Sign up
+            </Link>
+          </p>
+        )}
+
+        <p className="fv-auth-footer" style={{ marginTop: "1rem" }}>Protected by Critical Manufacturing</p>
       </div>
     </AuthShell>
   );
