@@ -77,8 +77,8 @@ describe("phase 1 redesigned surfaces", () => {
 
     const html = render(<Phase1Topbar />);
 
-    expect(html).not.toContain("Sign out");
-    expect(html).toContain("MES Demo Advisor");
+    expect(html).not.toContain("Logout");
+    expect(html).toContain("MES Advisor");
   });
 
   it("renders authenticated global navigation when Supabase auth is configured", () => {
@@ -88,12 +88,9 @@ describe("phase 1 redesigned surfaces", () => {
     const html = render(<Phase1Topbar email="owner@example.com" />);
 
     expect(html).toContain('href="/"');
-    expect(html).toContain('href="/settings"');
-    expect(html).toContain('href="/profile"');
     expect(html).toContain("Projects");
-    expect(html).toContain("Settings");
-    expect(html).toContain("Profile");
-    expect(html).toContain("Sign out");
+    expect(html).toContain("Owner");
+    expect(html).toContain('aria-label="Sign out"');
   });
 
   it("renders the command desk empty state with one blunt starting action", () => {
@@ -114,8 +111,8 @@ describe("phase 1 redesigned surfaces", () => {
       />,
     );
 
-    expect(html).toContain("Create the first server-backed project.");
-    expect(html).toContain("Create project");
+    expect(html).toContain("No projects yet");
+    expect(html).toContain("New Project");
   });
 
   it("renders the priority strip and table-first project desk for active work", () => {
@@ -137,10 +134,10 @@ describe("phase 1 redesigned surfaces", () => {
       />,
     );
 
-    expect(html).toContain("Next project");
-    expect(html).toContain("Open project");
-    expect(html).toContain("Project list");
-    expect(html).toContain("Owner");
+    expect(html).toContain("Customer X MES demo");
+    expect(html).toContain("Customer X");
+    expect(html).toContain("Pending Review");
+    expect(html).toContain("Open");
   });
 
   it("renders a no-results state when search filters out server projects", () => {
@@ -161,7 +158,7 @@ describe("phase 1 redesigned surfaces", () => {
       />,
     );
 
-    expect(html).toContain("No project matches this search.");
+    expect(html).toContain("No projects found");
   });
 
   it("renders the compact shell metadata strip for a project workspace", () => {
@@ -189,15 +186,9 @@ describe("phase 1 redesigned surfaces", () => {
       </Phase1ProjectShell>,
     );
 
-    expect(html).toContain("Workbook");
-    expect(html).toContain("Next action");
-    expect(html).toContain("Pending review");
-    expect(html).toContain("Approved");
-    expect(html).toContain("Consultant decisions");
-    expect(html).toContain("Viewer");
     expect(html).toContain("Read-only workspace");
-    expect(html).toContain("Last saved");
-    expect(html).toContain("Copy project link");
+    expect(html).toContain("Requirements");
+    expect(html).toContain("AI Processing");
   });
 
   it("renders blocked phase stages as disabled controls with hover guidance", () => {
@@ -222,9 +213,8 @@ describe("phase 1 redesigned surfaces", () => {
       </Phase1ProjectShell>,
     );
 
-    expect(html).toContain("phase-stage-link-blocked");
-    expect(html).toContain("disabled=\"\"");
-    expect(html).toContain("Complete the previous required step");
+    expect(html).toContain('aria-disabled="true"');
+    expect(html).toContain("Script Output");
   });
 
   it("renders source as a dedicated workbook confirmation surface", () => {

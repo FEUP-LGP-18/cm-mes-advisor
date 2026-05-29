@@ -26,19 +26,7 @@ export default function ExportStudio({
   projectMetadata,
 }: ExportStudioProps) {
   return (
-    <section className="grid gap-6">
-      <section className="phase-section-card">
-        <div className="phase-section-copy">
-          <p className="phase-overline">Export</p>
-          <h2 className="phase-section-title">Download the Phase 1 handoff</h2>
-          <p className="phase-section-body">
-            Confirm the included coverage, keep the final download action close
-            to the readiness summary, and export the reviewed Markdown handoff
-            when it is ready.
-          </p>
-        </div>
-      </section>
-
+    <div style={{ display: "grid", gap: "1.25rem" }}>
       <DemoScriptExportPanel
         assembly={assembly}
         exportReady={exportReady}
@@ -48,30 +36,33 @@ export default function ExportStudio({
         projectMetadata={projectMetadata}
       />
 
-      <section className="phase-section-card">
-        <div className="phase-toolbar">
-          <div className="phase-toolbar-copy">
-            <p className="phase-overline">Required pilot demo</p>
-            <h3 className="phase-section-title">
-              Start Phase 2 from approved Phase 1 rows.
+      <div className="fv-card" style={{ borderLeft: "3px solid var(--brand-primary)" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted-fg)", marginBottom: "0.25rem" }}>
+              Required Pilot Demo
+            </div>
+            <h3 style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--foreground)", margin: "0 0 0.375rem" }}>
+              Start Phase 2 from approved Phase 1 rows
             </h3>
-            <p className="phase-section-body">
-              The pilot demo requires the Master Data path after the Phase 1
-              handoff: approved rows, setup, generation, review, export, and
-              traceability. The app still does not claim MES import validation.
+            <p style={{ fontSize: "0.8rem", color: "var(--muted-fg)", margin: 0, lineHeight: 1.6, maxWidth: "520px" }}>
+              The pilot demo requires the Master Data path after the Phase 1 handoff: approved rows, setup, generation, review, export, and traceability.
             </p>
           </div>
-
           <button
             type="button"
             onClick={onOpenMasterData}
             disabled={!exportReady || approvedCount === 0}
-            className="focus-premium theme-shell-button-secondary rounded-2xl px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
+            className="fv-btn-primary"
+            style={{
+              opacity: exportReady && approvedCount > 0 ? 1 : 0.5,
+              cursor: exportReady && approvedCount > 0 ? "pointer" : "not-allowed",
+            }}
           >
-            Start Phase 2 demo
+            Start Phase 2 →
           </button>
         </div>
-      </section>
-    </section>
+      </div>
+    </div>
   );
 }
