@@ -1,3 +1,7 @@
+import {
+  normalizeSettingsBehaviorSnapshot,
+  type SettingsBehaviorSnapshot,
+} from "@/lib/settings";
 import type { RequirementGenerationRouteMode } from "../generation-api";
 import type { ParsedRequirement } from "../parser";
 
@@ -6,6 +10,7 @@ export interface RequirementGenerationRequestValidationSuccess {
   projectId: string;
   mode?: RequirementGenerationRouteMode;
   requirements: ParsedRequirement[];
+  settings: SettingsBehaviorSnapshot;
 }
 
 export interface RequirementGenerationRequestValidationError {
@@ -40,6 +45,7 @@ export function parseRequirementGenerationRequestBody(
 
   const requirements: ParsedRequirement[] = [];
   const mode = readMode(value.mode);
+  const settings = normalizeSettingsBehaviorSnapshot(value.settings);
 
   if (value.mode !== undefined && mode === null) {
     return invalidRequest(
@@ -65,6 +71,7 @@ export function parseRequirementGenerationRequestBody(
     projectId,
     mode: mode ?? undefined,
     requirements,
+    settings,
   };
 }
 

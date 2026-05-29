@@ -231,6 +231,35 @@ describe("demo script markdown export", () => {
     expect(markdown).not.toContain("Source references");
   });
 
+  it("includes optional general output metadata when a caller provides it", () => {
+    const assembly: DemoScriptAssembly = {
+      title: "Output Metadata Demo Script",
+      emptyState: null,
+      approvedRequirementCount: 0,
+      approvedStepCount: 0,
+      generatedRequirementCount: 0,
+      sections: [],
+    };
+
+    const markdown = serializeDemoScriptToMarkdown({
+      assembly,
+      exportTimestamp: "2026-04-15T12:34:56.000Z",
+      outputPreferences: {
+        consultantName: "Mahmoud Ali",
+        mesVersion: "cm-v10",
+        outputLanguage: "pt",
+        outputLanguageStatus: "saved-for-future-outputs",
+      },
+      projectMetadata,
+    });
+
+    expect(markdown).toContain("Consultant: Mahmoud Ali");
+    expect(markdown).toContain("MES version: CM V10");
+    expect(markdown).toContain(
+      "Output language preference: Portuguese (saved for future outputs; existing generated content is not translated)",
+    );
+  });
+
   it("creates a safe filename from the script title or project name", () => {
     expect(
       createDemoScriptExportFilename(
