@@ -50,12 +50,7 @@ describe("MasterDataSetupStudio", () => {
       />,
     );
 
-    expect(html).toContain(
-      "Approve Phase 1 rows before you continue into Master Data.",
-    );
-    expect(html).toContain(
-      "Nothing can enter Phase 2 until at least one row is approved.",
-    );
+    expect(html).toContain("Phase 1 approval required");
     expect(html).toContain("Generate Phase 1 drafts");
     expect(html).not.toContain("Generation mode");
     expect(html).not.toContain("Object scope");
@@ -85,10 +80,7 @@ describe("MasterDataSetupStudio", () => {
       />,
     );
 
-    expect(html).toContain("No Phase 2 matches yet");
-    expect(html).toContain(
-      "The approved slice did not surface any clear Master Data rows.",
-    );
+    expect(html).toContain("No obvious Master Data rows were detected");
   });
 
   it("shows approved rows as not analyzed yet before the first Phase 2 analysis", () => {
@@ -112,8 +104,7 @@ describe("MasterDataSetupStudio", () => {
       />,
     );
 
-    expect(html).toContain("Not analyzed yet");
-    expect(html).toContain("Analyze approved rows");
+    expect(html).toContain("Analyze Requirements");
     expect(html).not.toContain(
       "Approve at least one Phase 1 row before starting Phase 2",
     );
@@ -140,11 +131,9 @@ describe("MasterDataSetupStudio", () => {
       />,
     );
 
-    expect(html).toContain("Phase 2 input slice");
+    expect(html).toContain("Requirements Analysis");
     expect(html).toContain("Quick Product setup");
-    expect(html).toContain("Approved in Phase 1");
-    expect(html).toContain("Generation mode");
-    expect(html).toContain("Prototype drafts");
-    expect(html).toContain("Continue to processing");
+    expect(html).toContain("Approved");
+    expect(html).toContain("Generate Master Data");
   });
 });

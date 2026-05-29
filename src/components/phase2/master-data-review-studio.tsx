@@ -35,7 +35,7 @@ export default function MasterDataReviewStudio({
     (objectType) => objectGroups[objectType].length > 0,
   );
   const initialReviewObject =
-    allObjects.find((objectDraft) => objectDraft.reviewStatus !== "approved") ??
+    allObjects.find((o) => o.reviewStatus !== "approved") ??
     allObjects[0] ??
     null;
   const [activeObjectType, setActiveObjectType] = useState(
@@ -49,282 +49,285 @@ export default function MasterDataReviewStudio({
     : (availableObjectTypes[0] ?? "enterprise");
   const visibleObjects = objectGroups[resolvedActiveObjectType] ?? [];
   const activeObject =
-    visibleObjects.find((objectDraft) => objectDraft.objectId === activeObjectId) ??
+    visibleObjects.find((o) => o.objectId === activeObjectId) ??
     visibleObjects[0] ??
     null;
   const activeObjectIndex = activeObject
-    ? allObjects.findIndex(
-        (objectDraft) => objectDraft.objectId === activeObject.objectId,
-      )
+    ? allObjects.findIndex((o) => o.objectId === activeObject.objectId)
     : -1;
-  const approvedObjectCount = allObjects.filter(
-    (objectDraft) => objectDraft.reviewStatus === "approved",
-  ).length;
-  const pendingDecisionCount = allObjects.length - approvedObjectCount;
-  const allApproved = allObjects.length > 0 && pendingDecisionCount === 0;
+  const approvedCount = allObjects.filter((o) => o.reviewStatus === "approved").length;
+  const pendingCount = allObjects.length - approvedCount;
+  const allApproved = allObjects.length > 0 && pendingCount === 0;
 
-  function selectObject(objectDraft: MasterDataDraftObject) {
-    setActiveObjectType(objectDraft.objectType);
-    setActiveObjectId(objectDraft.objectId);
+  function selectObject(o: MasterDataDraftObject) {
+    setActiveObjectType(o.objectType);
+    setActiveObjectId(o.objectId);
   }
 
-  function handleApproveAndNextObject() {
-    if (!activeObject) {
-      return;
-    }
-
+  function handleApproveAndNext() {
+    if (!activeObject) return;
     onUpdateReviewStatus(activeObject.objectId, "approved");
-    const nextObject = findNextReviewObject(allObjects, activeObject);
+    const next = findNextReviewObject(allObjects, activeObject);
+    if (next) selectObject(next);
+  }
 
-    if (nextObject) {
-      selectObject(nextObject);
-    }
+  if (!activeObject) {
+    return (
+      <div>
+        <div style={{ marginBottom: "1.25rem" }}>
+          <h1 className="fv-page-title">Review Master Data</h1>
+          <p className="fv-page-subtitle">No objects generated yet. Return to the process step to generate Master Data first.</p>
+        </div>
+        <button type="button" onClick={onReturnToProcess} className="fv-btn-secondary">
+          ← Back to Process
+        </button>
+      </div>
+    );
   }
 
   return (
-    <section className="grid gap-6">
-      <section className="phase-section-card">
-        <div className="phase-section-copy">
-          <p className="phase-overline">Master Data review</p>
-          <h2 className="phase-section-title">
-            Approve the generated objects before export.
-          </h2>
-          <p className="phase-section-body">
-            Edit field values directly, keep warnings visible, and only move to
-            export once the selected package is clear enough for an MES owner to
-            validate outside the app.
-          </p>
+    <div>
+      {/* Page header */}
+      <div style={{ marginBottom: "1.25rem" }}>
+        <h1 className="fv-page-title">Review Master Data</h1>
+        <p className="fv-page-subtitle">
+          {allApproved
+            ? `All ${allObjects.length} objects approved. Ready for export.`
+            : `${approvedCount} of ${allObjects.length} objects approved — ${pendingCount} remaining.`}
+        </p>
+      </div>
+
+      {/* All-approved banner */}
+      {allApproved ? (
+        <div className="fv-callout fv-callout-success" style={{ marginBottom: "1rem" }}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ flexShrink: 0 }} aria-hidden="true">
+            <circle cx="8" cy="8" r="6" /><polyline points="5 8 7 10 11 6" />
+          </svg>
+          All objects approved — you can now proceed to export.
         </div>
-        <div className="phase-inline-metrics">
-          <span>{allObjects.length} objects</span>
-          <span>{approvedObjectCount} approved</span>
-          <span>{pendingDecisionCount} need decisions</span>
-        </div>
-      </section>
+      ) : null}
 
-      {activeObject ? (
-        <section className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
-          <aside className="phase-rail">
-            <section className="phase-rail-card grid gap-4">
-              <div>
-                <p className="phase-overline">Object navigation</p>
-                <h3 className="phase-rail-title">Review queue</h3>
-              </div>
+      <div className="fv-review-layout">
+        {/* Left: object list */}
+        <aside style={{ display: "grid", gap: "0.5rem", alignContent: "start" }}>
+          <div style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted-fg)", marginBottom: "0.25rem" }}>
+            Objects ({allObjects.length})
+          </div>
 
-              <div className="grid gap-3">
-                {availableObjectTypes.map((objectType) => {
-                  const typeObjects = objectGroups[objectType] ?? [];
-                  const typeApprovedCount = typeObjects.filter(
-                    (objectDraft) => objectDraft.reviewStatus === "approved",
-                  ).length;
+          {availableObjectTypes.map((objectType) => {
+            const typeObjects = objectGroups[objectType] ?? [];
+            const typeApproved = typeObjects.filter((o) => o.reviewStatus === "approved").length;
 
+            return (
+              <div key={objectType}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveObjectType(objectType);
+                    if (typeObjects[0]) selectObject(typeObjects[0]);
+                  }}
+                  style={{
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "0.375rem 0.5rem",
+                    fontSize: "0.7rem",
+                    fontWeight: 700,
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                    color: objectType === resolvedActiveObjectType ? "var(--brand-primary)" : "var(--muted-fg)",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <span>{masterDataObjectTypeLabels[objectType]}</span>
+                  <span style={{ fontSize: "0.7rem", fontWeight: 400, color: typeApproved === typeObjects.length ? "var(--status-approved)" : "var(--muted-fg)" }}>
+                    {typeApproved}/{typeObjects.length}
+                  </span>
+                </button>
+                {typeObjects.map((o) => {
+                  const isActive = o.objectId === activeObject.objectId;
+                  const statusColor =
+                    o.reviewStatus === "approved" ? "var(--status-approved)" :
+                    o.reviewStatus === "review" ? "var(--status-flagged)" :
+                    "var(--muted-fg)";
                   return (
-                    <div
-                      key={objectType}
-                      className="rounded-2xl border border-[color:var(--shell-border)] p-3"
+                    <button
+                      key={o.objectId}
+                      type="button"
+                      onClick={() => selectObject(o)}
+                      style={{
+                        width: "100%",
+                        textAlign: "left",
+                        padding: "0.5rem 0.625rem",
+                        marginBottom: "0.125rem",
+                        borderRadius: "6px",
+                        border: `1px solid ${isActive ? "var(--brand-primary)" : "var(--surface-border)"}`,
+                        background: isActive ? "var(--brand-primary-bg, #eff6ff)" : "var(--surface)",
+                        cursor: "pointer",
+                        display: "block",
+                      }}
                     >
-                      <button
-                        type="button"
-                        onClick={() => selectObject(typeObjects[0])}
-                        className={`focus-premium w-full rounded-xl px-2 py-2 text-left text-sm font-semibold transition ${
-                          objectType === resolvedActiveObjectType
-                            ? "theme-shell-card-active"
-                            : ""
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <span>{masterDataObjectTypeLabels[objectType]}</span>
-                          <span className="shell-chip shell-chip-neutral">
-                            {typeApprovedCount}/{typeObjects.length} approved
-                          </span>
-                        </div>
-                      </button>
-                      <div className="mt-2 grid gap-2">
-                        {typeObjects.map((objectDraft) => (
-                          <button
-                            key={objectDraft.objectId}
-                            type="button"
-                            onClick={() => selectObject(objectDraft)}
-                            className={`focus-premium rounded-xl border px-3 py-2.5 text-left transition ${
-                              objectDraft.objectId === activeObject.objectId
-                                ? "theme-shell-card-active"
-                                : "theme-shell-card-soft"
-                            }`}
-                          >
-                            <strong className="block text-sm">
-                              {objectDraft.name}
-                            </strong>
-                            <span className="mt-1 block text-xs text-[color:var(--shell-subtle)]">
-                              {formatReviewStatus(objectDraft.reviewStatus)}
-                            </span>
-                          </button>
-                        ))}
+                      <div style={{ fontSize: "0.8rem", fontWeight: 600, color: isActive ? "var(--brand-primary)" : "var(--foreground)" }}>
+                        {o.name}
                       </div>
-                    </div>
+                      <div style={{ fontSize: "0.7rem", color: statusColor, marginTop: "0.125rem" }}>
+                        {formatReviewStatus(o.reviewStatus)}
+                        {o.warnings.length > 0 ? " · ⚠" : ""}
+                      </div>
+                    </button>
                   );
                 })}
               </div>
-            </section>
-          </aside>
+            );
+          })}
+        </aside>
 
-          <div className="grid gap-6">
-            <section className="phase-section-card">
-              <div className="phase-toolbar">
-                <div className="phase-toolbar-copy">
-                  <p className="phase-overline">Active object</p>
-                  <h3 className="phase-section-title">{activeObject.name}</h3>
-                  <p className="phase-section-body">
-                    Review the editable fields, confirm the requirement links,
-                    and mark the object approved only when the package looks safe.
-                  </p>
+        {/* Right: detail panel */}
+        <div style={{ display: "grid", gap: "1rem", alignContent: "start" }}>
+          {/* Object header card */}
+          <div className="fv-card">
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+              <div>
+                <div style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted-fg)", marginBottom: "0.25rem" }}>
+                  {masterDataObjectTypeLabels[activeObject.objectType]} · {activeObjectIndex + 1} of {allObjects.length}
                 </div>
+                <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--foreground)", margin: 0 }}>{activeObject.name}</h2>
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.5rem" }}>
+                  <span className={`fv-conf-${activeObject.confidence.level}`}>{activeObject.confidence.level} confidence</span>
+                  <span className={`fv-badge-${activeObject.reviewStatus === "approved" ? "approved" : activeObject.reviewStatus === "review" ? "flagged" : "pending"}`}>
+                    {formatReviewStatus(activeObject.reviewStatus)}
+                  </span>
+                  {activeObject.warnings.length > 0 ? (
+                    <span className="fv-badge-flagged">{activeObject.warnings.length} warning{activeObject.warnings.length > 1 ? "s" : ""}</span>
+                  ) : null}
+                </div>
+              </div>
 
-                <div className="grid gap-3 sm:min-w-[240px]">
-                  <p className="phase-overline">Review decision</p>
-                  <button
-                    type="button"
-                    onClick={handleApproveAndNextObject}
-                    className="focus-premium theme-button-primary rounded-2xl px-4 py-3 text-sm font-semibold transition"
-                  >
-                    Approve and next object
-                  </button>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onUpdateReviewStatus(activeObject.objectId, "pending")
-                      }
-                      className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-semibold transition"
-                    >
-                      Mark pending
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onUpdateReviewStatus(activeObject.objectId, "review")
-                      }
-                      className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-semibold transition"
-                    >
-                      Needs review
-                    </button>
+              {/* Review actions */}
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  onClick={() => onUpdateReviewStatus(activeObject.objectId, "review")}
+                  className="fv-btn-secondary"
+                  style={{ padding: "0.375rem 0.75rem", fontSize: "0.78rem" }}
+                >
+                  Flag for Review
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApproveAndNext}
+                  className="fv-btn-primary"
+                  style={{ padding: "0.375rem 0.75rem", fontSize: "0.78rem" }}
+                >
+                  Approve {pendingCount > 1 ? "& Next →" : "✓"}
+                </button>
+              </div>
+            </div>
+
+            {/* Warnings */}
+            {activeObject.warnings.length > 0 ? (
+              <div style={{ marginTop: "0.75rem", display: "grid", gap: "0.375rem" }}>
+                {activeObject.warnings.map((w) => (
+                  <div key={w} className="fv-callout fv-callout-warning" style={{ fontSize: "0.8rem", padding: "0.5rem 0.75rem" }}>
+                    ⚠ {w}
                   </div>
-                </div>
-              </div>
-
-              <div className="phase-inline-metrics">
-                <span>
-                  {activeObjectIndex + 1} of {allObjects.length} objects
-                </span>
-                <span>{pendingDecisionCount} need decisions</span>
-                <span>
-                  <strong>{activeObject.sourceRequirementKeys.length}</strong> source rows
-                </span>
-                <span>
-                  <strong>{activeObject.fields.length}</strong> fields
-                </span>
-                <span>
-                  <strong>{activeObject.confidence.level}</strong> confidence
-                </span>
-                <span>
-                  <strong>{formatReviewStatus(activeObject.reviewStatus)}</strong> status
-                </span>
-              </div>
-
-              {activeObject.warnings.length > 0 ? (
-                <div className="mt-6 grid gap-3">
-                  {activeObject.warnings.map((warning) => (
-                    <div
-                      key={warning}
-                      className="rounded-2xl border px-4 py-3 text-sm tone-warning"
-                    >
-                      {warning}
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </section>
-
-            <section className="phase-section-card">
-              <div className="grid gap-4 md:grid-cols-2">
-                {activeObject.fields.map((field) => (
-                  <label key={field.key} className="grid gap-2 text-sm">
-                    <span className="font-semibold text-[color:var(--shell-ink)]">
-                      {field.label}
-                    </span>
-                    <input
-                      value={field.value}
-                      onChange={(event) =>
-                        onUpdateField(
-                          activeObject.objectId,
-                          field.key,
-                          event.currentTarget.value,
-                        )
-                      }
-                      className="focus-premium theme-shell-input rounded-2xl px-4 py-3"
-                    />
-                    <span className="text-xs text-[color:var(--shell-subtle)]">
-                      {field.source === "manual"
-                        ? "Edited in review"
-                        : `Current source: ${field.source}`}
-                    </span>
-                  </label>
                 ))}
               </div>
-            </section>
-
-            <section className="phase-section-card">
-              <div className="phase-toolbar">
-                <div className="phase-toolbar-copy">
-                  <p className="phase-overline">Next actions</p>
-                  <h3 className="phase-section-title">Finish the package</h3>
-                  <p className="phase-section-body">
-                    Keep traceability available during review, and only open
-                    export when every object that matters has an explicit
-                    approval decision.
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    onClick={onOpenTraceability}
-                    className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-semibold transition"
-                  >
-                    Open traceability
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onReturnToProcess}
-                    className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-semibold transition"
-                  >
-                    Back to process
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onOpenExport}
-                    disabled={!allApproved}
-                    className="focus-premium theme-button-primary rounded-2xl px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Open export
-                  </button>
-                </div>
-              </div>
-            </section>
+            ) : null}
           </div>
-        </section>
-      ) : (
-        <section className="phase-empty-state">
-          <p className="phase-overline">No generated objects</p>
-          <h3 className="mt-3 text-2xl font-semibold tracking-[-0.04em]">
-            Finish processing before review
-          </h3>
-          <p className="mt-3 text-sm leading-7 text-[color:var(--shell-muted)]">
-            The object review surface becomes available once the setup and
-            processing steps have created the first Master Data draft package.
-          </p>
-        </section>
-      )}
-    </section>
+
+          {/* AI rationale */}
+          {activeObject.confidence.rationale ? (
+            <div className="fv-card" style={{ borderLeft: "3px solid var(--brand-primary)" }}>
+              <div style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted-fg)", marginBottom: "0.375rem" }}>
+                AI Rationale
+              </div>
+              <p style={{ fontSize: "0.8rem", color: "var(--foreground)", margin: 0, lineHeight: 1.6 }}>
+                {activeObject.confidence.rationale}
+              </p>
+            </div>
+          ) : null}
+
+          {/* Fields */}
+          <div className="fv-card">
+            <div style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted-fg)", marginBottom: "0.75rem" }}>
+              Fields ({activeObject.fields.length})
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "0.75rem" }}>
+              {activeObject.fields.map((field) => (
+                <div key={field.key}>
+                  <label className="fv-field-label" htmlFor={`field-${activeObject.objectId}-${field.key}`}>
+                    {field.label}
+                    {field.required ? <span style={{ color: "var(--status-error)" }}> *</span> : null}
+                    {field.warning ? <span style={{ marginLeft: "0.25rem", color: "var(--status-flagged)" }}>⚠</span> : null}
+                  </label>
+                  <input
+                    id={`field-${activeObject.objectId}-${field.key}`}
+                    className="fv-input"
+                    value={field.value}
+                    onChange={(e) => onUpdateField(activeObject.objectId, field.key, e.currentTarget.value)}
+                  />
+                  {field.warning ? (
+                    <div style={{ fontSize: "0.7rem", color: "var(--status-flagged)", marginTop: "0.2rem" }}>{field.warning}</div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Source requirements */}
+          {activeObject.sourceRequirementIds.length > 0 ? (
+            <div className="fv-card">
+              <div style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted-fg)", marginBottom: "0.5rem" }}>
+                Source Requirements ({activeObject.sourceRequirementIds.length})
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem" }}>
+                {activeObject.sourceRequirementIds.map((id) => (
+                  <span key={id} style={{ fontSize: "0.75rem", background: "var(--surface-border)", color: "var(--foreground)", padding: "0.2rem 0.5rem", borderRadius: "4px", fontFamily: "monospace" }}>
+                    {id}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {/* Bottom navigation */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <button
+                type="button"
+                onClick={onReturnToProcess}
+                className="fv-btn-secondary"
+                style={{ fontSize: "0.78rem" }}
+              >
+                ← Back to Process
+              </button>
+              <button
+                type="button"
+                onClick={onOpenTraceability}
+                className="fv-btn-secondary"
+                style={{ fontSize: "0.78rem" }}
+              >
+                Traceability
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={onOpenExport}
+              disabled={!allApproved}
+              className="fv-btn-primary"
+              style={{ fontSize: "0.78rem", opacity: allApproved ? 1 : 0.5, cursor: allApproved ? "pointer" : "not-allowed" }}
+            >
+              Proceed to Export →
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -332,26 +335,20 @@ function findNextReviewObject(
   objects: MasterDataDraftObject[],
   activeObject: MasterDataDraftObject,
 ) {
-  const activeIndex = objects.findIndex(
-    (objectDraft) => objectDraft.objectId === activeObject.objectId,
+  const activeIndex = objects.findIndex((o) => o.objectId === activeObject.objectId);
+  const isCandidate = (o: MasterDataDraftObject) =>
+    o.objectId !== activeObject.objectId && o.reviewStatus !== "approved";
+  return (
+    objects.slice(activeIndex + 1).find(isCandidate) ??
+    objects.find(isCandidate) ??
+    null
   );
-  const isNextCandidate = (objectDraft: MasterDataDraftObject) =>
-    objectDraft.objectId !== activeObject.objectId &&
-    objectDraft.reviewStatus !== "approved";
-  const nextAfterCurrent = objects
-    .slice(activeIndex + 1)
-    .find(isNextCandidate);
-
-  return nextAfterCurrent ?? objects.find(isNextCandidate) ?? null;
 }
 
 function formatReviewStatus(status: MasterDataReviewStatus) {
   switch (status) {
-    case "approved":
-      return "Approved";
-    case "pending":
-      return "Pending";
-    case "review":
-      return "Needs review";
+    case "approved": return "Approved";
+    case "pending": return "Pending";
+    case "review": return "Needs Review";
   }
 }
