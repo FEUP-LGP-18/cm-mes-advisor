@@ -4,16 +4,22 @@ import type {
 } from "./generation";
 import type { DemoScriptAssembly } from "./demo-script";
 import type { ReviewProjectMetadata } from "./review";
+import {
+  formatGeneralOutputMetadata,
+  type GeneralOutputPreferences,
+} from "@/lib/settings";
 
 export interface DemoScriptMarkdownExportInput {
   assembly: DemoScriptAssembly;
   projectMetadata: ReviewProjectMetadata;
   exportTimestamp: string;
+  outputPreferences?: GeneralOutputPreferences;
 }
 
 export function serializeDemoScriptToMarkdown({
   assembly,
   exportTimestamp,
+  outputPreferences,
   projectMetadata,
 }: DemoScriptMarkdownExportInput): string {
   const lines: string[] = [];
@@ -25,6 +31,11 @@ export function serializeDemoScriptToMarkdown({
   appendBullet(lines, "Customer", projectMetadata.customerName);
   appendBullet(lines, "Source file", projectMetadata.sourceFilename);
   appendBullet(lines, "Export timestamp", exportTimestamp);
+  if (outputPreferences) {
+    formatGeneralOutputMetadata(outputPreferences).forEach((entry) => {
+      appendBullet(lines, entry.label, entry.value);
+    });
+  }
   appendParagraph(
     lines,
     "Phase 1 scope note: this demo script was generated from Excel requirements and consultant review.",

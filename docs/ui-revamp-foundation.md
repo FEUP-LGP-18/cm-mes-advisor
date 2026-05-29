@@ -56,6 +56,14 @@ are intentionally small presentational wrappers around the canonical `fv-*`
 classes. They should help teammates compose route work consistently without
 creating another design system or pulling workflow state into UI primitives.
 
+## Settings Behavior Contracts
+
+Issue #59 behavior contracts live in `src/lib/settings/` and are documented in
+`docs/ui-revamp-settings-contracts.md`. Route redesigns should consume those
+contracts instead of inventing local settings shapes. Keep provider secrets,
+raw model IDs, prompts, export counters, and fake About metrics out of client UI
+work.
+
 Use `FvPageHeader` for route titles, breadcrumbs/eyebrows, descriptions, and
 top-right actions. It maps to the dashboard, upload, generate, review, script,
 settings, and Phase 2 page headers shown in the target screenshots. Do not add
