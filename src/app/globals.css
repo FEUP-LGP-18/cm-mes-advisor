@@ -195,6 +195,7 @@ textarea {
   background: var(--document);
   color: var(--document-ink);
   box-shadow: var(--shadow-document);
+  border-radius: 8px;
 }
 
 :root[data-theme="light"] .document-panel {
@@ -240,30 +241,35 @@ textarea {
   border: 1px solid var(--shell-border);
   background: var(--shell-card-surface);
   color: var(--shell-ink);
+  border-radius: 8px;
 }
 
 .theme-shell-card-soft {
   border: 1px solid var(--shell-border);
   background: var(--shell-soft-surface);
   color: var(--shell-ink);
+  border-radius: 8px;
 }
 
 .theme-shell-card-muted {
   border: 1px solid var(--shell-border);
   background: color-mix(in srgb, var(--shell-card-surface) 70%, transparent);
   color: var(--shell-ink);
+  border-radius: 8px;
 }
 
 .theme-shell-card-brand {
   border: 1px solid rgba(0, 85, 140, 0.28);
   background: rgba(0, 85, 140, 0.12);
   color: var(--shell-ink);
+  border-radius: 8px;
 }
 
 .theme-shell-card-slate {
   border: 1px solid rgba(100, 116, 139, 0.28);
   background: rgba(100, 116, 139, 0.1);
   color: var(--shell-ink);
+  border-radius: 8px;
 }
 
 .theme-shell-card-active {
@@ -271,6 +277,7 @@ textarea {
   background: rgba(0, 85, 140, 0.12);
   color: var(--shell-ink);
   box-shadow: inset 3px 0 0 #00558c;
+  border-radius: 8px;
 }
 
 :root[data-theme="light"] .theme-shell-card-brand {
@@ -361,24 +368,28 @@ textarea {
 .theme-doc-card {
   border: 1px solid var(--document-border);
   background: var(--document-soft-surface);
+  border-radius: 8px;
   color: var(--document-ink);
 }
 
 .theme-doc-card-muted {
   border: 1px solid var(--document-border);
   background: var(--document-muted-surface);
+  border-radius: 8px;
   color: var(--document-ink);
 }
 
 .theme-doc-card-brand {
   border: 1px solid rgba(0, 85, 140, 0.24);
   background: rgba(0, 85, 140, 0.08);
+  border-radius: 8px;
   color: var(--document-ink);
 }
 
 .theme-doc-card-contrast {
   border: 1px solid var(--document-border);
   background: var(--document-contrast-surface);
+  border-radius: 8px;
   color: var(--document-contrast-ink);
 }
 
@@ -572,7 +583,7 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 0.65rem;
-  border-radius: 1.5rem;
+  border-radius: 8px;
   border: 1px solid var(--shell-border);
   background: color-mix(in srgb, var(--shell-surface-strong) 94%, transparent);
   padding: 0.72rem 0.9rem;
@@ -796,7 +807,7 @@ textarea {
 .phase-shell-progress,
 .phase-project-table-shell {
   border: 1px solid var(--shell-border);
-  border-radius: 1.5rem;
+  border-radius: 8px;
   background: color-mix(in srgb, var(--shell-surface-strong) 94%, transparent);
   box-shadow: var(--shadow-soft);
 }
@@ -942,7 +953,7 @@ textarea {
 
 .phase-progress-link {
   border: 1px solid var(--shell-border);
-  border-radius: 1.15rem;
+  border-radius: 8px;
   background: var(--shell-card-surface);
   color: var(--shell-muted);
   padding: 0.8rem 0.9rem;
@@ -1051,7 +1062,7 @@ textarea {
   gap: 0.65rem;
   grid-template-columns: repeat(1, minmax(0, 1fr));
   border: 1px solid var(--shell-border);
-  border-radius: 1.25rem;
+  border-radius: 8px;
   background: var(--shell-card-surface);
   padding: 0.9rem 1rem;
 }
@@ -1059,7 +1070,7 @@ textarea {
 .phase-project-row-metric {
   min-width: 0;
   border: 1px solid var(--shell-border);
-  border-radius: 1rem;
+  border-radius: 8px;
   background: var(--shell-soft-surface);
   padding: 0.8rem 0.9rem;
 }
@@ -1180,7 +1191,7 @@ textarea {
 .document-panel,
 .premium-panel,
 .premium-panel-strong {
-  border-radius: 1.5rem;
+  border-radius: 8px;
 }
 
 .theme-shell-card,
@@ -1293,7 +1304,7 @@ textarea {
   justify-content: space-between;
   gap: 0.75rem;
   border: 1px solid var(--shell-border);
-  border-radius: 1.5rem;
+  border-radius: 8px;
   background: color-mix(in srgb, var(--shell-surface-strong) 96%, transparent);
   padding: 0.72rem 0.92rem;
   box-shadow: var(--shadow-soft);
@@ -1341,7 +1352,7 @@ textarea {
 .phase-empty-state,
 .phase-review-summary {
   border: 1px solid var(--shell-border);
-  border-radius: 1.5rem;
+  border-radius: 8px;
   background: color-mix(in srgb, var(--shell-surface-strong) 97%, transparent);
   box-shadow: var(--shadow-soft);
 }
@@ -1514,7 +1525,7 @@ textarea {
   display: grid;
   gap: 0.75rem;
   border: 1px solid var(--shell-border);
-  border-radius: 1.1rem;
+  border-radius: 8px;
   background: color-mix(in srgb, var(--shell-card-surface) 98%, transparent);
   padding: 0.9rem;
 }
@@ -1878,7 +1889,7 @@ textarea {
   display: grid;
   gap: 0.85rem;
   border: 1px solid var(--shell-border);
-  border-radius: 1.25rem;
+  border-radius: 8px;
   background: color-mix(in srgb, var(--shell-surface-strong) 98%, transparent);
   padding: 0.95rem;
   box-shadow: var(--shadow-soft);
@@ -1915,7 +1926,7 @@ textarea {
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   border: 1px solid var(--shell-border);
-  border-radius: 1rem;
+  border-radius: 8px;
   background: color-mix(in srgb, var(--shell-card-surface) 98%, transparent);
   padding: 0.82rem;
 }
@@ -1937,7 +1948,7 @@ textarea {
   display: grid;
   gap: 1rem;
   border: 1px solid var(--shell-border);
-  border-radius: 1.5rem;
+  border-radius: 8px;
   background: color-mix(in srgb, var(--shell-surface-strong) 98%, transparent);
   padding: 1.1rem;
   box-shadow: var(--shadow-soft);
@@ -1970,7 +1981,7 @@ textarea {
   display: grid;
   gap: 0.75rem;
   border: 1px solid var(--shell-border);
-  border-radius: 1rem;
+  border-radius: 8px;
   background: color-mix(in srgb, var(--shell-soft-surface) 88%, transparent);
   padding: 0.85rem;
 }
@@ -2097,7 +2108,7 @@ textarea {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.6rem;
   border: 1px solid var(--shell-border);
-  border-radius: 1.2rem;
+  border-radius: 8px;
   background: color-mix(in srgb, var(--shell-surface-strong) 98%, transparent);
   padding: 0.68rem;
   box-shadow: var(--shadow-strong);
@@ -2124,7 +2135,7 @@ textarea {
   display: grid;
   gap: 1rem;
   border: 1px solid var(--shell-border);
-  border-radius: 1.75rem;
+  border-radius: 10px;
   background: color-mix(in srgb, var(--shell-surface-strong) 99%, transparent);
   padding: 1.15rem;
   box-shadow: var(--shadow-strong);
@@ -2150,7 +2161,7 @@ textarea {
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   border: 1px solid var(--shell-border);
-  border-radius: 1rem;
+  border-radius: 8px;
   background: color-mix(in srgb, var(--shell-card-surface) 98%, transparent);
   padding: 0.82rem;
 }
@@ -2166,7 +2177,7 @@ textarea {
 }
 
 .phase-project-row-metric {
-  border-radius: 1rem;
+  border-radius: 8px;
 }
 
 @media (max-width: 1100px) {
@@ -2425,7 +2436,7 @@ textarea {
 @media (max-width: 640px) {
   .top-shell {
     padding: 0.82rem 0.84rem;
-    border-radius: 1.35rem;
+    border-radius: 8px;
     row-gap: 0.62rem;
   }
 
