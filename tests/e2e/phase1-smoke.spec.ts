@@ -118,9 +118,10 @@ for (const theme of themes) {
     await expect(page).toHaveURL(/\/projects\/.+\/source$/);
     await expect(
       page.getByRole("heading", {
-        name: /confirm the source for this run/i,
+        name: "Source",
       }),
     ).toBeVisible();
+    await expect(page.getByText("Sample workbook active")).toBeVisible();
     await assertNoHorizontalOverflow(page);
     await attachFullPageScreenshot(page, testInfo, `${theme}-sample-project-source`);
 
@@ -160,16 +161,18 @@ for (const theme of themes) {
     await page.goto(`/projects/${project.projectId}/source`);
     await expect(
       page.getByRole("heading", {
-        name: /confirm the source for this run/i,
+        name: "Source",
       }),
     ).toBeVisible();
+    await expect(page.getByRole("button", { name: /continue to generate/i })).toBeEnabled();
     await assertNoHorizontalOverflow(page);
     await attachFullPageScreenshot(page, testInfo, `${theme}-source-studio`);
 
     await page.goto(`/projects/${project.projectId}/generate`);
     await expect(
-      page.getByRole("heading", { name: /run the recommended slice first/i }),
+      page.getByRole("heading", { name: "Generate" }),
     ).toBeVisible();
+    await expect(page.getByText("Row explorer — search, filter, and select")).toBeVisible();
     await assertNoHorizontalOverflow(page);
     await attachFullPageScreenshot(page, testInfo, `${theme}-generate-studio`);
 
@@ -184,17 +187,17 @@ for (const theme of themes) {
     );
     await expect(
       page.getByRole("heading", {
-        name: /review generated requirements/i,
+        name: "Review",
       }),
     ).toBeVisible();
+    await expect(page.getByText(/^Pending requirements$/).first()).toBeVisible();
     await expect(page.getByRole("button", { name: /approve/i }).first()).toBeVisible();
     await assertNoHorizontalOverflow(page);
 
     if (testInfo.project.name.includes("mobile")) {
-      await expectLocatorAbove(
-        page.getByText(/^Approve and next$/).first(),
-        page.getByText(/^Pending requirements$/).first(),
-      );
+      await expect(
+        page.getByRole("button", { name: "Approve and next" }),
+      ).toBeEnabled();
     }
 
     await attachFullPageScreenshot(page, testInfo, `${theme}-review-studio`);
@@ -223,9 +226,10 @@ for (const theme of themes) {
     await page.goto(`/projects/${project.projectId}/script`);
     await expect(
       page.getByRole("heading", {
-        name: /shape the phase 1 handoff/i,
+        name: "Script",
       }),
     ).toBeVisible();
+    await expect(page.getByText(/^Script editor$/).first()).toBeVisible();
     await expect(
       page.getByRole("button", { name: /continue to export/i }),
     ).toBeEnabled();
@@ -246,9 +250,10 @@ for (const theme of themes) {
     await expect(page).toHaveURL(new RegExp(`/projects/${project.projectId}/export$`));
     await expect(
       page.getByRole("heading", {
-        name: /download the phase 1 handoff/i,
+        name: "Export",
       }),
     ).toBeVisible();
+    await expect(page.getByText("Finalize the Phase 1 deliverable")).toBeVisible();
     await expect(
       page.getByRole("button", { name: /download markdown/i }),
     ).toBeEnabled();

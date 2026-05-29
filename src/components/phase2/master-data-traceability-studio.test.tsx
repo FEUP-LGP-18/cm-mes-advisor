@@ -35,7 +35,8 @@ describe("MasterDataTraceabilityStudio", () => {
     );
 
     expect(html).toContain("No traceability links yet");
-    expect(html).toContain("Back to export");
+    expect(html).toContain("Back to Export");
+    expect(html).toContain("Return to export after the generated Master Data objects are reviewed");
   });
 
   it("filters traceability records and supports a no-results state", () => {

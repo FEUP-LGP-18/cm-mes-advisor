@@ -128,7 +128,7 @@ describe("GeneralSettingsView", () => {
     );
 
     expect(html).toContain("Unarchive project");
-    expect(html).toContain("Archived");
+    expect(html).toContain("Restore this project to active status");
   });
 
   it("renders delete section for owners", () => {
@@ -144,7 +144,7 @@ describe("GeneralSettingsView", () => {
       <GeneralSettingsView {...makeProps({ isServerBacked: false })} />,
     );
 
-    expect(html).toContain("Update project metadata for this local project.");
+    expect(html).toContain("Project details");
     expect(html).not.toContain("Description");
     expect(html).not.toContain("Archive project");
     expect(html).not.toContain("Delete project");
@@ -217,7 +217,8 @@ describe("GeneralSettingsView", () => {
     );
 
     expect(html).toContain("Project details saved.");
-    expect(html).toContain("phase-feedback-success");
+    expect(html).toContain("fv-callout-success");
+    expect(html).toContain('role="status"');
   });
 
   it("renders an error feedback message", () => {
@@ -233,7 +234,8 @@ describe("GeneralSettingsView", () => {
     );
 
     expect(html).toContain("Changes could not be saved.");
-    expect(html).toContain("phase-feedback-error");
+    expect(html).toContain("fv-callout-error");
+    expect(html).toContain('role="alert"');
   });
 
   it("renders a field validation error for an empty project name", () => {
@@ -254,29 +256,30 @@ describe("GeneralSettingsView", () => {
     expect(html).toContain("Saving…");
   });
 
-  it("shows Archived pill in the header when the project is archived", () => {
+  it("shows lifecycle controls for archived projects", () => {
     const html = renderToStaticMarkup(
       <GeneralSettingsView {...makeProps({ project: archivedProject })} />,
     );
 
-    expect(html).toContain("phase-shell-pill");
-    expect(html).toContain("Archived");
+    expect(html).toContain("Unarchive project");
+    expect(html).toContain("Restore this project to active status");
   });
 
-  it("shows read-only pill in the header for non-owners", () => {
+  it("shows read-only project detail access for non-owners", () => {
     const html = renderToStaticMarkup(
       <GeneralSettingsView {...makeProps({ isOwner: false })} />,
     );
 
-    expect(html).toContain("Read-only");
+    expect(html).toContain("You have read-only access to project details.");
+    expect(html).not.toContain("Save changes");
   });
 
-  it("shows breadcrumb links to Projects and the project page", () => {
+  it("keeps the isolated view focused on editable project detail controls", () => {
     const html = renderToStaticMarkup(<GeneralSettingsView {...makeProps()} />);
 
-    expect(html).toContain('href="/"');
-    expect(html).toContain(`href="/projects/${activeProject.id}"`);
-    expect(html).toContain("General");
+    expect(html).toContain("Project details");
+    expect(html).toContain("Copy project link");
+    expect(html).toContain("Save changes");
   });
 
   it("surfaces recent lifecycle activity and copy-link affordance", () => {

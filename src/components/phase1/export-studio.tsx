@@ -40,13 +40,13 @@ export default function ExportStudio({
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
           <div>
             <div style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted-fg)", marginBottom: "0.25rem" }}>
-              Required Pilot Demo
+              Optional Phase 2 continuation
             </div>
             <h3 style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--foreground)", margin: "0 0 0.375rem" }}>
               Start Phase 2 from approved Phase 1 rows
             </h3>
             <p style={{ fontSize: "0.8rem", color: "var(--muted-fg)", margin: 0, lineHeight: 1.6, maxWidth: "520px" }}>
-              The pilot demo requires the Master Data path after the Phase 1 handoff: approved rows, setup, generation, review, export, and traceability.
+              Phase 1 is complete when this handoff is exported. Continue into the Master Data path only when the optional Phase 2 walkthrough is in scope.
             </p>
           </div>
           <button

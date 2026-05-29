@@ -234,11 +234,11 @@ describe("phase 1 redesigned surfaces", () => {
       />,
     );
 
-    expect(html).toContain("Upload the workbook for this run");
+    expect(html).toContain("Sample workbook active");
     expect(html).toContain("Upload .xlsx workbook");
     expect(html).toContain("Continue to Generate");
     expect(html).toContain("Before you continue");
-    expect(html).toContain("Parsed preview");
+    expect(html).toContain("Parsed Preview");
   });
 
   it("renders generate with the row explorer and recommended draft rail", () => {
@@ -270,12 +270,12 @@ describe("phase 1 redesigned surfaces", () => {
     );
 
     expect(source.sourceKind).toBe("fixture");
-    expect(html).toContain("Run the recommended slice first.");
-    expect(html).toContain("Generate recommended draft");
-    expect(html).toContain("Row explorer and slice selection");
-    expect(html).toContain("Recheck real access");
+    expect(html).toContain("Row explorer — search, filter, and select");
+    expect(html).toContain("Generate Recommended Draft");
+    expect(html).toContain("Generation Mode");
+    expect(html).toContain("Recheck access");
     expect(html).toContain("Open review queue");
-    expect(html).toContain("The last successful run used grounded generation.");
+    expect(html).toContain("Last run used grounded generation. Rail is back to draft mode.");
   });
 
   it("renders the review blocker when generation has not started", () => {
@@ -294,8 +294,9 @@ describe("phase 1 redesigned surfaces", () => {
       />,
     );
 
-    expect(html).toContain("Generate drafts before review");
-    expect(html).toContain("Generate demo rows now");
+    expect(html).toContain("No requirements generated yet");
+    expect(html).toContain("Generate demo rows");
+    expect(html).toContain("Back to generation");
   });
 
   it("renders the review queue studio with the current requirement and shortcuts", () => {
@@ -321,12 +322,11 @@ describe("phase 1 redesigned surfaces", () => {
       />,
     );
 
-    expect(html).toContain("Review generated requirements");
     expect(html).toContain("Pending requirements");
-    expect(html).toContain("Search and filter generated rows");
+    expect(html).toContain("Inventory");
     expect(html).toContain("Approve ready rows");
     expect(html).toContain("Skip remaining rows");
-    expect(html).toContain("Approve");
+    expect(html).toContain("Approve and next");
   });
 
   it("renders the cleared review queue as a ready state, not a blocked state", () => {
@@ -348,9 +348,9 @@ describe("phase 1 redesigned surfaces", () => {
       />,
     );
 
-    expect(html).toContain("Review queue cleared");
-    expect(html).toContain("Ready state");
-    expect(html).not.toContain("Blocked state");
+    expect(html).toContain("All rows reviewed");
+    expect(html).toContain("proceed to the script step");
+    expect(html).not.toContain("No requirements generated yet");
   });
 
   it("renders script as blocked while pending review work remains", () => {
@@ -375,7 +375,7 @@ describe("phase 1 redesigned surfaces", () => {
       />,
     );
 
-    expect(html).toContain("Shape the Phase 1 handoff");
+    expect(html).toContain("Keep shaping the handoff");
     expect(html).toContain("Continue to export");
     expect(html).toContain("still need consultant review");
     expect(html).toContain("Back to review");
@@ -408,8 +408,8 @@ describe("phase 1 redesigned surfaces", () => {
     expect(html).toContain("Download Markdown");
     expect(html).toContain("Not downloaded yet");
     expect(html).toContain("Format:");
-    expect(html).toContain("Required pilot demo");
-    expect(html).toContain("Start Phase 2 demo");
-    expect(html).toContain("approved Phase 1 rows");
+    expect(html).toContain("Optional Phase 2 continuation");
+    expect(html).toContain("Start Phase 2");
+    expect(html).toContain("Phase 1 is complete when this handoff is exported.");
   });
 });

@@ -60,9 +60,9 @@ async function assertNoHorizontalOverflow(page: Page) {
 
 async function approveGeneratedMasterDataObjects(page: Page) {
   const approveButton = page.getByRole("button", {
-    name: "Approve and next object",
+    name: /^Approve/,
   });
-  const openExportButton = page.getByRole("button", { name: "Open export" });
+  const openExportButton = page.getByRole("button", { name: /proceed to export/i });
 
   for (let attempt = 0; attempt < 20; attempt += 1) {
     if (await openExportButton.isEnabled()) {
@@ -99,14 +99,18 @@ test("locked Phase 2 setup hides inactive generation controls", async ({
 
   await expect(
     page.getByRole("heading", {
-      name: /approve phase 1 rows before you continue into master data/i,
+      name: "Upload Requirements File",
     }),
   ).toBeVisible();
+  await expect(page.getByText(/phase 1 approval required/i)).toBeVisible();
   await expect(page.getByText("Grounded real generation")).toHaveCount(0);
   await expect(page.getByText("Object scope")).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Generate Master Data" }),
   ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: /analyze requirements/i }),
+  ).toBeDisabled();
   await expect(
     page.getByRole("button", { name: "Open Phase 1 review" }),
   ).toBeVisible();
@@ -135,30 +139,33 @@ test("approved Phase 1 rows can move through Phase 2 draft review and traceabili
   await seedProjectRegistry(page, registry);
   await page.goto(`/projects/${project.projectId}/master-data/setup`);
 
-  await expect(page.getByText("Prototype drafts").first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Upload Requirements File" })).toBeVisible();
+  await expect(page.getByText(/phase 1 requirements loaded/i)).toBeVisible();
+  await expect(page.getByText(/2 approved rows/i)).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Analyze approved rows" }),
+    page.getByRole("button", { name: /analyze requirements/i }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Analyze approved rows" }).click();
-  await expect(page.getByText("Batch review support")).toBeVisible();
+  await page.getByRole("button", { name: /analyze requirements/i }).click();
+  await expect(page.getByRole("heading", { name: "Requirements Analysis" })).toBeVisible();
+  await expect(page.getByText("Requirements → MES Object Mapping")).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Continue to processing" }),
+    page.getByRole("button", { name: /generate master data/i }),
   ).toBeEnabled();
   await assertNoHorizontalOverflow(page);
   await attachFullPageScreenshot(page, testInfo, "phase2-setup-ready");
 
-  await page.getByRole("button", { name: "Continue to processing" }).click();
+  await page.getByRole("button", { name: /generate master data/i }).click();
   await expect(
-    page.getByRole("heading", { name: "Review package ready" }),
+    page.getByRole("heading", { name: "Master Data Generated" }),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Open review" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: /review results/i })).toBeEnabled();
   await assertNoHorizontalOverflow(page);
   await attachFullPageScreenshot(page, testInfo, "phase2-process-ready");
 
-  await page.getByRole("button", { name: "Open review" }).click();
+  await page.getByRole("button", { name: /review results/i }).click();
   await expect(
     page.getByRole("heading", {
-      name: /approve the generated objects before export/i,
+      name: "Review Master Data",
     }),
   ).toBeVisible();
   await assertNoHorizontalOverflow(page);
@@ -168,25 +175,25 @@ test("approved Phase 1 rows can move through Phase 2 draft review and traceabili
   await page.goto(`/projects/${project.projectId}/master-data/export`);
   await expect(
     page.getByRole("heading", {
-      name: /download the master data package once the review gate is clear/i,
+      name: "Export Master Data",
     }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Download Master Data package" }),
+    page.getByRole("button", { name: /download master data package/i }),
   ).toBeEnabled();
   await assertNoHorizontalOverflow(page);
   await attachFullPageScreenshot(page, testInfo, "phase2-export");
 
-  await page.getByRole("button", { name: "Open traceability" }).click();
+  await page.getByRole("button", { name: "View Traceability" }).click();
   await expect(
     page.getByRole("heading", {
-      name: /keep the requirement-to-object audit trail visible/i,
+      name: "Traceability",
     }),
   ).toBeVisible();
   await page
-    .getByPlaceholder("Search requirement, object, field, or value...")
+    .getByPlaceholder("Search requirement, object, field, value…")
     .fill("no matching traceability row");
-  await expect(page.getByText("No traceability rows match that search.")).toBeVisible();
+  await expect(page.getByText(/No traceability rows match/)).toBeVisible();
   await assertNoHorizontalOverflow(page);
   await attachFullPageScreenshot(page, testInfo, "phase2-traceability-empty-search");
 });
