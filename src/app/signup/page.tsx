@@ -11,6 +11,7 @@ import {
 } from "@/lib/supabase/auth-messages";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import AuthShell from "@/components/auth/auth-shell";
+import MesLogo from "@/components/brand/mes-logo";
 
 function SignUpForm() {
   const searchParams = useSearchParams();
@@ -68,26 +69,20 @@ function SignUpForm() {
     const loginLink = next ? `/login?next=${encodeURIComponent(next)}` : "/login";
     return (
       <AuthShell>
-        <div className="w-full max-w-sm animate-enter">
-          <div className="premium-panel rounded-3xl p-8 grid gap-6">
-            <div className="grid gap-2">
-              <h1 className="text-2xl font-semibold tracking-tight text-[color:var(--shell-ink)]">
-                Check your email
-              </h1>
-              <p className="text-sm text-[color:var(--shell-muted)] leading-relaxed">
-                We sent a confirmation link to{" "}
-                <strong className="text-[color:var(--shell-ink)]">{email}</strong>.
-                Click the link to activate your account and return to the
-                advisor.
-              </p>
-            </div>
-            <Link
-              href={loginLink}
-              className="focus-premium theme-button-primary w-full rounded-2xl px-5 py-3 text-sm font-semibold text-center transition"
-            >
-              Go to sign in
-            </Link>
+        <div className="fv-auth-card fv-auth-card-compact fv-auth-stack">
+          <div className="fv-auth-logo-wrap">
+            <MesLogo className="fv-auth-logo-full" tone="color" />
           </div>
+          <div>
+            <h1 className="fv-auth-heading">Check your email</h1>
+            <p className="fv-auth-sub" style={{ marginBottom: 0 }}>
+              We sent a confirmation link to <strong>{email}</strong>. Click the
+              link to activate your account and return to the advisor.
+            </p>
+          </div>
+          <Link href={loginLink} className="fv-auth-submit" style={{ textDecoration: "none" }}>
+            Go to sign in
+          </Link>
         </div>
       </AuthShell>
     );
@@ -95,24 +90,20 @@ function SignUpForm() {
 
   return (
     <AuthShell>
-      <div className="w-full max-w-sm animate-enter">
-        <div className="premium-panel rounded-3xl p-8 grid gap-6">
-          <div className="grid gap-1">
-            <h1 className="text-2xl font-semibold tracking-tight text-[color:var(--shell-ink)]">
-              Create account
-            </h1>
-            <p className="text-sm text-[color:var(--shell-muted)]">
-              Consultant access to the MES Demo Advisor.
-            </p>
-          </div>
+      <div className="fv-auth-card fv-auth-card-compact">
+        <div className="fv-auth-logo-wrap">
+          <MesLogo className="fv-auth-logo-full" tone="color" />
+        </div>
+        <h1 className="fv-auth-heading">Create account</h1>
+        <p className="fv-auth-sub">Consultant access to the MES Advisor workspace.</p>
 
-          <form onSubmit={handleSubmit} className="grid gap-4" noValidate>
-            <div className="grid gap-1.5">
+          <form onSubmit={handleSubmit} className="fv-auth-form" noValidate>
+            <div className="fv-auth-field">
               <label
                 htmlFor="email"
-                className="mono-label text-[0.68rem] text-[color:var(--shell-subtle)]"
+                className="fv-auth-field-label"
               >
-                Email
+                Email address
               </label>
               <input
                 id="email"
@@ -121,15 +112,15 @@ function SignUpForm() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.currentTarget.value)}
-                placeholder="you@example.com"
-                className="focus-premium theme-shell-input w-full rounded-2xl px-4 py-3 text-sm"
+                placeholder="consultant@criticalmanufacturing.com"
+                className="fv-auth-input"
               />
             </div>
 
-            <div className="grid gap-1.5">
+            <div className="fv-auth-field">
               <label
                 htmlFor="password"
-                className="mono-label text-[0.68rem] text-[color:var(--shell-subtle)]"
+                className="fv-auth-field-label"
               >
                 Password
               </label>
@@ -142,24 +133,18 @@ function SignUpForm() {
                 value={password}
                 onChange={(e) => setPassword(e.currentTarget.value)}
                 placeholder="At least 6 characters"
-                className="focus-premium theme-shell-input w-full rounded-2xl px-4 py-3 text-sm"
+                className="fv-auth-input"
               />
             </div>
 
             {!supabaseConfigured ? (
-              <div
-                role="alert"
-                className="phase-feedback phase-feedback-error rounded-2xl text-sm"
-              >
+              <div role="alert" className="fv-auth-alert">
                 {AUTH_NOT_CONFIGURED_MESSAGE}
               </div>
             ) : null}
 
             {error ? (
-              <div
-                role="alert"
-                className="phase-feedback phase-feedback-error rounded-2xl text-sm"
-              >
+              <div role="alert" className="fv-auth-alert">
                 {error}
               </div>
             ) : null}
@@ -167,7 +152,7 @@ function SignUpForm() {
             <button
               type="submit"
               disabled={loading || !supabaseConfigured}
-              className="focus-premium theme-button-primary w-full rounded-2xl px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+              className="fv-auth-submit"
             >
               {loading ? "Creating account…" : "Create account"}
             </button>
@@ -176,22 +161,22 @@ function SignUpForm() {
           {!supabaseConfigured ? (
             <Link
               href="/"
-              className="focus-premium theme-shell-button-secondary w-full rounded-2xl px-5 py-3 text-sm font-semibold text-center transition"
+              className="fv-auth-submit"
+              style={{ display: "flex", marginTop: "1rem", textDecoration: "none" }}
             >
               Continue in mock mode
             </Link>
           ) : (
-            <p className="text-center text-sm text-[color:var(--shell-muted)]">
+            <p className="fv-auth-footer" style={{ marginTop: "1rem" }}>
               Already have an account?{" "}
               <Link
                 href={next ? `/login?next=${encodeURIComponent(next)}` : "/login"}
-                className="font-semibold text-[color:var(--shell-ink)] hover:text-[color:var(--brand-accent-soft)] transition-colors"
+                className="fv-auth-link"
               >
                 Sign in
               </Link>
             </p>
           )}
-        </div>
       </div>
     </AuthShell>
   );

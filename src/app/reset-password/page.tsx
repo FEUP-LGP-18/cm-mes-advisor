@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { AUTH_NOT_CONFIGURED_MESSAGE } from "@/lib/supabase/auth-messages";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import AuthShell from "@/components/auth/auth-shell";
+import MesLogo from "@/components/brand/mes-logo";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -53,22 +54,18 @@ export default function ResetPasswordPage() {
 
   return (
     <AuthShell>
-      <div className="w-full max-w-sm animate-enter">
-        <div className="premium-panel rounded-3xl p-8 grid gap-6">
-          <div className="grid gap-1">
-            <h1 className="text-2xl font-semibold tracking-tight text-[color:var(--shell-ink)]">
-              Set new password
-            </h1>
-            <p className="text-sm text-[color:var(--shell-muted)]">
-              Choose a strong password for your account.
-            </p>
-          </div>
+      <div className="fv-auth-card fv-auth-card-compact">
+        <div className="fv-auth-logo-wrap">
+          <MesLogo className="fv-auth-logo-full" tone="color" />
+        </div>
+        <h1 className="fv-auth-heading">Set new password</h1>
+        <p className="fv-auth-sub">Choose a strong password for your account.</p>
 
-          <form onSubmit={handleSubmit} className="grid gap-4" noValidate>
-            <div className="grid gap-1.5">
+          <form onSubmit={handleSubmit} className="fv-auth-form" noValidate>
+            <div className="fv-auth-field">
               <label
                 htmlFor="password"
-                className="mono-label text-[0.68rem] text-[color:var(--shell-subtle)]"
+                className="fv-auth-field-label"
               >
                 New password
               </label>
@@ -81,14 +78,14 @@ export default function ResetPasswordPage() {
                 value={password}
                 onChange={(e) => setPassword(e.currentTarget.value)}
                 placeholder="At least 6 characters"
-                className="focus-premium theme-shell-input w-full rounded-2xl px-4 py-3 text-sm"
+                className="fv-auth-input"
               />
             </div>
 
-            <div className="grid gap-1.5">
+            <div className="fv-auth-field">
               <label
                 htmlFor="confirm"
-                className="mono-label text-[0.68rem] text-[color:var(--shell-subtle)]"
+                className="fv-auth-field-label"
               >
                 Confirm password
               </label>
@@ -100,24 +97,18 @@ export default function ResetPasswordPage() {
                 value={confirm}
                 onChange={(e) => setConfirm(e.currentTarget.value)}
                 placeholder="Repeat your password"
-                className="focus-premium theme-shell-input w-full rounded-2xl px-4 py-3 text-sm"
+                className="fv-auth-input"
               />
             </div>
 
             {!supabaseConfigured ? (
-              <div
-                role="alert"
-                className="phase-feedback phase-feedback-error rounded-2xl text-sm"
-              >
+              <div role="alert" className="fv-auth-alert">
                 {AUTH_NOT_CONFIGURED_MESSAGE}
               </div>
             ) : null}
 
             {error ? (
-              <div
-                role="alert"
-                className="phase-feedback phase-feedback-error rounded-2xl text-sm"
-              >
+              <div role="alert" className="fv-auth-alert">
                 {error}
               </div>
             ) : null}
@@ -125,7 +116,7 @@ export default function ResetPasswordPage() {
             <button
               type="submit"
               disabled={loading || !supabaseConfigured}
-              className="focus-premium theme-button-primary w-full rounded-2xl px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+              className="fv-auth-submit"
             >
               {loading ? "Updating…" : "Update password"}
             </button>
@@ -133,12 +124,12 @@ export default function ResetPasswordPage() {
           {!supabaseConfigured ? (
             <Link
               href="/"
-              className="focus-premium theme-shell-button-secondary w-full rounded-2xl px-5 py-3 text-sm font-semibold text-center transition"
+              className="fv-auth-submit"
+              style={{ display: "flex", marginTop: "1rem", textDecoration: "none" }}
             >
               Continue in mock mode
             </Link>
           ) : null}
-        </div>
       </div>
     </AuthShell>
   );
