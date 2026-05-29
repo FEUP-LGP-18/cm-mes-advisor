@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { phaseOneScope } from "@/lib/project-scope";
 import type {
   CreateProjectActionState,
@@ -41,40 +42,63 @@ export default function Phase1ProjectHome({
     () => filterAndSortProjects(projects, query, sort),
     [projects, query, sort],
   );
-  const activeProject = filteredProjects[0] ?? projects[0] ?? null;
 
   return (
-    <main className="app-canvas min-h-screen text-[color:var(--shell-ink)]">
-      <div className="mx-auto flex w-full max-w-[1560px] flex-col gap-6 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
-        <Phase1Topbar email={currentUser?.email} />
+    <div className="fv-shell">
+      <Phase1Topbar email={currentUser?.email} />
+      <div className="fv-body">
+        {/* Sidebar */}
+        <nav className="fv-sidebar" aria-label="Navigation">
+          <div className="fv-sidebar-section">
+            <span className="fv-sidebar-label">Navigation</span>
+            <Link href="/" className="fv-nav-item fv-nav-item-active">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                <rect x="2" y="2" width="5" height="5" rx="1" />
+                <rect x="9" y="2" width="5" height="5" rx="1" />
+                <rect x="2" y="9" width="5" height="5" rx="1" />
+                <rect x="9" y="9" width="5" height="5" rx="1" />
+              </svg>
+              Projects
+            </Link>
+            <Link href="/settings" className="fv-nav-item">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                <circle cx="8" cy="8" r="2.5" />
+                <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" />
+              </svg>
+              Settings
+            </Link>
+          </div>
+        </nav>
 
-        <ProjectCommandDesk
-          activeProject={activeProject}
-          createProject={createProject}
-          initialCreateProjectState={initialCreateProjectState}
-          listError={listError}
-          onOpenProject={(project, step) =>
-            router.push(
-              getPhase1StepPath(
-                project.id,
-                step ?? project.phase1CurrentStep ?? "source",
-              ),
-            )
-          }
-          onQueryChange={setQuery}
-          onSortChange={setSort}
-          projects={filteredProjects}
-          query={query}
-          sort={sort}
-          totalProjectCount={projects.length}
-        />
+        {/* Content */}
+        <main className="fv-content">
+          <ProjectCommandDesk
+            createProject={createProject}
+            initialCreateProjectState={initialCreateProjectState}
+            listError={listError}
+            onOpenProject={(project, step) =>
+              router.push(
+                getPhase1StepPath(
+                  project.id,
+                  step ?? project.phase1CurrentStep ?? "source",
+                ),
+              )
+            }
+            onQueryChange={setQuery}
+            onSortChange={setSort}
+            projects={filteredProjects}
+            query={query}
+            sort={sort}
+            totalProjectCount={projects.length}
+          />
+        </main>
       </div>
-    </main>
+    </div>
   );
 }
 
 export function ProjectCommandDesk({
-  activeProject,
+  activeProject: _activeProject,
   createProject,
   initialCreateProjectState,
   listError,
@@ -86,7 +110,7 @@ export function ProjectCommandDesk({
   sort,
   totalProjectCount,
 }: {
-  activeProject: ProjectListItem | null;
+  activeProject?: ProjectListItem | null;
   createProject: (
     previousState: CreateProjectActionState,
     formData: FormData,
@@ -106,245 +130,187 @@ export function ProjectCommandDesk({
     initialCreateProjectState,
   );
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const hasProjects = projects.length > 0;
-  const ownedCount = projects.filter(
-    (project) => project.currentUserRole === "owner",
-  ).length;
-  const sharedCount = projects.length - ownedCount;
   const isSearching = query.trim().length > 0;
+  const total = totalProjectCount ?? projects.length;
+  const inProgress = projects.filter((p) => p.phase1CurrentStep && p.phase1CurrentStep !== "export").length;
+  const completed = projects.filter((p) => p.phase1CurrentStep === "export").length;
+  const pendingReview = projects.filter((p) => p.phase1CurrentStep === "review").length;
 
   return (
-    <section className="grid gap-6">
-      <section className="phase-command-desk">
-        <div className="phase-command-copy">
-          <p className="phase-overline">Phase 1 command desk</p>
-          <h1 className="phase-command-title">
-            Pick up the right customer project quickly.
-          </h1>
-          <p className="phase-command-body">
-            {phaseOneScope.productName} stays focused on one consultant
-            workflow: confirm the workbook, generate safe drafts, make
-            consultant decisions, shape the script, and export a clean Phase 1
-            handoff.
-          </p>
+    <div className="fv-projects-page">
+      {/* Header */}
+      <div className="fv-page-header">
+        <div>
+          <h1 className="fv-page-title">Projects</h1>
+          <p className="fv-page-subtitle">{phaseOneScope.productName} — manage your MES demo configuration projects</p>
         </div>
-        {hasProjects ? (
-          <div className="phase-command-actions">
-            <button
-              type="button"
-              onClick={() => setCreateDialogOpen(true)}
-              className="focus-premium theme-button-primary rounded-2xl px-5 py-3 text-sm font-semibold transition"
-            >
-              Create project
-            </button>
+        <button
+          type="button"
+          onClick={() => setCreateDialogOpen(true)}
+          className="fv-btn-primary"
+        >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <line x1="8" y1="2" x2="8" y2="14" />
+            <line x1="2" y1="8" x2="14" y2="8" />
+          </svg>
+          New Project
+        </button>
+      </div>
+
+      {/* Stats cards */}
+      <div className="fv-stats-row">
+        <div className="fv-stat-card">
+          <div className="fv-stat-label">Total Projects</div>
+          <div className="fv-stat-value">{total}</div>
+          <div className="fv-stat-sub">All time</div>
+        </div>
+        <div className="fv-stat-card">
+          <div className="fv-stat-label">In Progress</div>
+          <div className="fv-stat-value fv-stat-value-blue">{inProgress}</div>
+          <div className="fv-stat-sub">Active this week</div>
+        </div>
+        <div className="fv-stat-card">
+          <div className="fv-stat-label">Pending Review</div>
+          <div className="fv-stat-value fv-stat-value-orange">{pendingReview}</div>
+          <div className="fv-stat-sub">Awaiting approval</div>
+        </div>
+        <div className="fv-stat-card">
+          <div className="fv-stat-label">Completed</div>
+          <div className="fv-stat-value fv-stat-value-green">{completed}</div>
+          <div className="fv-stat-sub">Ready for demo</div>
+        </div>
+      </div>
+
+      {listError ? (
+        <div className="fv-callout fv-callout-error" style={{ marginBottom: "1rem" }}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6" /><line x1="8" y1="5" x2="8" y2="8" /><line x1="8" y1="11" x2="8" y2="11" strokeWidth="2" /></svg>
+          {listError}
+        </div>
+      ) : null}
+
+      {/* Table */}
+      <div className="fv-table-wrap">
+        <div className="fv-table-toolbar">
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => onQueryChange(e.currentTarget.value)}
+            placeholder="Search projects..."
+            className="fv-search-input"
+          />
+          <select
+            value={sort}
+            onChange={(e) => onSortChange(e.currentTarget.value as ProjectSort)}
+            className="fv-filter-btn"
+            style={{ cursor: "pointer" }}
+          >
+            <option value="recent">Most recent</option>
+            <option value="customer">Customer</option>
+            <option value="role">Role</option>
+          </select>
+          <div className="fv-table-toolbar-right">
+            <span style={{ fontSize: "0.78rem", color: "var(--muted-fg)" }}>
+              Showing {projects.length} of {total} projects
+            </span>
           </div>
-        ) : null}
-      </section>
+        </div>
+
+        {projects.length > 0 ? (
+          <table className="fv-table">
+            <thead>
+              <tr>
+                <th>Project Name</th>
+                <th>Customer</th>
+                <th>Stage</th>
+                <th>Updated</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {projects.map((project) => (
+                <tr key={project.id}>
+                  <td>
+                    <div className="fv-table-project-name">{project.name}</div>
+                    <div className="fv-table-muted">{getCustomerLabel(project)}</div>
+                  </td>
+                  <td className="fv-table-muted">{project.customerName || "—"}</td>
+                  <td>
+                    <StepBadge step={project.phase1CurrentStep} />
+                  </td>
+                  <td className="fv-table-muted">{formatUpdatedAt(project.updatedAt)}</td>
+                  <td>
+                    <button
+                      type="button"
+                      onClick={() => onOpenProject(project)}
+                      className="fv-btn-secondary"
+                      style={{ padding: "0.3rem 0.75rem", fontSize: "0.78rem" }}
+                    >
+                      Open
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="fv-empty">
+            <svg className="fv-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+            </svg>
+            <div className="fv-empty-title">
+              {isSearching ? "No projects found" : "No projects yet"}
+            </div>
+            <div className="fv-empty-body">
+              {isSearching
+                ? `No results match "${query}". Try a different search term or clear your filters.`
+                : "Create your first project to start generating MES demo scripts and Master Data from customer requirements."}
+            </div>
+            {!isSearching ? (
+              <button
+                type="button"
+                onClick={() => setCreateDialogOpen(true)}
+                className="fv-btn-primary"
+                style={{ marginTop: "1rem" }}
+              >
+                + Create your first project
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onQueryChange("")}
+                className="fv-btn-secondary"
+                style={{ marginTop: "1rem" }}
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
       {createDialogOpen ? (
         <CreateProjectDialog
           action={createFormAction}
-          errorMessage={
-            createState.status === "error" ? createState.message : null
-          }
+          errorMessage={createState.status === "error" ? createState.message : null}
           isPending={createPending}
           onClose={() => setCreateDialogOpen(false)}
         />
       ) : null}
-
-      {listError ? (
-        <section className="phase-empty-state">
-          <p className="phase-overline">Dashboard unavailable</p>
-          <h2 className="mt-2 text-3xl font-semibold">
-            Project access could not be loaded.
-          </h2>
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-[color:var(--shell-muted)]">
-            {listError}
-          </p>
-        </section>
-      ) : null}
-
-      {!listError && activeProject ? (
-        <section className="phase-priority-strip">
-          <div className="phase-priority-copy">
-            <p className="phase-overline">Next project</p>
-            <h2 className="phase-section-title">{activeProject.name}</h2>
-            <p className="phase-section-body">
-              {getCustomerLabel(activeProject)} · Your role{" "}
-              <strong>{formatRole(activeProject.currentUserRole)}</strong> ·
-              Updated {formatUpdatedAt(activeProject.updatedAt)}
-            </p>
-          </div>
-          <div className="phase-priority-meta">
-            <PriorityMetric label="Owned" value={ownedCount} />
-            <PriorityMetric label="Shared" value={sharedCount} />
-            <PriorityMetric
-              label="Visible projects"
-              value={totalProjectCount ?? projects.length}
-            />
-          </div>
-          <div className="phase-inline-actions">
-            <button
-              type="button"
-              onClick={() => onOpenProject(activeProject)}
-              className="focus-premium theme-button-primary rounded-2xl px-5 py-3 text-sm font-semibold transition"
-            >
-              Open project
-            </button>
-          </div>
-        </section>
-      ) : null}
-
-      <section className="phase-section-card">
-        <div className="phase-toolbar">
-          <div className="phase-toolbar-copy">
-            <p className="phase-overline">Project list</p>
-            <h2 className="phase-section-title">Project queue</h2>
-            <p className="phase-section-body">
-              Search by customer, source workbook, or stage, then use the table
-              to jump back into the work that needs attention.
-            </p>
-          </div>
-          <div className="phase-toolbar-stats">
-            <InlineStat
-              label="Projects"
-              value={totalProjectCount ?? projects.length}
-            />
-            <InlineStat label="Pending review" value={0} />
-            <InlineStat label="Approved rows" value={0} />
-          </div>
-        </div>
-
-        <div className="phase-list-controls">
-          <input
-            value={query}
-            onChange={(event) => onQueryChange(event.currentTarget.value)}
-            placeholder="Search projects, customer, workbook, or stage..."
-            className="focus-premium theme-shell-input rounded-2xl px-4 py-3 text-sm"
-          />
-          <label className="phase-select-wrap">
-            <span>Sort</span>
-            <select
-              value={sort}
-              onChange={(event) =>
-                onSortChange(event.currentTarget.value as ProjectSort)
-              }
-              className="focus-premium theme-shell-input rounded-2xl px-4 py-3 text-sm"
-            >
-              <option value="recent">Most recent</option>
-              <option value="customer">Customer</option>
-              <option value="role">Role</option>
-            </select>
-          </label>
-        </div>
-
-        {hasProjects ? (
-          <div className="phase-project-table">
-            <div className="phase-project-table-head">
-              <span>Project</span>
-              <span>Workspace</span>
-              <span>Access</span>
-              <span>Default step</span>
-              <span>Updated</span>
-              <span>Action</span>
-            </div>
-
-            <div className="grid gap-3">
-              {projects.map((project) => (
-                <article key={project.id} className="phase-project-row">
-                  <div className="min-w-0">
-                    <p className="phase-project-title">
-                      {project.name}
-                      <span className="phase-project-subtle font-normal">
-                        <span className="mx-2">·</span>
-                        {formatRole(project.currentUserRole)}
-                      </span>
-                      {project.status === "archived" && (
-                        <span className="phase-project-subtle ml-2 font-normal italic">
-                          Archived
-                        </span>
-                      )}
-                    </p>
-                    <p className="phase-project-subtle">
-                      {getCustomerLabel(project)}
-                    </p>
-                  </div>
-
-                  <div className="min-w-0">
-                    <p className="phase-project-subtle">
-                      Source details load in project
-                    </p>
-                    <p className="phase-project-filename">
-                      Open Source to inspect workbook state
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5">
-                    <span className="phase-project-chip phase-project-chip-muted">
-                      {formatRole(project.currentUserRole)}
-                    </span>
-                    {project.status === "archived" && (
-                      <span className="phase-project-chip phase-project-chip-muted opacity-70">
-                        Archived
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="phase-project-subtle">Source</div>
-
-                  <div className="phase-project-subtle">
-                    {formatUpdatedAt(project.updatedAt)}
-                  </div>
-
-                  <div className="phase-project-actions">
-                    <button
-                      type="button"
-                      onClick={() => onOpenProject(project)}
-                      className="focus-premium theme-button-primary rounded-xl px-4 py-2.5 text-sm font-semibold transition"
-                    >
-                      Open
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onOpenProject(project, "review")}
-                      className="focus-premium theme-shell-button-secondary rounded-xl px-4 py-2.5 text-sm font-semibold transition"
-                    >
-                      Review
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="phase-empty-state flex items-center justify-between gap-6">
-            <div>
-              <p className="phase-overline">
-                {isSearching ? "No matching projects" : "No projects yet"}
-              </p>
-              <h2 className="mt-2 text-3xl font-semibold">
-                {isSearching
-                  ? "No project matches this search."
-                  : "Create the first server-backed project."}
-              </h2>
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-[color:var(--shell-muted)]">
-                {isSearching
-                  ? "Clear or change the search to return to the full project list."
-                  : "New projects are saved to Supabase and the creator becomes the owner automatically."}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setCreateDialogOpen(true)}
-              className="focus-premium theme-button-primary shrink-0 rounded-2xl px-5 py-3 text-sm font-semibold transition"
-            >
-              Create project
-            </button>
-          </div>
-        )}
-      </section>
-    </section>
+    </div>
   );
+}
+
+function StepBadge({ step }: { step?: Phase1WorkflowStep | null }) {
+  const stepMap: Record<string, { label: string; cls: string }> = {
+    source: { label: "Upload", cls: "fv-stage-badge-blue" },
+    generate: { label: "In Progress", cls: "fv-stage-badge-indigo" },
+    review: { label: "Pending Review", cls: "fv-stage-badge-orange" },
+    script: { label: "Script Gen", cls: "fv-stage-badge-green" },
+    export: { label: "Complete", cls: "fv-stage-badge-gray" },
+  };
+  const meta = (step && stepMap[step]) ?? { label: step ?? "Source", cls: "fv-stage-badge-gray" };
+  return <span className={`fv-stage-badge ${meta.cls}`}>{meta.label}</span>;
 }
 
 function CreateProjectDialog({
@@ -364,96 +330,87 @@ function CreateProjectDialog({
         onClose();
       }
     }
-
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isPending, onClose]);
 
   return (
     <div
-      className="phase-overlay"
+      className="fv-modal-overlay"
       role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !isPending) {
-          onClose();
-        }
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget && !isPending) onClose();
       }}
     >
-      <section
+      <div
         aria-labelledby="create-project-title"
         aria-modal="true"
-        className="phase-overlay-panel max-w-xl"
+        className="fv-modal"
         role="dialog"
       >
-        <div className="phase-overlay-header">
-          <div>
-            <p className="phase-overline">New project</p>
-            <h2 id="create-project-title" className="phase-section-title">
-              Create a server-backed project
-            </h2>
-            <p className="phase-section-body">
-              Add the project details. Supabase saves the project and assigns
-              you as owner.
-            </p>
-          </div>
+        <div className="fv-modal-header">
+          <h2 id="create-project-title" className="fv-modal-title">Create New Project</h2>
+          <button type="button" onClick={onClose} className="fv-modal-close" aria-label="Close">×</button>
         </div>
 
-        <form action={action} className="grid gap-4">
-          <div className="grid gap-3">
-            <label className="phase-select-wrap">
-              <span>Project name</span>
-              <input
-                autoFocus
-                name="name"
-                required
-                placeholder="Customer X demo"
-                className="focus-premium theme-shell-input rounded-2xl px-4 py-3 text-sm"
-              />
+        <form action={action} style={{ display: "grid", gap: "1rem" }}>
+          <div>
+            <label className="fv-field-label" htmlFor="proj-name">
+              Project Name <span style={{ color: "var(--status-error)" }}>*</span>
             </label>
-            <label className="phase-select-wrap">
-              <span>Customer</span>
-              <input
-                name="customerName"
-                placeholder="Customer X"
-                className="focus-premium theme-shell-input rounded-2xl px-4 py-3 text-sm"
-              />
-            </label>
-            <label className="phase-select-wrap">
-              <span>Description</span>
-              <textarea
-                name="description"
-                placeholder="Optional project context"
-                rows={3}
-                className="focus-premium theme-shell-input rounded-2xl px-4 py-3 text-sm"
-              />
-            </label>
+            <input
+              id="proj-name"
+              autoFocus
+              name="name"
+              required
+              placeholder="Bosch SMT Line Demo"
+              className="fv-input"
+            />
+          </div>
+          <div>
+            <label className="fv-field-label" htmlFor="proj-customer">Customer Name</label>
+            <input
+              id="proj-customer"
+              name="customerName"
+              placeholder="e.g. Bosch GmbH"
+              className="fv-input"
+            />
+          </div>
+          <div>
+            <label className="fv-field-label" htmlFor="proj-desc">Project Description</label>
+            <textarea
+              id="proj-desc"
+              name="description"
+              placeholder="Optional — briefly describe the customer's context or key focus areas"
+              rows={3}
+              className="fv-input"
+              style={{ resize: "vertical" }}
+            />
           </div>
 
           {errorMessage ? (
-            <p className="text-sm font-medium text-[color:var(--danger)]">
-              {errorMessage}
-            </p>
+            <div style={{ fontSize: "0.8rem", color: "var(--status-error)" }}>{errorMessage}</div>
           ) : null}
 
-          <div className="phase-inline-actions justify-end">
+          <div className="fv-modal-footer">
             <button
               type="button"
               onClick={onClose}
               disabled={isPending}
-              className="focus-premium theme-shell-button-secondary rounded-2xl px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
+              className="fv-btn-secondary"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isPending}
-              className="focus-premium theme-button-primary rounded-2xl px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
+              className="fv-btn-primary"
             >
-              {isPending ? "Creating project..." : "Create project"}
+              {isPending ? "Creating…" : "Create Project →"}
             </button>
           </div>
         </form>
-      </section>
+      </div>
     </div>
   );
 }
@@ -466,13 +423,7 @@ function filterAndSortProjects(
   const normalizedQuery = query.trim().toLowerCase();
   const visibleProjects = normalizedQuery
     ? projects.filter((project) =>
-        [
-          project.name,
-          project.customerName,
-          project.description,
-          project.currentUserRole,
-          project.status,
-        ]
+        [project.name, project.customerName, project.description, project.currentUserRole, project.status]
           .filter(Boolean)
           .join(" ")
           .toLowerCase()
@@ -484,35 +435,14 @@ function filterAndSortProjects(
     if (sort === "customer") {
       return getCustomerLabel(left).localeCompare(getCustomerLabel(right));
     }
-
     if (sort === "role") {
       return (
-        roleSortValue(right.currentUserRole) -
-          roleSortValue(left.currentUserRole) ||
+        roleSortValue(right.currentUserRole) - roleSortValue(left.currentUserRole) ||
         right.updatedAt.localeCompare(left.updatedAt)
       );
     }
-
     return right.updatedAt.localeCompare(left.updatedAt);
   });
-}
-
-function InlineStat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="phase-inline-stat">
-      <span>{label}</span>
-      <strong>{value.toLocaleString("en-US")}</strong>
-    </div>
-  );
-}
-
-function PriorityMetric({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="phase-priority-metric">
-      <span>{label}</span>
-      <strong>{value.toLocaleString("en-US")}</strong>
-    </div>
-  );
 }
 
 function getCustomerLabel(project: ProjectListItem) {
@@ -520,30 +450,13 @@ function getCustomerLabel(project: ProjectListItem) {
 }
 
 function roleSortValue(role: ProjectRole) {
-  if (role === "owner") {
-    return 3;
-  }
-
-  if (role === "editor") {
-    return 2;
-  }
-
+  if (role === "owner") return 3;
+  if (role === "editor") return 2;
   return 1;
-}
-
-function formatRole(role: ProjectRole) {
-  return `${role[0].toUpperCase()}${role.slice(1)}`;
 }
 
 function formatUpdatedAt(value: string) {
   const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "Unknown";
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-  }).format(date);
+  if (Number.isNaN(date.getTime())) return "Unknown";
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date);
 }

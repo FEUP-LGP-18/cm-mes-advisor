@@ -24,17 +24,21 @@ export default async function SettingsPage() {
     getMissingRealGenerationConfigKeys(generationConfig);
 
   return (
-    <main className="app-canvas min-h-screen text-[color:var(--shell-ink)]">
-      <div className="mx-auto flex w-full max-w-[1560px] flex-col gap-6 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
-        <Phase1Topbar email={currentUserEmail} />
-        <GlobalSettingsView
-          currentUserEmail={currentUserEmail}
-          generationMode={generationConfig.mode}
-          realGenerationConfigured={missingRealConfig.length === 0}
-          supabaseConfigured={supabaseStatus.configured}
-          supabaseMissing={supabaseStatus.missing}
-        />
+    <div className="fv-shell">
+      <Phase1Topbar email={currentUserEmail} />
+      <div className="fv-body">
+        <main className="fv-content" id="main-content">
+          <div className="fv-page">
+            <GlobalSettingsView
+              currentUserEmail={currentUserEmail}
+              generationMode={generationConfig.mode}
+              realGenerationConfigured={missingRealConfig.length === 0}
+              supabaseConfigured={supabaseStatus.configured}
+              supabaseMissing={supabaseStatus.missing}
+            />
+          </div>
+        </main>
       </div>
-    </main>
+    </div>
   );
 }
