@@ -59,6 +59,11 @@ Fresh Slice B verification screenshots live in `current/slice-b/` and cover
 desktop and mobile states for login, dashboard/home, Phase 1 source shell, and
 global settings.
 
+Slice C adds shared implementation primitives under `src/components/ui/fv/`.
+Those components may reference stable `fv-*` classes and public brand assets,
+but they must not import screenshots, target evidence, or files from this docs
+folder.
+
 ## Stable Public Brand Assets
 
 Future app implementation should reference these stable public paths:
