@@ -271,14 +271,14 @@ describe("CollaborationSettingsView", () => {
       expect(markup).toContain("Working…");
     });
 
-    it("shows breadcrumb with project name and Settings link", () => {
+    it("keeps the isolated view focused on collaboration controls", () => {
       const markup = renderToStaticMarkup(
         <CollaborationSettingsView {...makeProps()} />,
       );
 
-      expect(markup).toContain("Test Project");
-      expect(markup).toContain("Collaboration");
-      expect(markup).toContain("/projects/p1");
+      expect(markup).toContain("Team members");
+      expect(markup).toContain("Invite a collaborator");
+      expect(markup).toContain("Pending invites");
     });
   });
 
@@ -339,12 +339,13 @@ describe("CollaborationSettingsView", () => {
       expect(markup).not.toContain("Remove");
     });
 
-    it("shows a read-only pill in the breadcrumb area", () => {
+    it("shows a read-only collaboration explanation", () => {
       const markup = renderToStaticMarkup(
         <CollaborationSettingsView {...makeProps({ isOwner: false })} />,
       );
 
-      expect(markup).toContain("Read-only");
+      expect(markup).toContain("You have read-only access to the team list.");
+      expect(markup).toContain("You need owner access to invite collaborators or change roles.");
     });
 
     it("shows a limited-access explanation", () => {
@@ -390,7 +391,8 @@ describe("CollaborationSettingsView", () => {
       );
 
       expect(markup).toContain("Role updated.");
-      expect(markup).toContain("phase-feedback-success");
+      expect(markup).toContain("fv-callout-success");
+      expect(markup).toContain('role="status"');
     });
 
     it("shows an error feedback banner", () => {
@@ -406,7 +408,8 @@ describe("CollaborationSettingsView", () => {
       );
 
       expect(markup).toContain("Cannot demote the last project owner.");
-      expect(markup).toContain("phase-feedback-error");
+      expect(markup).toContain("fv-callout-error");
+      expect(markup).toContain('role="alert"');
     });
   });
 });
