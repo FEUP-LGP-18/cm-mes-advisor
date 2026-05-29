@@ -3062,6 +3062,26 @@ textarea {
   margin-bottom: 1.5rem;
 }
 
+.fv-page-header-main {
+  min-width: 0;
+}
+
+.fv-page-header-eyebrow {
+  color: var(--muted-fg);
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-bottom: 0.375rem;
+}
+
+.fv-page-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
 .fv-page-title {
   font-size: 1.375rem;
   font-weight: 700;
@@ -3160,6 +3180,36 @@ textarea {
   border-radius: 2px;
   background: var(--status-approved);
   transition: width 400ms ease;
+}
+
+.fv-stat-bar-fill-success { background: var(--status-approved); }
+.fv-stat-bar-fill-warning { background: var(--status-flagged); }
+.fv-stat-bar-fill-error { background: var(--status-error); }
+.fv-stat-bar-fill-info { background: var(--brand-primary); }
+.fv-stat-bar-fill-accent { background: var(--status-pending); }
+.fv-stat-bar-fill-neutral { background: var(--brand-primary); }
+
+/* ── Generic toolbar ─────────────────────────────────────────── */
+.fv-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.fv-toolbar-left,
+.fv-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.fv-toolbar-right {
+  margin-left: auto;
+  justify-content: flex-end;
 }
 
 /* ── Buttons ─────────────────────────────────────────────────── */
@@ -3265,6 +3315,10 @@ textarea {
   max-width: 100%;
   overflow: hidden;
   box-shadow: var(--shadow-card);
+}
+
+.fv-table-wrap-scroll {
+  overflow-x: auto;
 }
 
 .fv-table-toolbar {
@@ -3443,6 +3497,15 @@ textarea {
   border: 1px solid var(--surface-border);
 }
 
+.fv-badge-gray .fv-badge-dot {
+  background: var(--muted-fg);
+}
+
+.fv-badge-compact {
+  padding: 0.14rem 0.42rem;
+  font-size: 0.66rem;
+}
+
 /* Stage badges (in project table) */
 .fv-stage-badge {
   display: inline-flex;
@@ -3594,6 +3657,14 @@ textarea {
   line-height: 1.5;
 }
 
+.fv-empty-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
 /* ── Bulk select bar ─────────────────────────────────────────── */
 .fv-bulk-bar {
   display: flex;
@@ -3740,6 +3811,61 @@ textarea {
   gap: 0.5rem;
 }
 
+/* ── Inspector panel ─────────────────────────────────────────── */
+.fv-inspector-panel {
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.fv-inspector-panel-sticky {
+  position: sticky;
+  top: 1rem;
+}
+
+.fv-inspector-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.fv-inspector-panel-meta {
+  color: var(--muted-fg);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  margin-top: 0.25rem;
+}
+
+.fv-inspector-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.fv-inspector-panel-body {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.fv-inspector-panel-footer {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  padding: 0.875rem 1rem;
+  border-top: 1px solid var(--surface-border);
+  flex-wrap: wrap;
+}
+
 /* ── Dropzone ────────────────────────────────────────────────── */
 .fv-dropzone {
   border: 2px dashed var(--brand-primary-border);
@@ -3768,6 +3894,16 @@ textarea {
   background: #f0fdf4;
 }
 
+.fv-dropzone-active {
+  border-color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary-bg) 78%, var(--brand-primary) 10%);
+}
+
+.fv-dropzone-error {
+  border-color: var(--status-error-border);
+  background: var(--status-error-bg);
+}
+
 .fv-dropzone-icon {
   width: 32px;
   height: 32px;
@@ -3783,6 +3919,15 @@ textarea {
 .fv-dropzone-sub {
   font-size: 0.78rem;
   color: var(--muted-fg);
+}
+
+.fv-dropzone-action {
+  margin-top: 0.5rem;
+}
+
+.fv-dropzone-meta {
+  color: var(--muted-fg);
+  font-size: 0.72rem;
 }
 
 /* ── File chip ───────────────────────────────────────────────── */
@@ -3822,6 +3967,12 @@ textarea {
   border-left: 3px solid var(--brand-primary);
 }
 
+.fv-gen-step-error {
+  background: var(--status-error-bg);
+  border-color: var(--status-error-border);
+  border-left: 3px solid var(--status-error);
+}
+
 .fv-gen-circle {
   display: flex;
   align-items: center;
@@ -3848,6 +3999,11 @@ textarea {
   background: var(--surface-muted);
   color: var(--muted-fg);
   border: 1px solid var(--surface-border);
+}
+
+.fv-gen-circle-error {
+  background: var(--status-error);
+  color: #ffffff;
 }
 
 .fv-gen-step-title {
@@ -3900,6 +4056,74 @@ textarea {
   background: var(--status-approved);
 }
 
+/* ── Progress panel ──────────────────────────────────────────── */
+.fv-progress-panel {
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.fv-progress-panel-header,
+.fv-progress-panel-meter-label,
+.fv-progress-panel-footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.fv-progress-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.fv-progress-panel-meter {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.fv-progress-panel-meter-label {
+  color: var(--muted-fg);
+  font-size: 0.78rem;
+}
+
+.fv-progress-panel-meter-label strong {
+  color: var(--brand-primary);
+  font-size: 0.9rem;
+}
+
+.fv-progress-panel-steps {
+  display: grid;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.fv-progress-panel-step-copy {
+  display: grid;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.fv-progress-panel-step-meta {
+  color: var(--muted-fg);
+  font-size: 0.72rem;
+  margin-left: auto;
+}
+
+.fv-progress-panel-log,
+.fv-progress-panel-stats {
+  min-width: 0;
+  flex: 1;
+}
+
 /* ── Callout / Alert ─────────────────────────────────────────── */
 .fv-callout {
   display: flex;
@@ -3933,6 +4157,32 @@ textarea {
   background: var(--status-error-bg);
   border: 1px solid var(--status-error-border);
   color: #991b1b;
+}
+
+.fv-callout-status {
+  background: var(--surface-muted);
+  border: 1px solid var(--surface-border);
+  color: var(--foreground);
+}
+
+.fv-callout-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.fv-callout-content {
+  display: grid;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.fv-callout-title {
+  color: inherit;
+  font-weight: 700;
+}
+
+.fv-callout-body {
+  min-width: 0;
 }
 
 /* ── Form fields ─────────────────────────────────────────────── */
@@ -4459,6 +4709,24 @@ textarea {
   .fv-projects-page {
     max-width: 100%;
     padding: 1.25rem 1rem;
+  }
+
+  .fv-page-header {
+    flex-direction: column;
+  }
+
+  .fv-page-header-actions,
+  .fv-toolbar,
+  .fv-toolbar-left,
+  .fv-toolbar-right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .fv-progress-panel-header,
+  .fv-progress-panel-footer,
+  .fv-inspector-panel-header {
+    flex-direction: column;
   }
 
   .fv-table-toolbar-right {
