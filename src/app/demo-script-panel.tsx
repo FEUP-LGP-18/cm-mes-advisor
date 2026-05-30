@@ -221,7 +221,10 @@ export default function DemoScriptEditingPanel({
             />
           </aside>
 
-          <main className="fv-card fv-script-main-card">
+          <section
+            aria-label="Script editor"
+            className="fv-card fv-script-main-card"
+          >
             <div className="fv-script-document-header">
               <div className="fv-script-title-stack">
                 <label className="fv-script-title-label">
@@ -314,7 +317,7 @@ export default function DemoScriptEditingPanel({
                 />
               )}
             </article>
-          </main>
+          </section>
 
           <aside className="fv-card fv-script-coverage-card">
             <ScriptCoverageContent overview={overview} />
