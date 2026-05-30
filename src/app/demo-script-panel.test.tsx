@@ -123,8 +123,42 @@ const readyAssembly: DemoScriptAssembly = {
   ],
 };
 
+function createAssemblyWithSourceUrl(url: string): DemoScriptAssembly {
+  const [firstSection, ...remainingSections] = readyAssembly.sections;
+
+  if (!firstSection) {
+    throw new Error("Expected a ready script section fixture.");
+  }
+
+  const [firstStep, ...remainingSteps] = firstSection.steps;
+
+  if (!firstStep) {
+    throw new Error("Expected a ready script step fixture.");
+  }
+
+  return {
+    ...readyAssembly,
+    sections: [
+      {
+        ...firstSection,
+        steps: [
+          {
+            ...firstStep,
+            sourceReferences: firstStep.sourceReferences.map((reference) => ({
+              ...reference,
+              url,
+            })),
+          },
+          ...remainingSteps,
+        ],
+      },
+      ...remainingSections,
+    ],
+  };
+}
+
 describe("demo script panels", () => {
-  it("renders the script editor without export CTA duplication", () => {
+  it("renders the target-style script workspace without export CTA duplication", () => {
     const markup = renderToStaticMarkup(
       <DemoScriptEditingPanel
         assembly={readyAssembly}
@@ -138,11 +172,37 @@ describe("demo script panels", () => {
       />,
     );
 
-    expect(markup).toContain("Script editor");
+    expect(markup).toContain("Demo Script");
+    expect(markup).toContain("Requirements addressed");
+    expect(markup).toContain("Demo steps generated");
+    expect(markup).toContain("Traceability");
+    expect(markup).toContain("Script sections");
     expect(markup).toContain("Refine the structure, wording, and notes");
     expect(markup).toContain("Script title");
     expect(markup).toContain("Source workbook");
+    expect(markup).toContain("Continue to export");
     expect(markup).not.toContain("Download Markdown");
+    expect(markup).not.toContain("Export PDF");
+    expect(markup).not.toContain("Export Excel");
+  });
+
+  it("disables export continuation while review work remains", () => {
+    const markup = renderToStaticMarkup(
+      <DemoScriptEditingPanel
+        assembly={readyAssembly}
+        draft={demoScriptDraft}
+        exportReady={false}
+        onDraftAction={vi.fn()}
+        onSwitchToExport={vi.fn()}
+        onSwitchToReview={vi.fn()}
+        pendingReviewCount={1}
+        projectMetadata={projectMetadata}
+      />,
+    );
+
+    expect(markup).toContain("Keep shaping the handoff");
+    expect(markup).toContain("1 generated row still need consultant review");
+    expect(markup).toMatch(/<button[^>]*disabled=""/);
   });
 
   it("renders export as a completion step with download CTA", () => {
@@ -161,6 +221,40 @@ describe("demo script panels", () => {
     expect(markup).toContain("Not downloaded yet");
     expect(markup).toContain("Included requirements");
     expect(markup).not.toContain("Script title");
+  });
+
+  it("renders only safe script source reference URLs as links", () => {
+    const safeMarkup = renderToStaticMarkup(
+      <DemoScriptEditingPanel
+        assembly={createAssemblyWithSourceUrl("https://docs.example.com/source")}
+        draft={demoScriptDraft}
+        exportReady
+        onDraftAction={vi.fn()}
+        onSwitchToExport={vi.fn()}
+        onSwitchToReview={vi.fn()}
+        pendingReviewCount={0}
+        projectMetadata={projectMetadata}
+      />,
+    );
+    const unsafeMarkup = renderToStaticMarkup(
+      <DemoScriptEditingPanel
+        assembly={createAssemblyWithSourceUrl("javascript:alert(1)")}
+        draft={demoScriptDraft}
+        exportReady
+        onDraftAction={vi.fn()}
+        onSwitchToExport={vi.fn()}
+        onSwitchToReview={vi.fn()}
+        pendingReviewCount={0}
+        projectMetadata={projectMetadata}
+      />,
+    );
+
+    expect(safeMarkup).toContain('href="https://docs.example.com/source"');
+    expect(safeMarkup).toContain("Mock material setup reference");
+    expect(safeMarkup).toContain("Used for the prototype export preview.");
+    expect(unsafeMarkup).toContain("<span>Mock material setup reference</span>");
+    expect(unsafeMarkup).toContain("Used for the prototype export preview.");
+    expect(unsafeMarkup).not.toContain('href="javascript:alert(1)"');
   });
 
   it("builds a concise export overview from the assembled script", () => {

@@ -13,6 +13,13 @@ import {
   serializeDemoScriptToMarkdown,
 } from "../lib/requirements/demo-script-export";
 import type { ReviewProjectMetadata } from "../lib/requirements/review";
+import {
+  FvBadge,
+  FvCallout,
+  FvEmptyState,
+  FvPageHeader,
+  FvStatCard,
+} from "@/components/ui/fv";
 
 interface DemoScriptEditingPanelProps {
   assembly: DemoScriptAssembly;
@@ -99,192 +106,162 @@ export default function DemoScriptEditingPanel({
     selectedSection?.steps.find((step) => step.key === selectedStepKey) ??
     selectedSection?.steps[0] ??
     null;
+  const scriptDescription = assembly.emptyState
+    ? "Approve generated demo rows before shaping the Phase 1 handoff."
+    : exportReady
+      ? "AI generated | all approved requirements addressed | traceability maintained."
+      : "AI generated script with remaining review work before export.";
+  const traceabilityLabel = overview.hasTraceability ? "Full" : "Needs check";
+  const traceabilityHelper = overview.hasTraceability
+    ? "Requirement and source row references present"
+    : "No traceability references yet";
 
   return (
-    <section className="phase-document-workspace phase-document-workspace-script">
-      <aside className="phase-document-sidebar">
-        <div className="phase-document-sidebar-scroll">
-          <div className="grid gap-4">
-            <section className="phase-sidebar-panel">
-              <div className="phase-rail-header">
-                <div>
-                  <p className="phase-overline">Script</p>
-                  <h3 className="phase-rail-title">
-                    {exportReady
-                      ? "Narrative is ready for export"
-                      : "Keep shaping the handoff"}
-                  </h3>
-                </div>
-                <span className="phase-count-pill">
-                  {assembly.approvedRequirementCount} approved
-                </span>
-              </div>
-
-              {blockerCopy ? (
-                <div className="phase-feedback phase-feedback-error">
-                  <strong>{blockerCopy.title}</strong> {blockerCopy.body}
-                </div>
-              ) : null}
-
-              {pendingReviewCount > 0 ? (
-                <div className="phase-feedback">
-                  {pendingReviewCount} generated row
-                  {pendingReviewCount === 1 ? "" : "s"} still need consultant
-                  review before the handoff is fully exportable.
-                </div>
-              ) : null}
-
-              <div className="phase-status-list">
-                <DocumentChecklistItem
-                  label="Approved rows"
-                  ready={assembly.approvedRequirementCount > 0}
-                  value={`${assembly.approvedRequirementCount} confirmed`}
-                />
-                <DocumentChecklistItem
-                  label="Sections"
-                  ready={overview.sectionSummaries.length > 0}
-                  value={`${overview.sectionSummaries.length} assembled`}
-                />
-                <DocumentChecklistItem
-                  label="Traceability"
-                  ready={overview.hasTraceability}
-                  value={
-                    overview.hasTraceability
-                      ? "References included"
-                      : "No references yet"
-                  }
-                />
-                <DocumentChecklistItem
-                  label="Export path"
-                  ready={exportReady}
-                  value={exportReady ? "Ready now" : "Still blocked"}
-                />
-              </div>
-
-              <div className="phase-rail-stack">
-                {onSwitchToExport ? (
-                  <button
-                    type="button"
-                    disabled={!exportReady}
-                    onClick={onSwitchToExport}
-                    className="focus-premium theme-button-primary rounded-2xl px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Continue to export
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={onSwitchToReview}
-                  className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-semibold transition"
-                >
-                  Back to review
-                </button>
-              </div>
-            </section>
-
-            {!assembly.emptyState && assembly.sections.length > 0 ? (
-              <section className="phase-sidebar-panel phase-desktop-only">
-                <ScriptOutlineContent
-                  assembly={assembly}
-                  draft={draft}
-                  onDraftAction={onDraftAction}
-                  onSelectSection={(sectionKey) => {
-                    const nextSection = assembly.sections.find(
-                      (section) => section.key === sectionKey,
-                    );
-
-                    setSelectedSectionKey(sectionKey);
-                    setSelectedStepKey(nextSection?.steps[0]?.key ?? null);
-                  }}
-                  selectedSectionKey={selectedSection?.key ?? null}
-                />
-              </section>
+    <section className="fv-page fv-script-output-page">
+      <FvPageHeader
+        actions={
+          <>
+            {onSwitchToExport ? (
+              <button
+                className="fv-btn-primary"
+                disabled={!exportReady}
+                onClick={onSwitchToExport}
+                type="button"
+              >
+                Continue to export
+              </button>
             ) : null}
+            <button
+              className="fv-btn-secondary"
+              onClick={onSwitchToReview}
+              type="button"
+            >
+              Back to review
+            </button>
+          </>
+        }
+        description={scriptDescription}
+        eyebrow="Phase 1 / Script Output"
+        title="Demo Script"
+      />
 
-            {!assembly.emptyState && overview.sectionSummaries.length > 0 ? (
-              <section className="phase-sidebar-panel phase-desktop-only">
-                <ScriptCoverageContent overview={overview} />
-              </section>
-            ) : null}
-          </div>
-        </div>
-      </aside>
+      <div className="fv-stats-row fv-script-stats-row">
+        <FvStatCard
+          helper={`${assembly.approvedRequirementCount} approved row${
+            assembly.approvedRequirementCount === 1 ? "" : "s"
+          } included`}
+          label="Requirements addressed"
+          tone={assembly.approvedRequirementCount > 0 ? "success" : "warning"}
+          value={assembly.approvedRequirementCount}
+        />
+        <FvStatCard
+          helper={`${assembly.sections.length} section${
+            assembly.sections.length === 1 ? "" : "s"
+          } assembled`}
+          label="Demo steps generated"
+          tone={assembly.approvedStepCount > 0 ? "info" : "warning"}
+          value={assembly.approvedStepCount}
+        />
+        <FvStatCard
+          helper={traceabilityHelper}
+          label="Traceability"
+          tone={overview.hasTraceability ? "success" : "warning"}
+          value={traceabilityLabel}
+        />
+      </div>
 
-      <div className="phase-document-main grid min-w-0 gap-5">
-        <section className="document-panel overflow-hidden rounded-[1.5rem] p-4 sm:p-5">
-          <div className="border-b border-[color:var(--document-border)] pb-4">
-            <div className="min-w-0 max-w-4xl">
-              <p className="theme-doc-kicker mono-label text-[0.68rem]">
-                Script editor
-              </p>
-              <div className="mt-2 grid gap-3">
-                <label className="block">
-                  <span className="theme-doc-subtle mono-label text-[0.58rem]">
-                    Script title
-                  </span>
+      {blockerCopy ? (
+        <FvCallout
+          className="fv-script-status-callout"
+          role="alert"
+          title={blockerCopy.title}
+          tone="error"
+        >
+          {blockerCopy.body}
+        </FvCallout>
+      ) : null}
+
+      {pendingReviewCount > 0 ? (
+        <FvCallout
+          className="fv-script-status-callout"
+          title="Keep shaping the handoff"
+          tone="warning"
+        >
+          {pendingReviewCount} generated row
+          {pendingReviewCount === 1 ? "" : "s"} still need consultant review
+          before the handoff is fully exportable.
+        </FvCallout>
+      ) : null}
+
+      {assembly.emptyState ? (
+        <section className="fv-card">
+          <EmptyDemoScriptState
+            actionLabel="Return to review"
+            emptyState={assembly.emptyState}
+            onAction={onSwitchToReview}
+            titleEyebrow="Script blocked"
+          />
+        </section>
+      ) : selectedSection ? (
+        <div className="fv-script-workspace">
+          <aside className="fv-card fv-script-section-card">
+            <ScriptOutlineContent
+              assembly={assembly}
+              draft={draft}
+              onDraftAction={onDraftAction}
+              onSelectSection={(sectionKey) => {
+                const nextSection = assembly.sections.find(
+                  (section) => section.key === sectionKey,
+                );
+
+                setSelectedSectionKey(sectionKey);
+                setSelectedStepKey(nextSection?.steps[0]?.key ?? null);
+              }}
+              selectedSectionKey={selectedSection?.key ?? null}
+            />
+          </aside>
+
+          <main className="fv-card fv-script-main-card">
+            <div className="fv-script-document-header">
+              <div className="fv-script-title-stack">
+                <label className="fv-script-title-label">
+                  <span className="fv-overline">Script title</span>
                   <input
-                    value={draft.title}
+                    className="fv-input fv-script-title-input"
                     onChange={(event) =>
                       onDraftAction({
                         type: "renameTitle",
                         title: event.currentTarget.value,
                       })
                     }
-                    className="focus-premium theme-doc-input mt-2 w-full rounded-2xl px-4 py-3 text-lg font-bold transition sm:text-[1.45rem]"
+                    value={draft.title}
                   />
                 </label>
-
-                <div className="theme-doc-card-muted rounded-[1.15rem] px-4 py-3">
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="min-w-0 flex-1">
-                      <p className="theme-doc-subtle mono-label text-[0.58rem]">
-                        Source workbook
-                      </p>
-                      <p className="theme-doc-title mt-1.5 break-words text-sm font-bold leading-6">
-                        {projectMetadata.sourceFilename}
-                      </p>
-                    </div>
-
-                    <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[220px]">
-                      <DocumentHeaderMetric
-                        label="Approved"
-                        value={`${assembly.approvedRequirementCount} row${
-                          assembly.approvedRequirementCount === 1 ? "" : "s"
-                        }`}
-                      />
-                      <DocumentHeaderMetric
-                        label="Sections"
-                        value={`${assembly.sections.length} built`}
-                      />
-                    </div>
-                  </div>
-                </div>
+                <p className="fv-body-muted">
+                  Refine the structure, wording, and notes while keeping the
+                  approved story easy to scan and defend.
+                </p>
               </div>
-              <p className="theme-doc-body mt-3 max-w-3xl text-sm leading-6">
-                Refine the structure, wording, and notes while keeping the
-                approved story easy to scan and defend.
-              </p>
+              <div className="fv-script-source-card">
+                <span className="fv-overline">Source workbook</span>
+                <strong>{projectMetadata.sourceFilename}</strong>
+                <span>
+                  {projectMetadata.customerName} | {projectMetadata.sourceRowCount}{" "}
+                  source rows
+                </span>
+              </div>
             </div>
-          </div>
 
-          {assembly.emptyState ? (
-            <EmptyDemoScriptState
-              actionLabel="Return to review"
-              emptyState={assembly.emptyState}
-              onAction={onSwitchToReview}
-              titleEyebrow="Script blocked"
-            />
-          ) : selectedSection ? (
-            <article className="theme-doc-card mt-6 rounded-[1.75rem] p-4 sm:p-5">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="theme-doc-kicker mono-label text-[0.58rem]">
+            <article className="fv-script-section-detail">
+              <div className="fv-card-header">
+                <div className="fv-script-section-title-stack">
+                  <span className="fv-overline">
                     {selectedSection.sourceLabel}
-                  </p>
-                  <label className="mt-2 block">
+                  </span>
+                  <label className="fv-script-section-title-label">
                     <span className="sr-only">Section title</span>
                     <input
-                      value={resolveSectionTitle(draft, selectedSection)}
+                      className="fv-input fv-script-section-title-input"
                       onChange={(event) =>
                         onDraftAction({
                           type: "editSectionTitle",
@@ -292,42 +269,33 @@ export default function DemoScriptEditingPanel({
                           title: event.currentTarget.value,
                         })
                       }
-                      className="focus-premium theme-doc-title w-full rounded-xl border border-transparent bg-transparent px-0 py-0 text-2xl font-bold tracking-[-0.04em] transition focus:border-[color:var(--document-border)] focus:bg-[color:var(--document-soft-surface)] focus:px-3 focus:py-2"
+                      value={resolveSectionTitle(draft, selectedSection)}
                     />
                   </label>
-                  <p className="theme-doc-body mt-2 text-sm leading-6">
-                    {selectedSection.subtitle}
-                  </p>
+                  <p className="fv-body-muted">{selectedSection.subtitle}</p>
                 </div>
-                <div className="theme-doc-chip-brand rounded-full px-3 py-1.5 text-xs font-bold">
+                <FvBadge tone="info">
                   {selectedSection.stepCount} steps
-                </div>
+                </FvBadge>
               </div>
 
-              <div className="phase-doc-step-grid mt-4">
+              <div className="fv-script-step-tabs" role="list">
                 {selectedSection.steps.map((step, index) => {
                   const isActive = step.key === selectedStep?.key;
 
                   return (
                     <button
-                      key={step.key}
-                      type="button"
-                      onClick={() => setSelectedStepKey(step.key)}
-                      className={`focus-premium rounded-[1rem] border px-3 py-3 text-left transition ${
-                        isActive
-                          ? "theme-doc-card-brand"
-                          : "theme-doc-card-muted hover:bg-[color:var(--document-soft-surface)]"
+                      aria-pressed={isActive}
+                      className={`fv-script-step-tab ${
+                        isActive ? "fv-script-step-tab-active" : ""
                       }`}
+                      key={step.key}
+                      onClick={() => setSelectedStepKey(step.key)}
+                      type="button"
                     >
-                      <p className="theme-doc-subtle mono-label text-[0.5rem]">
-                        Step {index + 1}
-                      </p>
-                      <p className="mt-1.5 text-sm font-bold leading-5">
-                        {resolveStepTitle(draft, step)}
-                      </p>
-                      <p className="theme-doc-subtle mt-1 text-xs">
-                        {step.traceability.requirementId}
-                      </p>
+                      <span className="fv-overline">Step {index + 1}</span>
+                      <strong>{resolveStepTitle(draft, step)}</strong>
+                      <span>{step.traceability.requirementId}</span>
                     </button>
                   );
                 })}
@@ -339,46 +307,20 @@ export default function DemoScriptEditingPanel({
                   onDraftAction={onDraftAction}
                   step={selectedStep}
                 />
-              ) : null}
+              ) : (
+                <FvEmptyState
+                  body="Select a section step to inspect notes, instructions, and traceability."
+                  title="No step selected"
+                />
+              )}
             </article>
-          ) : null}
-        </section>
+          </main>
 
-        {!assembly.emptyState && assembly.sections.length > 0 ? (
-          <details className="phase-sidebar-panel phase-mobile-only">
-            <summary className="theme-shell-title cursor-pointer text-sm font-bold">
-              Section outline
-            </summary>
-            <div className="mt-4">
-              <ScriptOutlineContent
-                assembly={assembly}
-                draft={draft}
-                onDraftAction={onDraftAction}
-                onSelectSection={(sectionKey) => {
-                  const nextSection = assembly.sections.find(
-                    (section) => section.key === sectionKey,
-                  );
-
-                  setSelectedSectionKey(sectionKey);
-                  setSelectedStepKey(nextSection?.steps[0]?.key ?? null);
-                }}
-                selectedSectionKey={selectedSection?.key ?? null}
-              />
-            </div>
-          </details>
-        ) : null}
-
-        {!assembly.emptyState && overview.sectionSummaries.length > 0 ? (
-          <details className="phase-sidebar-panel phase-mobile-only">
-            <summary className="theme-shell-title cursor-pointer text-sm font-bold">
-              Coverage
-            </summary>
-            <div className="mt-4">
-              <ScriptCoverageContent overview={overview} />
-            </div>
-          </details>
-        ) : null}
-      </div>
+          <aside className="fv-card fv-script-coverage-card">
+            <ScriptCoverageContent overview={overview} />
+          </aside>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -703,23 +645,6 @@ export function DemoScriptExportPanel({
   );
 }
 
-function DocumentHeaderMetric({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="theme-doc-card rounded-[1rem] px-3 py-2.5 text-left">
-      <p className="theme-doc-subtle mono-label text-[0.5rem]">{label}</p>
-      <p className="theme-doc-title mt-1.5 text-sm font-bold leading-5">
-        {value}
-      </p>
-    </div>
-  );
-}
-
 function ScriptOutlineContent({
   assembly,
   draft,
@@ -735,36 +660,36 @@ function ScriptOutlineContent({
 }) {
   return (
     <>
-      <div className="phase-sidebar-copy">
-        <p className="phase-overline">Outline</p>
-        <h3 className="phase-rail-title">Section order and focus</h3>
+      <div className="fv-script-panel-heading">
+        <p className="fv-overline">Script sections</p>
+        <h2 className="fv-card-title">Section order and focus</h2>
       </div>
 
-      <div className="phase-sidebar-list">
+      <div className="fv-script-section-list">
         {assembly.sections.map((section, index) => {
           const isActive = section.key === selectedSectionKey;
 
           return (
             <div
               key={section.key}
-              className={`rounded-[1rem] border p-3 transition ${
-                isActive ? "theme-doc-card" : "theme-doc-card-muted"
+              className={`fv-script-section-item ${
+                isActive ? "fv-script-section-item-active" : ""
               }`}
             >
               <button
                 type="button"
                 onClick={() => onSelectSection(section.key)}
-                className="focus-premium block w-full text-left"
+                className="fv-script-section-button"
               >
-                <p className="text-sm font-bold theme-doc-title">
+                <span>
                   {resolveSectionTitle(draft, section)}
-                </p>
-                <p className="theme-doc-subtle mt-1 text-xs">
+                </span>
+                <small>
                   {section.stepCount} steps
-                </p>
+                </small>
               </button>
 
-              <div className="phase-section-order-controls mt-3">
+              <div className="fv-script-order-controls">
                 <SectionOrderButton
                   direction="up"
                   disabled={index === 0}
@@ -809,22 +734,22 @@ function ScriptCoverageContent({
 }) {
   return (
     <>
-      <div className="phase-sidebar-copy">
-        <p className="phase-overline">Coverage</p>
-        <h3 className="phase-rail-title">What the handoff includes</h3>
+      <div className="fv-script-panel-heading">
+        <p className="fv-overline">Coverage</p>
+        <h2 className="fv-card-title">What the handoff includes</h2>
       </div>
 
-      <div className="phase-coverage-list">
+      <div className="fv-script-coverage-list">
         {overview.sectionSummaries.map((section) => (
-          <div key={section.key} className="phase-coverage-item">
+          <div key={section.key} className="fv-script-coverage-item">
             <div>
-              <p className="phase-overlay-row-title">{section.title}</p>
-              <p className="phase-overlay-row-body">
+              <p>{section.title}</p>
+              <span>
                 {section.requirementCount} approved requirement
                 {section.requirementCount === 1 ? "" : "s"}
-              </p>
+              </span>
             </div>
-            <span>{section.stepCount} steps</span>
+            <strong>{section.stepCount} steps</strong>
           </div>
         ))}
       </div>
@@ -1056,7 +981,7 @@ function SectionOrderButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="focus-premium theme-doc-button-secondary rounded-full px-2.5 py-1 text-[0.68rem] font-bold transition disabled:cursor-not-allowed disabled:opacity-40"
+      className="fv-btn-secondary fv-btn-sm"
     >
       {direction === "up" ? "Up" : "Down"}
     </button>
@@ -1073,15 +998,13 @@ function ScriptStepWorkbench({
   step: DemoScriptStep;
 }) {
   return (
-    <section className="theme-doc-card-muted mt-4 rounded-[1.35rem] p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="max-w-3xl">
-          <p className="theme-doc-subtle mono-label text-[0.58rem]">
-            {step.groupLabel}
-          </p>
-          <label className="mt-2 block">
+    <section className="fv-script-step-workbench">
+      <div className="fv-script-step-header">
+        <div>
+          <p className="fv-overline">{step.groupLabel}</p>
+          <label className="fv-script-step-title-label">
             <span className="sr-only">Step title</span>
-            <input
+            <textarea
               value={resolveStepTitle(draft, step)}
               onChange={(event) =>
                 onDraftAction({
@@ -1091,25 +1014,24 @@ function ScriptStepWorkbench({
                   note: resolveStepNote(draft, step),
                 })
               }
-              className="focus-premium theme-doc-title w-full rounded-xl border border-transparent bg-transparent px-0 py-0 text-lg font-bold transition focus:border-[color:var(--document-border)] focus:bg-[color:var(--document-soft-surface)] focus:px-3 focus:py-2"
+              className="fv-input fv-script-step-title-input"
+              rows={2}
             />
           </label>
-          <p className="theme-doc-subtle mt-1.5 text-sm leading-6">
-            {step.traceability.requirementId} · Excel row{" "}
-            {step.traceability.sourceRowNumber} ·{" "}
+          <p className="fv-body-muted">
+            {step.traceability.requirementId} | Excel row{" "}
+            {step.traceability.sourceRowNumber} |{" "}
             {step.sourceDemoStep.reviewStatus}
           </p>
         </div>
-        <div className="theme-doc-chip rounded-full px-3 py-1.5 text-xs font-bold theme-doc-subtle">
+        <FvBadge tone={step.confidence.level === "high" ? "success" : "info"}>
           {step.confidence.level} confidence
-        </div>
+        </FvBadge>
       </div>
 
-      <div className="mt-3 grid gap-3">
-        <label className="block">
-          <span className="theme-doc-subtle mono-label text-[0.58rem]">
-            Step note
-          </span>
+      <div className="fv-script-step-body">
+        <label className="fv-script-note-label">
+          <span className="fv-overline">Step note</span>
           <textarea
             value={resolveStepNote(draft, step)}
             onChange={(event) =>
@@ -1121,49 +1043,39 @@ function ScriptStepWorkbench({
               })
             }
             placeholder="Add the consultant note for this step."
-            className="focus-premium theme-doc-input mt-2 min-h-20 w-full rounded-2xl p-3 text-sm leading-6"
+            className="fv-input fv-script-note-input"
           />
         </label>
 
-        <div className="theme-doc-card rounded-[1.1rem] p-3.5">
-          <p className="theme-doc-subtle mono-label text-[0.58rem]">
-            Demo instructions
-          </p>
-          <ol className="theme-doc-title mt-2.5 list-decimal space-y-1.5 pl-5 text-sm leading-6">
+        <div className="fv-script-info-block">
+          <p className="fv-overline">Demo instructions</p>
+          <ol>
             {step.instructions.map((instruction) => (
               <li key={instruction}>{instruction}</li>
             ))}
           </ol>
         </div>
 
-        <details className="theme-doc-card rounded-[1.1rem] p-3.5">
-          <summary className="theme-doc-title cursor-pointer text-sm font-bold">
-            Evidence and context
-          </summary>
-          <div className="mt-3 grid gap-3">
+        <details className="fv-script-info-block">
+          <summary>Evidence and context</summary>
+          <div className="fv-script-evidence-grid">
             <div>
-              <p className="theme-doc-subtle mono-label text-[0.58rem]">
-                Current comment
-              </p>
-              <p className="theme-doc-title mt-2 whitespace-pre-wrap text-sm leading-6">
+              <p className="fv-overline">Current comment</p>
+              <p className="fv-script-evidence-copy">
                 {step.currentComment}
               </p>
             </div>
             <div>
-              <p className="theme-doc-subtle mono-label text-[0.58rem]">
-                Generated source comment
-              </p>
-              <p className="theme-doc-body mt-2 whitespace-pre-wrap text-sm leading-6">
+              <p className="fv-overline">Generated source comment</p>
+              <p className="fv-script-evidence-copy">
                 {step.generatedComment}
               </p>
             </div>
             <ScriptDetailList label="Assumptions" items={step.assumptions} />
             <ScriptDetailList label="Warnings" items={step.warnings} />
             <div>
-              <p className="theme-doc-subtle mono-label text-[0.58rem]">
-                Traceability
-              </p>
-              <div className="theme-doc-body mt-2 flex flex-wrap gap-2 text-xs font-bold">
+              <p className="fv-overline">Traceability</p>
+              <div className="fv-script-trace-list">
                 <TraceChip
                   label={`Requirement ${step.traceability.requirementId}`}
                 />
@@ -1175,36 +1087,31 @@ function ScriptStepWorkbench({
             </div>
             {step.sourceReferences.length > 0 ? (
               <div>
-                <p className="theme-doc-subtle mono-label text-[0.58rem]">
-                  Source references
-                </p>
-                <ul className="mt-2 grid gap-2">
-                  {step.sourceReferences.map((reference) => (
-                    <li
-                      key={reference.id}
-                      className="theme-doc-card rounded-[1rem] p-3 text-sm leading-6 theme-doc-body"
-                    >
-                      <span className="theme-doc-title font-bold">
-                        {reference.kind}
-                      </span>
-                      :{" "}
-                      {reference.url ? (
-                        <a
-                          href={reference.url}
-                          rel="noreferrer"
-                          target="_blank"
-                          className="theme-doc-link font-bold underline underline-offset-4"
-                        >
-                          {reference.label}
-                        </a>
-                      ) : (
-                        <span className="theme-doc-title font-bold">
-                          {reference.label}
-                        </span>
-                      )}
-                      . {reference.note}
-                    </li>
-                  ))}
+                <p className="fv-overline">Source references</p>
+                <ul className="fv-script-reference-list">
+                  {step.sourceReferences.map((reference) => {
+                    const safeSourceUrl = getSafeSourceReferenceUrl(
+                      reference.url,
+                    );
+
+                    return (
+                      <li key={reference.id}>
+                        <strong>{reference.kind}</strong>:{" "}
+                        {safeSourceUrl ? (
+                          <a
+                            href={safeSourceUrl}
+                            rel="noreferrer"
+                            target="_blank"
+                          >
+                            {reference.label}
+                          </a>
+                        ) : (
+                          <span>{reference.label}</span>
+                        )}
+                        . {reference.note}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             ) : null}
@@ -1276,6 +1183,28 @@ function resolveStepNote(draft: DemoScriptDraft, step: DemoScriptStep): string {
   return draft.stepEdits[step.key]?.note || "";
 }
 
+function getSafeSourceReferenceUrl(url?: string): string | null {
+  const trimmedUrl = url?.trim();
+
+  if (!trimmedUrl) {
+    return null;
+  }
+
+  if (trimmedUrl.startsWith("/") && !trimmedUrl.startsWith("//")) {
+    return trimmedUrl;
+  }
+
+  try {
+    const parsedUrl = new URL(trimmedUrl);
+
+    return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:"
+      ? trimmedUrl
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 function moveSection(
   sectionOrder: string[],
   sectionKey: string,
@@ -1299,9 +1228,7 @@ function moveSection(
 }
 
 function TraceChip({ label }: { label: string }) {
-  return (
-    <span className="theme-doc-chip-brand rounded-full px-3 py-1">{label}</span>
-  );
+  return <FvBadge tone="info">{label}</FvBadge>;
 }
 
 function ScriptDetailList({
@@ -1313,15 +1240,15 @@ function ScriptDetailList({
 }) {
   return (
     <div>
-      <p className="theme-doc-subtle mono-label text-[0.58rem]">{label}</p>
+      <p className="fv-overline">{label}</p>
       {items.length > 0 ? (
-        <ul className="theme-doc-body mt-2 list-disc space-y-1 pl-5 text-sm leading-6">
+        <ul className="fv-script-detail-list">
           {items.map((item) => (
             <li key={item}>{item}</li>
           ))}
         </ul>
       ) : (
-        <p className="theme-doc-body mt-2 text-sm leading-6">
+        <p className="fv-script-evidence-copy">
           No {label.toLowerCase()} recorded.
         </p>
       )}
