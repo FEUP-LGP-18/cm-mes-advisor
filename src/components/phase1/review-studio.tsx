@@ -141,7 +141,7 @@ function getMesObject(requirement: ReviewRequirement): string {
       ?.mesModuleOrScreen;
     if (firstModule?.trim()) return firstModule;
   }
-  return requirement.l3Process || requirement.operation || "Unmapped";
+  return requirement.l3Process || requirement.operation || "—";
 }
 
 function getProcessLabel(requirement: ReviewRequirement): string {
@@ -243,13 +243,17 @@ function isRequirementReadyForBulkApproval(requirement: ReviewRequirement) {
 }
 
 function ReviewEmptyState({
+  approvedCount,
   generatedCount,
   onGenerateDemoRows,
   onGoToGenerate,
+  onOpenScript,
 }: {
+  approvedCount: number;
   generatedCount: number;
   onGenerateDemoRows: () => Promise<boolean>;
   onGoToGenerate: () => void;
+  onOpenScript: () => void;
 }) {
   const [generating, setGenerating] = useState(false);
 
@@ -271,6 +275,14 @@ function ReviewEmptyState({
               type="button"
             >
               {generating ? "Generating..." : "Generate demo rows"}
+            </button>
+          ) : approvedCount > 0 ? (
+            <button
+              className="fv-btn-primary"
+              onClick={onOpenScript}
+              type="button"
+            >
+              Generate Script
             </button>
           ) : null}
           <button
@@ -702,7 +714,7 @@ export default function ReviewStudio({
     generatedReviewableRequirements[0]?.requirementKey ?? null,
   );
   const [explorerFilter, setExplorerFilter] =
-    useState<ExplorerFilter>("pending");
+    useState<ExplorerFilter>("all");
   const [explorerQuery, setExplorerQuery] = useState("");
   const [processFilter, setProcessFilter] = useState<ProcessFilter>("all");
 
@@ -916,9 +928,11 @@ export default function ReviewStudio({
   if (!reviewWorkspaceReady) {
     return (
       <ReviewEmptyState
+        approvedCount={approvedCount}
         generatedCount={generatedCount}
         onGenerateDemoRows={onGenerateDemoRows}
         onGoToGenerate={onGoToGenerate}
+        onOpenScript={onOpenScript}
       />
     );
   }
@@ -927,24 +941,14 @@ export default function ReviewStudio({
     <div className="fv-review-workspace">
       <FvPageHeader
         actions={
-          <>
-            <button
-              className="fv-btn-secondary"
-              disabled={approvedCount === 0}
-              onClick={onOpenScript}
-              type="button"
-            >
-              Export
-            </button>
-            <button
-              className="fv-btn-primary"
-              disabled={approvedCount === 0}
-              onClick={onOpenScript}
-              type="button"
-            >
-              Generate Script
-            </button>
-          </>
+          <button
+            className="fv-btn-primary"
+            disabled={approvedCount === 0}
+            onClick={onOpenScript}
+            type="button"
+          >
+            Generate Script
+          </button>
         }
         description="Review generated MES requirements, resolve flagged rows, and approve the set before script generation."
         eyebrow="Phase 1 / Requirements"

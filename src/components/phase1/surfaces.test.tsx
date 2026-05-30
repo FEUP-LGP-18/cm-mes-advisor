@@ -302,11 +302,11 @@ describe("phase 1 redesigned surfaces", () => {
   it("renders the review queue studio with the current requirement and shortcuts", () => {
     const reviewRequirements = createPhase1UiFixtureReviewRequirements({
       "01.01": "pending",
-      "01.02": "pending",
+      "01.02": "approved",
     });
     const queue = createPhase1UiFixtureReviewQueue({
       "01.01": "pending",
-      "01.02": "pending",
+      "01.02": "approved",
     });
     const html = render(
       <ReviewStudio
@@ -325,7 +325,8 @@ describe("phase 1 redesigned surfaces", () => {
     expect(html).toContain("Requirements Review");
     expect(html).toContain("Requirement Text");
     expect(html).toContain("Pending requirements");
-    expect(html).toContain("Showing");
+    expect(html).toContain("Showing 2 of 2");
+    expect(html).not.toContain(">Export</button>");
     expect(html).toContain("Approve ready rows");
     expect(html).toContain("Skip remaining rows");
     expect(html).toContain("Approve and next");
@@ -352,6 +353,7 @@ describe("phase 1 redesigned surfaces", () => {
 
     expect(html).toContain("All rows reviewed");
     expect(html).toContain("proceed to the script step");
+    expect(html).toContain("Generate Script");
     expect(html).not.toContain("No requirements generated yet");
   });
 
