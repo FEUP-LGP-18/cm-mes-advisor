@@ -133,3 +133,10 @@ repeat the page title or restate obvious instructions.
   client.
 - Do not imply Phase 2 is required to complete Phase 1.
 - Phase 1 standalone and Phase 2 optional remain non-negotiable.
+
+## Requirements Review Completion Note
+
+#60 now covers the Review table shell, selected-row inspector, checked-row bulk
+bar, no-results recovery, and all-reviewed states. Remaining Review work should
+be treated as final product QA, not another feature slice. Script and Export
+remain owned by #65.
