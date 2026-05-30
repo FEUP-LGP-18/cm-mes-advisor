@@ -177,6 +177,10 @@ describe("demo script panels", () => {
     expect(markup).toContain("Demo steps generated");
     expect(markup).toContain("Traceability");
     expect(markup).toContain("Script sections");
+    expect(markup).toContain('aria-label="Script editor"');
+    expect(markup).not.toContain(
+      '<main class="fv-card fv-script-main-card"',
+    );
     expect(markup).toContain("Refine the structure, wording, and notes");
     expect(markup).toContain("Script title");
     expect(markup).toContain("Source workbook");
