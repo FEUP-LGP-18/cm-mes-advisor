@@ -196,16 +196,37 @@ for (const theme of themes) {
         name: "Generated requirements review table",
       }),
     ).toBeVisible();
+    await expect(
+      page.getByRole("complementary", { name: "Selected requirement" }),
+    ).toBeVisible();
     await expect(page.getByRole("button", { name: /approve/i }).first()).toBeVisible();
     await assertNoHorizontalOverflow(page);
+    await attachFullPageScreenshot(page, testInfo, `${theme}-review-studio`);
+
+    await page
+      .getByRole("button", { name: "Select 01.02 for inspection" })
+      .click();
+    const selectedInspector = page.getByRole("complementary", {
+      name: "Selected requirement",
+    });
+    await expect(selectedInspector).toBeVisible();
+    await expect(selectedInspector.getByText("01.02", { exact: true })).toBeVisible();
+    await expect(
+      selectedInspector.getByRole("heading", {
+        name: "Resource scheduling support",
+      }),
+    ).toBeVisible();
+    await expect(
+      selectedInspector.getByRole("button", { name: "Approve" }),
+    ).toBeVisible();
 
     if (testInfo.project.name.includes("mobile")) {
       await expect(
-        page.getByRole("button", { name: "Approve and next" }),
+        selectedInspector.getByRole("button", { name: "Approve" }),
       ).toBeEnabled();
     }
 
-    await attachFullPageScreenshot(page, testInfo, `${theme}-review-studio`);
+    await attachFullPageScreenshot(page, testInfo, `${theme}-review-row-selected`);
   });
 
   test(`${theme}: verifies script and export surfaces, including direct export access when ready`, async ({

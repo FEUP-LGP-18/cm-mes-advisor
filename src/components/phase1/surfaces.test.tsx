@@ -326,10 +326,18 @@ describe("phase 1 redesigned surfaces", () => {
     expect(html).toContain("Requirement Text");
     expect(html).toContain("Pending requirements");
     expect(html).toContain("Showing 2 of 2");
+    expect(html).toContain("Selected requirement");
+    expect(html).toContain("AI comment");
+    expect(html).toContain("MES object");
+    expect(html).toContain("Consultant comment");
+    expect(html).toContain("Review note");
+    expect(html).toContain("Select 01.02 for inspection");
     expect(html).not.toContain(">Export</button>");
+    expect(html).not.toContain("selected rows");
     expect(html).toContain("Approve ready rows");
     expect(html).toContain("Skip remaining rows");
-    expect(html).toContain("Approve and next");
+    expect(html).toContain("Approve");
+    expect(html).toContain("Flag");
   });
 
   it("renders the cleared review queue as a ready state, not a blocked state", () => {
