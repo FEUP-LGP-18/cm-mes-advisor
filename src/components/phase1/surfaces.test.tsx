@@ -7,6 +7,7 @@ import {
   filterReviewRequirements,
   mockGenerationStageLabels,
 } from "@/lib/requirements";
+import type { ReviewRequirement } from "@/lib/requirements";
 import type { ProjectListItem } from "@/lib/projects/types";
 import {
   createPhase1UiFixtureProjectRecord,
@@ -54,6 +55,65 @@ function createDashboardProject(
     updatedBy: "11111111-1111-4111-8111-111111111111",
     ...overrides,
   };
+}
+
+function createReviewRequirementsWithFirstSourceReference(
+  url: string,
+): ReviewRequirement[] {
+  const requirements = createPhase1UiFixtureReviewRequirements({
+    "01.01": "pending",
+    "01.02": "pending",
+  });
+  const [firstRequirement, ...remainingRequirements] = requirements;
+
+  if (
+    !firstRequirement ||
+    firstRequirement.generatedOutput.state !== "mock-generated-draft"
+  ) {
+    throw new Error("Fixture expected a generated review requirement.");
+  }
+
+  const generatedOutput = firstRequirement.generatedOutput;
+  const existingReference = generatedOutput.draft.sourceReferences[0];
+
+  return [
+    {
+      ...firstRequirement,
+      generatedOutput: {
+        ...generatedOutput,
+        draft: {
+          ...generatedOutput.draft,
+          sourceReferences: [
+            {
+              id: existingReference?.id ?? "source-reference-test",
+              kind: existingReference?.kind ?? "mock-ai",
+              label: "Safety source reference",
+              note: "Reference note stays visible.",
+              url,
+            },
+            ...generatedOutput.draft.sourceReferences.slice(1),
+          ],
+        },
+      },
+    },
+    ...remainingRequirements,
+  ];
+}
+
+function renderReviewStudio(requirements: ReviewRequirement[]) {
+  return render(
+    <ReviewStudio
+      approvedCount={0}
+      generatedCount={requirements.length}
+      generatedReviewableRequirements={requirements}
+      onGenerateDemoRows={async () => false}
+      onGoToGenerate={vi.fn()}
+      onOpenScript={vi.fn()}
+      onReviewAction={vi.fn()}
+      projectId={phase1UiFixtureProjectMetadata.projectId}
+      reviewRequirements={requirements}
+    />,
+  );
 }
 
 const createProjectActionStub = async () => ({
@@ -338,6 +398,25 @@ describe("phase 1 redesigned surfaces", () => {
     expect(html).toContain("Skip remaining rows");
     expect(html).toContain("Approve");
     expect(html).toContain("Flag");
+  });
+
+  it("renders only safe selected inspector source reference URLs as links", () => {
+    const safeHtml = renderReviewStudio(
+      createReviewRequirementsWithFirstSourceReference(
+        "https://docs.example.com/source",
+      ),
+    );
+    const unsafeHtml = renderReviewStudio(
+      createReviewRequirementsWithFirstSourceReference("javascript:alert(1)"),
+    );
+
+    expect(safeHtml).toContain(
+      '<a href="https://docs.example.com/source">Safety source reference</a>',
+    );
+    expect(safeHtml).toContain("Reference note stays visible.");
+    expect(unsafeHtml).toContain("<span>Safety source reference</span>");
+    expect(unsafeHtml).toContain("Reference note stays visible.");
+    expect(unsafeHtml).not.toContain('href="javascript:alert(1)"');
   });
 
   it("renders the cleared review queue as a ready state, not a blocked state", () => {

@@ -133,6 +133,24 @@ function getMesObject(requirement: ReviewRequirement): string {
   return requirement.l3Process || requirement.operation || "—";
 }
 
+function getSafeSourceReferenceHref(url: string | undefined): string | null {
+  const normalizedUrl = url?.trim();
+  if (!normalizedUrl) return null;
+
+  if (normalizedUrl.startsWith("/") && !normalizedUrl.startsWith("//")) {
+    return normalizedUrl;
+  }
+
+  try {
+    const parsed = new URL(normalizedUrl);
+    return parsed.protocol === "http:" || parsed.protocol === "https:"
+      ? parsed.toString()
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 function getProcessLabel(requirement: ReviewRequirement): string {
   const levels = [requirement.l2Process, requirement.l3Process || requirement.operation]
     .map((value) => value.trim())
@@ -533,6 +551,9 @@ function ReviewSelectedInspector({
       ? requirement.generatedOutput.draft
       : null;
   const sourceReference = draft?.sourceReferences[0] ?? null;
+  const safeSourceReferenceHref = getSafeSourceReferenceHref(
+    sourceReference?.url,
+  );
   const warnings = draft?.warnings.filter(Boolean) ?? [];
   const assumptions = draft?.assumptions.filter(Boolean) ?? [];
 
@@ -631,8 +652,8 @@ function ReviewSelectedInspector({
       {sourceReference ? (
         <div className="fv-review-inspector-section">
           <p className="fv-review-kicker">Source reference</p>
-          {sourceReference.url ? (
-            <a href={sourceReference.url}>{sourceReference.label}</a>
+          {safeSourceReferenceHref ? (
+            <a href={safeSourceReferenceHref}>{sourceReference.label}</a>
           ) : (
             <span>{sourceReference.label}</span>
           )}
