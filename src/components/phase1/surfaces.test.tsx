@@ -357,6 +357,7 @@ describe("phase 1 redesigned surfaces", () => {
     expect(html).toContain("No requirements generated yet");
     expect(html).toContain("Generate demo rows");
     expect(html).toContain("Back to generation");
+    expect(html).not.toContain("No requirements match your filters");
   });
 
   it("renders the review queue studio with the current requirement and shortcuts", () => {
@@ -403,6 +404,8 @@ describe("phase 1 redesigned surfaces", () => {
     expect(html).toContain("Skip remaining rows");
     expect(html).toContain("Approve");
     expect(html).toContain("Flag");
+    expect(html).not.toContain("No requirements match your filters");
+    expect(html).not.toContain("Clear filters");
   });
 
   it("renders only safe selected inspector source reference URLs as links", () => {
@@ -443,10 +446,11 @@ describe("phase 1 redesigned surfaces", () => {
       />,
     );
 
-    expect(html).toContain("All rows reviewed");
-    expect(html).toContain("proceed to the script step");
+    expect(html).toContain("Review decisions complete");
+    expect(html).toContain("Every generated requirement has a review decision");
     expect(html).toContain("Generate Script");
     expect(html).not.toContain("No requirements generated yet");
+    expect(html).not.toContain("No requirements match your filters");
   });
 
   it("renders script as blocked while pending review work remains", () => {
