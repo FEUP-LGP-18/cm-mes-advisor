@@ -60,24 +60,6 @@ async function assertNoHorizontalOverflow(page: Page) {
   expect(scrollWidth).toBeLessThanOrEqual(viewportWidth + 2);
 }
 
-async function assertScrollable(locator: Locator) {
-  const metrics = await locator.evaluate((node) => {
-    const element = node as HTMLElement;
-    const before = element.scrollTop;
-    element.scrollTop = before + 240;
-
-    return {
-      before,
-      after: element.scrollTop,
-      clientHeight: element.clientHeight,
-      scrollHeight: element.scrollHeight,
-    };
-  });
-
-  expect(metrics.scrollHeight).toBeGreaterThan(metrics.clientHeight);
-  expect(metrics.after).toBeGreaterThan(metrics.before);
-}
-
 async function expectLocatorAbove(upper: Locator, lower: Locator) {
   await expect(upper).toBeVisible();
   await expect(lower).toBeVisible();
@@ -324,10 +306,11 @@ for (const theme of themes) {
     await page.goto(`/projects/${project.projectId}/script`);
     await expect(
       page.getByRole("heading", {
-        name: "Script",
+        name: "Demo Script",
       }),
     ).toBeVisible();
-    await expect(page.getByText(/^Script editor$/).first()).toBeVisible();
+    await expect(page.getByText(/^Script title$/).first()).toBeVisible();
+    await expect(page.getByText(/^Script sections$/).first()).toBeVisible();
     await expect(
       page.getByRole("button", { name: /continue to export/i }),
     ).toBeEnabled();
@@ -335,11 +318,11 @@ for (const theme of themes) {
 
     if (testInfo.project.name.includes("mobile")) {
       await expectLocatorAbove(
-        page.getByText(/^Script editor$/).first(),
-        page.locator("summary").filter({ hasText: /^Section outline$/ }).first(),
+        page.getByText(/^Script title$/).first(),
+        page.getByText(/^Script sections$/).first(),
       );
     } else {
-      await assertScrollable(page.locator(".phase-document-sidebar-scroll").first());
+      await expect(page.getByText(/^What the handoff includes$/).first()).toBeVisible();
     }
 
     await attachFullPageScreenshot(page, testInfo, `${theme}-script-studio`);
