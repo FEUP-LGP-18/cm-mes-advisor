@@ -308,11 +308,38 @@ function ReviewEmptyState({
       }
       body={
         generatedCount > 0
-          ? "All generated requirements have been reviewed. Go back to generate more or proceed to the script step."
+          ? "Every generated requirement has a review decision. Proceed to the script step when approved content is ready, or return to generation to add more rows."
           : "Upload a source workbook and run generation to get requirements ready for review."
       }
       className="fv-review-empty-state"
-      title={generatedCount > 0 ? "All rows reviewed" : "No requirements generated yet"}
+      title={
+        generatedCount > 0
+          ? "Review decisions complete"
+          : "No requirements generated yet"
+      }
+    />
+  );
+}
+
+function ReviewNoResultsState({
+  onClearFilters,
+}: {
+  onClearFilters: () => void;
+}) {
+  return (
+    <FvEmptyState
+      action={
+        <button
+          className="fv-btn-secondary"
+          onClick={onClearFilters}
+          type="button"
+        >
+          Clear filters
+        </button>
+      }
+      body="Clear the search or filters to return to the generated review queue."
+      className="fv-review-filter-empty fv-review-no-results-state"
+      title="No requirements match your filters"
     />
   );
 }
@@ -341,16 +368,6 @@ function ReviewRequirementsTable({
   selectedRequirement: ReviewRequirement | null;
   someVisibleRowsChecked: boolean;
 }) {
-  if (rows.length === 0) {
-    return (
-      <FvEmptyState
-        body="Clear the search or status filters to return to the generated requirements inventory."
-        className="fv-review-filter-empty"
-        title="No matching requirements"
-      />
-    );
-  }
-
   return (
     <FvTable
       aria-label="Generated requirements review table"
@@ -1057,6 +1074,13 @@ export default function ReviewStudio({
     setCheckedRowKeys(new Set());
   }, []);
 
+  const handleClearFilters = useCallback(() => {
+    setExplorerFilter("all");
+    setProcessFilter("all");
+    setExplorerQuery("");
+    setCheckedRowKeys(new Set());
+  }, []);
+
   const handleToggleRequirementChecked = useCallback(
     (requirement: ReviewRequirement, checked: boolean) => {
       setCheckedRowKeys((previous) => {
@@ -1242,6 +1266,7 @@ export default function ReviewStudio({
   ]);
 
   const reviewWorkspaceReady = generatedCount > 0 && currentRequirement !== null;
+  const hasNoFilterResults = tableRows.length > 0 && visibleRows.length === 0;
 
   if (!reviewWorkspaceReady) {
     return (
@@ -1272,6 +1297,13 @@ export default function ReviewStudio({
         eyebrow="Phase 1 / Requirements"
         title="Requirements Review"
       />
+
+      {!canEditPhase1 ? (
+        <FvCallout tone="status" title="Read-only review">
+          Review decisions are disabled for your role. You can still inspect
+          generated requirements and review notes.
+        </FvCallout>
+      ) : null}
 
       <div className="fv-stats-row fv-review-stats">
         <FvStatCard
@@ -1356,79 +1388,95 @@ export default function ReviewStudio({
       />
 
       <div className="fv-review-table-detail-grid">
-        <ReviewRequirementsTable
-          allVisibleRowsChecked={allVisibleRowsChecked}
-          checkedRowKeys={effectiveCheckedRowKeys}
-          currentRequirement={currentRequirement}
-          onSelectRequirement={(requirement) =>
-            setSelectedRowKey(requirement.requirementKey)
-          }
-          onToggleRequirementChecked={handleToggleRequirementChecked}
-          onToggleVisibleRows={handleToggleVisibleRows}
-          rows={visibleRows}
-          selectedRequirement={selectedRequirement}
-          someVisibleRowsChecked={someVisibleRowsChecked}
-        />
-        {selectedRequirement ? (
-          <ReviewSelectedInspector
-            canEdit={canEditPhase1}
-            onReviewAction={handleSelectedReviewAction}
-            requirement={selectedRequirement}
-          />
+        {hasNoFilterResults ? (
+          <ReviewNoResultsState onClearFilters={handleClearFilters} />
         ) : (
-          <ReviewInspectorEmptyState />
+          <>
+            <ReviewRequirementsTable
+              allVisibleRowsChecked={allVisibleRowsChecked}
+              checkedRowKeys={effectiveCheckedRowKeys}
+              currentRequirement={currentRequirement}
+              onSelectRequirement={(requirement) =>
+                setSelectedRowKey(requirement.requirementKey)
+              }
+              onToggleRequirementChecked={handleToggleRequirementChecked}
+              onToggleVisibleRows={handleToggleVisibleRows}
+              rows={visibleRows}
+              selectedRequirement={selectedRequirement}
+              someVisibleRowsChecked={someVisibleRowsChecked}
+            />
+            {selectedRequirement ? (
+              <ReviewSelectedInspector
+                canEdit={canEditPhase1}
+                onReviewAction={handleSelectedReviewAction}
+                requirement={selectedRequirement}
+              />
+            ) : (
+              <ReviewInspectorEmptyState />
+            )}
+          </>
         )}
       </div>
 
-      <div className="fv-review-queue-strip">
-        <ReviewQueueControls
-          activeQueueIndex={activeQueueIndex}
-          approvedCount={approvedCount}
-          canEdit={canEditPhase1}
-          currentRequirement={currentRequirement}
-          onApproveReadyRows={handleApproveReadyRows}
-          onOpenScript={onOpenScript}
-          onSelectNext={selectNext}
-          onSelectPrevious={selectPrevious}
-          onSkipRemainingRows={handleSkipRemainingRows}
-          readyBulkCount={readyBulkRequirements.length}
-          reviewQueue={reviewQueue}
-        />
-      </div>
+      {!hasNoFilterResults ? (
+        <>
+          <div className="fv-review-queue-strip">
+            <ReviewQueueControls
+              activeQueueIndex={activeQueueIndex}
+              approvedCount={approvedCount}
+              canEdit={canEditPhase1}
+              currentRequirement={currentRequirement}
+              onApproveReadyRows={handleApproveReadyRows}
+              onOpenScript={onOpenScript}
+              onSelectNext={selectNext}
+              onSelectPrevious={selectPrevious}
+              onSkipRemainingRows={handleSkipRemainingRows}
+              readyBulkCount={readyBulkRequirements.length}
+              reviewQueue={reviewQueue}
+            />
+          </div>
 
-      <div className="fv-mobile-action-bar">
-        <button
-          className="fv-btn-primary"
-          disabled={!canEditPhase1}
-          onClick={() => handleReviewAction(currentRequirement, { type: "approve" })}
-          type="button"
-        >
-          Approve
-        </button>
-        <button
-          className="fv-btn-secondary"
-          disabled={!canEditPhase1}
-          onClick={() => handleReviewAction(currentRequirement, { type: "flag" })}
-          type="button"
-        >
-          Flag
-        </button>
-        <button
-          className="fv-btn-secondary"
-          disabled={!canEditPhase1}
-          onClick={() => handleReviewAction(currentRequirement, { type: "skip" })}
-          type="button"
-        >
-          Skip
-        </button>
-        <button
-          className="fv-btn-secondary"
-          onClick={() => selectNext(currentRequirement)}
-          type="button"
-        >
-          Next
-        </button>
-      </div>
+          <div className="fv-mobile-action-bar">
+            <button
+              className="fv-btn-primary"
+              disabled={!canEditPhase1}
+              onClick={() =>
+                handleReviewAction(currentRequirement, { type: "approve" })
+              }
+              type="button"
+            >
+              Approve
+            </button>
+            <button
+              className="fv-btn-secondary"
+              disabled={!canEditPhase1}
+              onClick={() =>
+                handleReviewAction(currentRequirement, { type: "flag" })
+              }
+              type="button"
+            >
+              Flag
+            </button>
+            <button
+              className="fv-btn-secondary"
+              disabled={!canEditPhase1}
+              onClick={() =>
+                handleReviewAction(currentRequirement, { type: "skip" })
+              }
+              type="button"
+            >
+              Skip
+            </button>
+            <button
+              className="fv-btn-secondary"
+              onClick={() => selectNext(currentRequirement)}
+              type="button"
+            >
+              Next
+            </button>
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }

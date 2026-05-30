@@ -5188,6 +5188,20 @@ textarea {
   box-shadow: var(--shadow-card);
 }
 
+.fv-review-no-results-state {
+  border-style: dashed;
+  grid-column: 1 / -1;
+  min-height: clamp(22rem, 48vh, 42rem);
+}
+
+.fv-review-no-results-state .fv-empty-title {
+  font-size: 1rem;
+}
+
+.fv-review-no-results-state .fv-empty-body {
+  max-width: 34rem;
+}
+
 .fv-review-stats {
   margin-bottom: 0;
 }
@@ -5708,6 +5722,11 @@ textarea {
 
   .fv-review-queue-strip {
     max-width: none;
+  }
+
+  .fv-review-no-results-state {
+    min-height: 18rem;
+    padding-inline: 1rem;
   }
 }
 

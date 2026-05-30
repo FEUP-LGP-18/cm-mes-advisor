@@ -257,8 +257,36 @@ for (const theme of themes) {
     await assertNoHorizontalOverflow(page);
     await attachFullPageScreenshot(page, testInfo, `${theme}-review-rows-checked`);
 
-    await bulkBar.getByRole("button", { name: "Clear selection" }).click();
+    await page
+      .getByRole("searchbox", { name: /search requirements/i })
+      .fill("blockchain");
+    await expect(page.getByText("Showing 0 of 2")).toBeVisible();
+    await expect(
+      page.getByText("No requirements match your filters"),
+    ).toBeVisible();
+    await expect(page.getByText("No requirements generated yet")).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "Clear filters" }),
+    ).toBeVisible();
     await expect(bulkBar).toBeHidden();
+    await expect(
+      page.getByRole("complementary", { name: "Selected requirement" }),
+    ).toHaveCount(0);
+    await expect(page.getByText(/^Pending requirements$/)).toHaveCount(0);
+    await assertNoHorizontalOverflow(page);
+    await attachFullPageScreenshot(page, testInfo, `${theme}-review-no-results`);
+
+    await page.getByRole("button", { name: "Clear filters" }).click();
+    await expect(page.getByText("Showing 2 of 2")).toBeVisible();
+    await expect(
+      page.getByRole("table", {
+        name: "Generated requirements review table",
+      }),
+    ).toBeVisible();
+    await expect(firstRowCheckbox).not.toBeChecked();
+    await expect(selectedInspector.getByText("01.02", { exact: true })).toBeVisible();
+    await expect(page.getByText(/^Pending requirements$/)).toBeVisible();
+
     await firstRowCheckbox.check();
     await bulkBar.getByRole("button", { name: "Approve selected" }).click();
     await expect(bulkBar).toBeHidden();
@@ -283,6 +311,15 @@ for (const theme of themes) {
     });
 
     await seedProjectRegistry(page, registry, theme);
+
+    await page.goto(`/projects/${project.projectId}/review`);
+    await expect(page.getByText("Review decisions complete")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Generate Script" }),
+    ).toBeEnabled();
+    await expect(page.getByText("No requirements generated yet")).toHaveCount(0);
+    await assertNoHorizontalOverflow(page);
+    await attachFullPageScreenshot(page, testInfo, `${theme}-review-all-reviewed`);
 
     await page.goto(`/projects/${project.projectId}/script`);
     await expect(
