@@ -1,16 +1,27 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  FvBadge,
+  FvEmptyState,
+  FvPageHeader,
+  FvStatCard,
+  FvTable,
+  FvToolbar,
+  type FvBadgeTone,
+} from "@/components/ui/fv";
 import type {
   RequirementReviewAction,
   ReviewRequirement,
 } from "@/lib/requirements/review";
-import { assessRequirementSupport } from "@/lib/requirements/generation";
+import {
+  assessRequirementSupport,
+  type RequirementGenerationConfidence,
+} from "@/lib/requirements/generation";
 import { evaluateRequirementValidation } from "@/lib/requirements/validation";
 
-// ── Types ──────────────────────────────────────────────────────
-
 type ExplorerFilter = "all" | "pending" | "review" | "approved" | "skipped";
+type ProcessFilter = "all" | string;
 
 interface ReviewStudioProps {
   approvedCount: number;
@@ -20,12 +31,29 @@ interface ReviewStudioProps {
   onGenerateDemoRows: () => Promise<boolean>;
   onGoToGenerate: () => void;
   onOpenScript: () => void;
-  onReviewAction: (requirement: ReviewRequirement, action: RequirementReviewAction) => void;
+  onReviewAction: (
+    requirement: ReviewRequirement,
+    action: RequirementReviewAction,
+  ) => void;
   projectId: string;
   reviewRequirements: ReviewRequirement[];
 }
 
-// ── Status helpers ─────────────────────────────────────────────
+interface ReviewTableRow {
+  aiComment: string;
+  confidence: RequirementGenerationConfidence;
+  confidenceTone: FvBadgeTone;
+  isQueued: boolean;
+  mesObject: string;
+  process: string;
+  requirement: ReviewRequirement;
+  requirementId: string;
+  requirementText: string;
+  rowClassName: string;
+  searchText: string;
+  statusLabel: string;
+  statusTone: FvBadgeTone;
+}
 
 const STATUS_LABEL: Record<ReviewRequirement["reviewStatus"], string> = {
   pending: "Pending",
@@ -34,11 +62,26 @@ const STATUS_LABEL: Record<ReviewRequirement["reviewStatus"], string> = {
   skipped: "Skipped",
 };
 
-const STATUS_COLOR: Record<ReviewRequirement["reviewStatus"], string> = {
-  pending: "var(--muted-fg)",
-  review: "var(--status-flagged)",
-  approved: "var(--status-approved)",
-  skipped: "var(--surface-border)",
+const STATUS_TONE: Record<ReviewRequirement["reviewStatus"], FvBadgeTone> = {
+  pending: "accent",
+  review: "warning",
+  approved: "success",
+  skipped: "neutral",
+};
+
+const STATUS_ROW_CLASS: Record<ReviewRequirement["reviewStatus"], string> = {
+  pending: "fv-review-table-row-pending",
+  review: "fv-review-table-row-review",
+  approved: "fv-review-table-row-approved",
+  skipped: "fv-review-table-row-skipped",
+};
+
+const FILTER_LABEL: Record<ExplorerFilter, string> = {
+  all: "All statuses",
+  pending: "Pending",
+  review: "Needs review",
+  approved: "Approved",
+  skipped: "Skipped",
 };
 
 const SEVERITY_BG: Record<string, string> = {
@@ -53,475 +96,164 @@ const SEVERITY_BORDER: Record<string, string> = {
   review: "var(--status-error, #ef4444)",
 };
 
-// ── ReviewNavPanel ─────────────────────────────────────────────
-
-function ReviewNavPanel({
-  activeQueueIndex,
-  approvedCount,
-  canEdit,
-  currentRequirement,
-  explorerFilter,
-  explorerQuery,
-  explorerRows,
-  onApproveReadyRows,
-  onExplorerFilterChange,
-  onExplorerQueryChange,
-  onOpenRequirement,
-  onOpenScript,
-  onSelectNext,
-  onSelectPrevious,
-  onSkipRemainingRows,
-  queuedRequirementKeys,
-  readyBulkCount,
-  reviewQueue,
-}: {
-  activeQueueIndex: number;
-  approvedCount: number;
-  canEdit: boolean;
-  currentRequirement: ReviewRequirement | null;
-  explorerFilter: ExplorerFilter;
-  explorerQuery: string;
-  explorerRows: ReviewRequirement[];
-  onApproveReadyRows: () => void;
-  onExplorerFilterChange: (f: ExplorerFilter) => void;
-  onExplorerQueryChange: (q: string) => void;
-  onOpenRequirement: (req: ReviewRequirement) => void;
-  onOpenScript: () => void;
-  onSelectNext: (req: ReviewRequirement | null) => void;
-  onSelectPrevious: (req: ReviewRequirement | null) => void;
-  onSkipRemainingRows: () => void;
-  queuedRequirementKeys: Set<string>;
-  readyBulkCount: number;
-  reviewQueue: ReviewRequirement[];
-}) {
+function isExplorerFilter(value: string | null): value is ExplorerFilter {
   return (
-    <aside className="fv-review-nav">
-      {/* Nav header */}
-      <div className="fv-card" style={{ padding: "1rem" }}>
-        <div style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted-fg)", marginBottom: "0.25rem" }}>
-          Review queue
-        </div>
-        <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--foreground)", marginBottom: "0.875rem" }}>
-          Pending requirements
-        </div>
-
-        {/* Previous / Next */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginBottom: "0.75rem" }}>
-          <button
-            type="button"
-            onClick={() => onSelectPrevious(currentRequirement)}
-            disabled={reviewQueue.length === 0 || activeQueueIndex <= 0}
-            className="fv-btn-secondary"
-            style={{ justifyContent: "center", padding: "0.5rem" }}
-          >
-            Previous
-          </button>
-          <button
-            type="button"
-            onClick={() => onSelectNext(currentRequirement)}
-            disabled={reviewQueue.length === 0 || activeQueueIndex >= reviewQueue.length - 1}
-            className="fv-btn-secondary"
-            style={{ justifyContent: "center", padding: "0.5rem", fontWeight: 700, background: "var(--foreground)", color: "#fff", borderColor: "var(--foreground)" }}
-          >
-            Next
-          </button>
-        </div>
-
-        {/* Stats */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem" }}>
-          {[
-            { label: "PENDING", value: reviewQueue.length },
-            { label: "APPROVED", value: approvedCount },
-            { label: "POSITION", value: activeQueueIndex >= 0 ? `${activeQueueIndex + 1}/${reviewQueue.length}` : "—" },
-          ].map(({ label, value }) => (
-            <span key={label} style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.2rem 0.6rem", border: "1px solid var(--surface-border)", borderRadius: "999px", fontSize: "0.7rem" }}>
-              <span style={{ fontWeight: 600, color: "var(--muted-fg)", letterSpacing: "0.06em" }}>{label}</span>
-              <span style={{ fontWeight: 800, color: "var(--foreground)" }}>{value}</span>
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* Bulk decisions */}
-      {canEdit && reviewQueue.length > 0 && (
-        <div className="fv-card" style={{ padding: "1rem" }}>
-          <div style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted-fg)", marginBottom: "0.5rem" }}>
-            Bulk decisions
-          </div>
-          <p style={{ fontSize: "0.75rem", color: "var(--muted-fg)", marginBottom: "0.75rem", lineHeight: 1.4 }}>
-            Use this only for demo-speed review. Row-level decisions stay available in the main card.
-          </p>
-          <div style={{ display: "grid", gap: "0.5rem" }}>
-            <button
-              type="button"
-              onClick={onApproveReadyRows}
-              disabled={readyBulkCount === 0}
-              className="fv-btn-secondary"
-              style={{ justifyContent: "center" }}
-            >
-              Approve ready rows
-            </button>
-            <button
-              type="button"
-              onClick={onSkipRemainingRows}
-              className="fv-btn-secondary"
-              style={{ justifyContent: "center" }}
-            >
-              Skip remaining rows
-            </button>
-          </div>
-          {readyBulkCount > 0 && (
-            <p style={{ fontSize: "0.72rem", color: "var(--muted-fg)", marginTop: "0.5rem" }}>
-              {readyBulkCount} pending {readyBulkCount === 1 ? "row has" : "rows have"} no validation flags.
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* Inventory list */}
-      <div className="fv-card" style={{ padding: "1rem", flex: 1 }}>
-        <div style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted-fg)", marginBottom: "0.5rem" }}>
-          Inventory
-        </div>
-        <p style={{ fontSize: "0.72rem", color: "var(--muted-fg)", marginBottom: "0.625rem" }}>
-          Open a pending row directly from the list.
-        </p>
-
-        {/* Filter strip */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem", marginBottom: "0.5rem" }}>
-          {(["all", "pending", "review", "approved", "skipped"] as ExplorerFilter[]).map((f) => (
-            <button
-              key={f}
-              type="button"
-              onClick={() => onExplorerFilterChange(f)}
-              style={{
-                padding: "0.15rem 0.5rem",
-                fontSize: "0.65rem",
-                fontWeight: explorerFilter === f ? 700 : 500,
-                border: "1px solid",
-                borderColor: explorerFilter === f ? "var(--brand-primary)" : "var(--surface-border)",
-                borderRadius: "999px",
-                background: explorerFilter === f ? "color-mix(in srgb, var(--brand-primary) 10%, #fff)" : "#fff",
-                color: explorerFilter === f ? "var(--brand-primary)" : "var(--muted-fg)",
-                cursor: "pointer",
-                textTransform: "capitalize",
-              }}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
-
-        <input
-          type="search"
-          placeholder="Search ID, process, or draft…"
-          value={explorerQuery}
-          onChange={(e) => onExplorerQueryChange(e.target.value)}
-          className="fv-input"
-          style={{ marginBottom: "0.5rem", fontSize: "0.78rem" }}
-        />
-
-        {explorerRows.length === 0 ? (
-          <p style={{ fontSize: "0.78rem", color: "var(--muted-fg)", padding: "0.5rem 0" }}>No rows match the filter.</p>
-        ) : (
-          <div style={{ display: "grid", gap: "0.25rem" }}>
-            {explorerRows.slice(0, 50).map((req) => {
-              const isQueued = queuedRequirementKeys.has(req.requirementKey);
-              const isCurrent = currentRequirement?.requirementKey === req.requirementKey;
-              return (
-                <div
-                  key={req.requirementKey}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: "0.5rem",
-                    padding: "0.375rem 0.5rem",
-                    borderRadius: "6px",
-                    background: isCurrent ? "color-mix(in srgb, var(--brand-primary) 8%, #fff)" : "transparent",
-                    border: `1px solid ${isCurrent ? "var(--brand-primary)" : "transparent"}`,
-                  }}
-                >
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--foreground)" }}>
-                      {req.requirementId || `Row ${req.sourceRowNumber}`}
-                    </div>
-                    <div style={{ fontSize: "0.68rem", color: "var(--muted-fg)", display: "flex", gap: "0.25rem", flexWrap: "wrap" }}>
-                      <span style={{ color: STATUS_COLOR[req.reviewStatus] }}>{STATUS_LABEL[req.reviewStatus]}</span>
-                      {" · "}
-                      <span>Row {req.sourceRowNumber}</span>
-                    </div>
-                  </div>
-                  {isQueued && (
-                    <button
-                      type="button"
-                      onClick={() => onOpenRequirement(req)}
-                      className="fv-btn-secondary"
-                      style={{ fontSize: "0.7rem", padding: "0.15rem 0.5rem", flexShrink: 0 }}
-                    >
-                      Open
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Open script */}
-      <button type="button" onClick={onOpenScript} className="fv-btn-secondary" style={{ justifyContent: "center" }}>
-        Open script
-      </button>
-    </aside>
+    value === "all" ||
+    value === "pending" ||
+    value === "review" ||
+    value === "approved" ||
+    value === "skipped"
   );
 }
 
-// ── ReviewMainContent ──────────────────────────────────────────
+function formatCount(value: number): string {
+  return new Intl.NumberFormat("en").format(value);
+}
 
-function ReviewMainContent({ requirement }: { requirement: ReviewRequirement }) {
+function formatPercent(value: number): string {
+  return `${Math.round(value * 100)}%`;
+}
+
+function getCompletionProgress(approvedCount: number, totalCount: number): number {
+  if (totalCount <= 0) return 0;
+  return Math.round((approvedCount / totalCount) * 100);
+}
+
+function getRequirementText(requirement: ReviewRequirement): string {
+  return (
+    requirement.requirementDescription.trim() ||
+    requirement.detailDescriptionAndMotivation.trim() ||
+    requirement.generatedOutput.generatedCommentDraft?.trim() ||
+    "No requirement text provided"
+  );
+}
+
+function getAiComment(requirement: ReviewRequirement): string {
+  if (requirement.generatedOutput.state !== "mock-generated-draft") {
+    return "";
+  }
+  return requirement.generatedOutput.draft.generatedComment.trim();
+}
+
+function getMesObject(requirement: ReviewRequirement): string {
+  if (requirement.generatedOutput.state === "mock-generated-draft") {
+    const firstModule = requirement.generatedOutput.draft.demoSteps[0]
+      ?.mesModuleOrScreen;
+    if (firstModule?.trim()) return firstModule;
+  }
+  return requirement.l3Process || requirement.operation || "—";
+}
+
+function getProcessLabel(requirement: ReviewRequirement): string {
+  const levels = [requirement.l2Process, requirement.l3Process || requirement.operation]
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return levels.length > 0 ? levels.join(" / ") : "Unassigned";
+}
+
+function getConfidence(requirement: ReviewRequirement): RequirementGenerationConfidence {
+  if (requirement.generatedOutput.state === "mock-generated-draft") {
+    return requirement.generatedOutput.draft.confidence;
+  }
+  return assessRequirementSupport(requirement).confidence;
+}
+
+function getConfidenceTone(
+  confidence: RequirementGenerationConfidence,
+): FvBadgeTone {
+  if (confidence.level === "high") return "success";
+  if (confidence.level === "medium") return "warning";
+  return "error";
+}
+
+function buildReviewTableRows(
+  requirements: ReviewRequirement[],
+  queuedRequirementKeys: Set<string>,
+  activeKey: string | null,
+): ReviewTableRow[] {
+  return requirements.map((requirement) => {
+    const confidence = getConfidence(requirement);
+    const process = getProcessLabel(requirement);
+    const requirementId =
+      requirement.requirementId || `Row ${requirement.sourceRowNumber}`;
+    const requirementText = getRequirementText(requirement);
+    const aiComment = getAiComment(requirement);
+    const mesObject = getMesObject(requirement);
+    const isQueued = queuedRequirementKeys.has(requirement.requirementKey);
+    const isActive = requirement.requirementKey === activeKey;
+
+    return {
+      aiComment,
+      confidence,
+      confidenceTone: getConfidenceTone(confidence),
+      isQueued,
+      mesObject,
+      process,
+      requirement,
+      requirementId,
+      requirementText,
+      rowClassName: [
+        "fv-table-row-stripe",
+        STATUS_ROW_CLASS[requirement.reviewStatus],
+        isActive ? "fv-review-table-row-current" : "",
+      ]
+        .filter(Boolean)
+        .join(" "),
+      searchText: [
+        requirementId,
+        requirementText,
+        aiComment,
+        process,
+        mesObject,
+        STATUS_LABEL[requirement.reviewStatus],
+      ]
+        .join(" ")
+        .toLowerCase(),
+      statusLabel: STATUS_LABEL[requirement.reviewStatus],
+      statusTone: STATUS_TONE[requirement.reviewStatus],
+    };
+  });
+}
+
+function filterReviewTableRows(
+  rows: ReviewTableRow[],
+  explorerFilter: ExplorerFilter,
+  processFilter: ProcessFilter,
+  query: string,
+): ReviewTableRow[] {
+  const normalizedQuery = query.trim().toLowerCase();
+
+  return rows.filter((row) => {
+    const statusMatches =
+      explorerFilter === "all" ||
+      row.requirement.reviewStatus === explorerFilter;
+    const processMatches =
+      processFilter === "all" || row.process === processFilter;
+    const queryMatches =
+      normalizedQuery.length === 0 || row.searchText.includes(normalizedQuery);
+
+    return statusMatches && processMatches && queryMatches;
+  });
+}
+
+function isRequirementReadyForBulkApproval(requirement: ReviewRequirement) {
   const assessment = assessRequirementSupport(requirement);
   const validation = evaluateRequirementValidation(requirement, assessment);
-  const draft = requirement.generatedOutput.state === "mock-generated-draft"
-    ? requirement.generatedOutput.draft
-    : null;
-
-  return (
-    <div style={{ display: "grid", gap: "1rem" }}>
-      {/* Row header */}
-      <div className="fv-card">
-        <div style={{ display: "flex", alignItems: "start", justifyContent: "space-between", gap: "1rem", marginBottom: "0.75rem" }}>
-          <div>
-            <div style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted-fg)" }}>
-              Row {requirement.sourceRowNumber}
-            </div>
-            <div style={{ fontSize: "2rem", fontWeight: 900, letterSpacing: "-0.04em", color: "var(--foreground)", lineHeight: 1.1, marginTop: "0.125rem" }}>
-              {requirement.requirementId || "No ID"}
-            </div>
-          </div>
-          <span style={{
-            padding: "0.25rem 0.75rem",
-            borderRadius: "999px",
-            fontSize: "0.75rem",
-            fontWeight: 700,
-            border: "1px solid",
-            borderColor: STATUS_COLOR[requirement.reviewStatus],
-            color: STATUS_COLOR[requirement.reviewStatus],
-            whiteSpace: "nowrap",
-          }}>
-            {STATUS_LABEL[requirement.reviewStatus]}
-          </span>
-        </div>
-
-        {/* Tags */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem", marginBottom: "0.75rem" }}>
-          {[
-            { label: "L2", value: requirement.l2Process },
-            { label: "L3", value: requirement.l3Process || requirement.operation },
-            { label: "Demo", value: requirement.demo ? "Yes" : "No" },
-            { label: "MVP", value: requirement.mvp ? "Yes" : "No" },
-          ].map(({ label, value }) => (
-            <span key={label} style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", padding: "0.2rem 0.625rem", border: "1px solid var(--surface-border)", borderRadius: "999px", fontSize: "0.72rem" }}>
-              <span style={{ fontWeight: 700, color: "var(--brand-primary)" }}>{label}</span>
-              <span style={{ color: "var(--foreground)" }}>{value || "—"}</span>
-            </span>
-          ))}
-        </div>
-
-        {requirement.requirementDescription && (
-          <p style={{ fontSize: "0.9rem", color: "var(--foreground)", lineHeight: 1.6, margin: 0 }}>
-            {requirement.requirementDescription}
-          </p>
-        )}
-      </div>
-
-      {/* Validation */}
-      <div style={{
-        padding: "0.875rem 1rem",
-        border: `1px solid ${SEVERITY_BORDER[validation.severity]}`,
-        borderLeft: `3px solid ${SEVERITY_BORDER[validation.severity]}`,
-        borderRadius: "8px",
-        background: SEVERITY_BG[validation.severity],
-      }}>
-        <div style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted-fg)", marginBottom: "0.375rem" }}>
-          Validation
-        </div>
-        <div style={{ fontWeight: 700, color: "var(--foreground)", marginBottom: "0.375rem" }}>
-          {validation.headline}
-        </div>
-        <p style={{ fontSize: "0.8rem", color: "var(--foreground)", margin: "0 0 0.375rem", lineHeight: 1.5 }}>
-          {validation.guidance}
-        </p>
-        {validation.signals.length > 0 && (
-          <p style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--muted-fg)", margin: 0 }}>
-            {validation.signals.join(" · ")}
-          </p>
-        )}
-        {validation.isSafeToApprove && (
-          <p style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--muted-fg)", margin: 0 }}>
-            No validation flags from the draft heuristic.
-          </p>
-        )}
-      </div>
-
-      {draft ? (
-        <>
-          {/* Draft comment */}
-          <div style={{
-            padding: "1rem",
-            border: "1px solid color-mix(in srgb, var(--brand-primary) 25%, transparent)",
-            borderRadius: "8px",
-            background: "color-mix(in srgb, var(--brand-primary) 5%, #f8faff)",
-          }}>
-            <div style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted-fg)", marginBottom: "0.5rem" }}>
-              Draft comment
-            </div>
-            <p style={{ fontSize: "0.875rem", color: "var(--foreground)", lineHeight: 1.7, margin: 0, whiteSpace: "pre-wrap" }}>
-              {draft.generatedComment}
-            </p>
-          </div>
-
-          {/* Demo steps */}
-          {draft.demoSteps.length > 0 && (
-            <div className="fv-card">
-              <div style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted-fg)", marginBottom: "0.75rem" }}>
-                Demo steps
-              </div>
-              <ol style={{ display: "grid", gap: "0.75rem", listStyle: "none", padding: 0, margin: 0 }}>
-                {draft.demoSteps.map((step, i) => (
-                  <li key={step.id} style={{ padding: "0.75rem", background: "var(--surface-muted)", borderRadius: "6px" }}>
-                    <div style={{ fontWeight: 700, fontSize: "0.875rem", color: "var(--foreground)", marginBottom: "0.25rem" }}>
-                      {i + 1}. {step.title}
-                    </div>
-                    <div style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--brand-primary)", marginBottom: "0.5rem" }}>
-                      {step.mesModuleOrScreen}
-                    </div>
-                    <ol style={{ paddingLeft: "1.25rem", margin: 0, display: "grid", gap: "0.25rem" }}>
-                      {step.instructions.map((instr) => (
-                        <li key={instr} style={{ fontSize: "0.8rem", color: "var(--muted-fg)", lineHeight: 1.5 }}>
-                          {instr}
-                        </li>
-                      ))}
-                    </ol>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          )}
-        </>
-      ) : (
-        <div className="fv-card" style={{ textAlign: "center", padding: "2rem" }}>
-          <p style={{ fontWeight: 700, color: "var(--foreground)", marginBottom: "0.25rem" }}>No generated draft</p>
-          <p style={{ fontSize: "0.85rem", color: "var(--muted-fg)", margin: 0 }}>
-            This requirement does not have a draft yet. Go to the Generate step first.
-          </p>
-        </div>
-      )}
-    </div>
-  );
+  return validation.isSafeToApprove;
 }
-
-// ── ReviewDecisionPanel ────────────────────────────────────────
-
-function ReviewDecisionPanel({
-  canEdit,
-  onReviewAction,
-  requirement,
-}: {
-  canEdit: boolean;
-  onReviewAction: (req: ReviewRequirement, action: RequirementReviewAction) => void;
-  requirement: ReviewRequirement;
-}) {
-  const ACTIONS: { label: string; action: RequirementReviewAction; style?: React.CSSProperties }[] = [
-    { label: "Approve and next", action: { type: "approve" }, style: { background: "var(--brand-primary)", color: "#fff", borderColor: "var(--brand-primary)", fontWeight: 700 } },
-    { label: "Needs review", action: { type: "flag" }, style: { background: "#fef3c7", color: "#92400e", borderColor: "#fde68a" } },
-    { label: "Skip row", action: { type: "skip" } },
-    { label: "Reset draft", action: { type: "resetToDraft" } },
-  ];
-
-  return (
-    <aside className="fv-review-decisions">
-      <div className="fv-card" style={{ padding: "1rem" }}>
-        <div style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted-fg)", marginBottom: "0.375rem" }}>
-          Consultant decision
-        </div>
-        <p style={{ fontSize: "0.8rem", color: "var(--muted-fg)", margin: "0 0 1rem", lineHeight: 1.5 }}>
-          {canEdit
-            ? "Approve, flag, or skip this row, then refine the comment and note while the draft is still in view."
-            : "Viewer access can inspect the saved decision but cannot change review state."}
-        </p>
-
-        <div style={{ display: "grid", gap: "0.5rem", marginBottom: "1.25rem" }}>
-          {ACTIONS.map(({ label, action, style }) => (
-            <button
-              key={label}
-              type="button"
-              disabled={!canEdit}
-              onClick={() => onReviewAction(requirement, action)}
-              style={{
-                padding: "0.625rem 1rem",
-                border: "1px solid var(--surface-border)",
-                borderRadius: "8px",
-                background: "#fff",
-                fontSize: "0.875rem",
-                fontWeight: 600,
-                color: "var(--foreground)",
-                cursor: "pointer",
-                transition: "opacity 0.15s",
-                ...style,
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        <div style={{ display: "grid", gap: "0.875rem" }}>
-          <label style={{ display: "grid", gap: "0.3rem" }}>
-            <span style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted-fg)" }}>
-              Consultant comment
-            </span>
-            <textarea
-              value={requirement.consultantComment}
-              disabled={!canEdit}
-              onChange={(e) => onReviewAction(requirement, { type: "edit", consultantComment: e.currentTarget.value })}
-              placeholder="Edit the customer-facing wording before approval."
-              className="fv-input"
-              rows={5}
-              style={{ resize: "vertical" }}
-            />
-          </label>
-
-          <label style={{ display: "grid", gap: "0.3rem" }}>
-            <span style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted-fg)" }}>
-              Review note
-            </span>
-            <textarea
-              value={requirement.reviewNote}
-              disabled={!canEdit}
-              onChange={(e) => onReviewAction(requirement, { type: "edit", reviewNote: e.currentTarget.value })}
-              placeholder="Why approve, flag, or skip this row?"
-              className="fv-input"
-              rows={3}
-              style={{ resize: "vertical" }}
-            />
-          </label>
-        </div>
-      </div>
-    </aside>
-  );
-}
-
-// ── ReviewEmptyState ───────────────────────────────────────────
 
 function ReviewEmptyState({
+  approvedCount,
   generatedCount,
   onGenerateDemoRows,
   onGoToGenerate,
+  onOpenScript,
 }: {
+  approvedCount: number;
   generatedCount: number;
   onGenerateDemoRows: () => Promise<boolean>;
   onGoToGenerate: () => void;
+  onOpenScript: () => void;
 }) {
   const [generating, setGenerating] = useState(false);
 
@@ -532,60 +264,416 @@ function ReviewEmptyState({
   };
 
   return (
-    <div className="fv-card" style={{ maxWidth: "520px", margin: "0 auto", textAlign: "center", padding: "2.5rem 2rem" }}>
-      <div style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted-fg)", marginBottom: "0.75rem" }}>
-        Requirements
-      </div>
-      <h2 style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--foreground)", margin: "0 0 0.75rem" }}>
-        {generatedCount > 0 ? "All rows reviewed" : "No requirements generated yet"}
-      </h2>
-      <p style={{ fontSize: "0.875rem", color: "var(--muted-fg)", margin: "0 0 1.5rem", lineHeight: 1.6 }}>
-        {generatedCount > 0
-          ? "All generated requirements have been reviewed. Go back to generate more or proceed to the script step."
-          : "Upload a source workbook and run generation to get requirements ready for review."}
-      </p>
-      <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center", flexWrap: "wrap" }}>
-        {generatedCount === 0 ? (
-          <button type="button" onClick={handleGenerate} disabled={generating} className="fv-btn-primary">
-            {generating ? "Generating…" : "Generate demo rows"}
+    <FvEmptyState
+      action={
+        <>
+          {generatedCount === 0 ? (
+            <button
+              className="fv-btn-primary"
+              disabled={generating}
+              onClick={handleGenerate}
+              type="button"
+            >
+              {generating ? "Generating..." : "Generate demo rows"}
+            </button>
+          ) : approvedCount > 0 ? (
+            <button
+              className="fv-btn-primary"
+              onClick={onOpenScript}
+              type="button"
+            >
+              Generate Script
+            </button>
+          ) : null}
+          <button
+            className="fv-btn-secondary"
+            onClick={onGoToGenerate}
+            type="button"
+          >
+            Back to generation
           </button>
-        ) : null}
-        <button type="button" onClick={onGoToGenerate} className="fv-btn-secondary">
-          Back to generation
+        </>
+      }
+      body={
+        generatedCount > 0
+          ? "All generated requirements have been reviewed. Go back to generate more or proceed to the script step."
+          : "Upload a source workbook and run generation to get requirements ready for review."
+      }
+      className="fv-review-empty-state"
+      title={generatedCount > 0 ? "All rows reviewed" : "No requirements generated yet"}
+    />
+  );
+}
+
+function ReviewRequirementsTable({
+  currentRequirement,
+  onOpenRequirement,
+  rows,
+}: {
+  currentRequirement: ReviewRequirement | null;
+  onOpenRequirement: (requirement: ReviewRequirement) => void;
+  rows: ReviewTableRow[];
+}) {
+  if (rows.length === 0) {
+    return (
+      <FvEmptyState
+        body="Clear the search or status filters to return to the generated requirements inventory."
+        className="fv-review-filter-empty"
+        title="No matching requirements"
+      />
+    );
+  }
+
+  return (
+    <FvTable
+      aria-label="Generated requirements review table"
+      className="fv-review-table"
+      minWidth="980px"
+    >
+      <thead>
+        <tr>
+          <th aria-label="Selection status" className="fv-review-table-check" />
+          <th>Req ID</th>
+          <th>Requirement Text</th>
+          <th>MES Object</th>
+          <th>Confidence</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => {
+          const isCurrent =
+            currentRequirement?.requirementKey === row.requirement.requirementKey;
+
+          return (
+            <tr
+              aria-current={isCurrent ? "true" : undefined}
+              className={row.rowClassName}
+              key={row.requirement.requirementKey}
+            >
+              <td className="fv-review-table-check">
+                <span
+                  aria-label={isCurrent ? "Current review row" : "Review row"}
+                  className={
+                    isCurrent
+                      ? "fv-review-check-spacer fv-review-check-spacer-current"
+                      : "fv-review-check-spacer"
+                  }
+                />
+              </td>
+              <td>
+                <div className="fv-review-table-id">
+                  <span>{row.requirementId}</span>
+                  <span>Row {row.requirement.sourceRowNumber}</span>
+                </div>
+              </td>
+              <td>
+                <div className="fv-review-table-requirement">
+                  <button
+                    className="fv-review-row-button"
+                    disabled={!row.isQueued}
+                    onClick={() => onOpenRequirement(row.requirement)}
+                    type="button"
+                  >
+                    {row.requirementText}
+                  </button>
+                  {row.aiComment ? (
+                    <p className="fv-review-ai-note">AI: {row.aiComment}</p>
+                  ) : (
+                    <p className="fv-review-muted-note">
+                      No generated AI comment available.
+                    </p>
+                  )}
+                  <p className="fv-review-muted-note">{row.process}</p>
+                </div>
+              </td>
+              <td>{row.mesObject}</td>
+              <td>
+                <FvBadge compact tone={row.confidenceTone}>
+                  {row.confidence.level} · {formatPercent(row.confidence.score)}
+                </FvBadge>
+              </td>
+              <td>
+                <FvBadge dot tone={row.statusTone}>
+                  {row.statusLabel}
+                </FvBadge>
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </FvTable>
+  );
+}
+
+function ReviewQueueControls({
+  activeQueueIndex,
+  approvedCount,
+  canEdit,
+  currentRequirement,
+  onApproveReadyRows,
+  onOpenScript,
+  onSelectNext,
+  onSelectPrevious,
+  onSkipRemainingRows,
+  readyBulkCount,
+  reviewQueue,
+}: {
+  activeQueueIndex: number;
+  approvedCount: number;
+  canEdit: boolean;
+  currentRequirement: ReviewRequirement | null;
+  onApproveReadyRows: () => void;
+  onOpenScript: () => void;
+  onSelectNext: (requirement: ReviewRequirement | null) => void;
+  onSelectPrevious: (requirement: ReviewRequirement | null) => void;
+  onSkipRemainingRows: () => void;
+  readyBulkCount: number;
+  reviewQueue: ReviewRequirement[];
+}) {
+  return (
+    <section className="fv-card fv-review-queue-card">
+      <div>
+        <p className="fv-review-kicker">Review queue</p>
+        <h2 className="fv-review-card-title">Pending requirements</h2>
+      </div>
+      <div className="fv-review-queue-metrics">
+        <span>{reviewQueue.length} pending</span>
+        <span>{approvedCount} approved</span>
+        <span>
+          {activeQueueIndex >= 0
+            ? `${activeQueueIndex + 1}/${reviewQueue.length}`
+            : "0/0"}
+        </span>
+      </div>
+      <div className="fv-review-queue-actions">
+        <button
+          className="fv-btn-secondary"
+          disabled={reviewQueue.length === 0 || activeQueueIndex <= 0}
+          onClick={() => onSelectPrevious(currentRequirement)}
+          type="button"
+        >
+          Previous
+        </button>
+        <button
+          className="fv-btn-secondary"
+          disabled={
+            reviewQueue.length === 0 ||
+            activeQueueIndex >= reviewQueue.length - 1
+          }
+          onClick={() => onSelectNext(currentRequirement)}
+          type="button"
+        >
+          Next
         </button>
       </div>
-    </div>
+      {canEdit ? (
+        <div className="fv-review-queue-actions">
+          <button
+            className="fv-btn-secondary"
+            disabled={readyBulkCount === 0}
+            onClick={onApproveReadyRows}
+            type="button"
+          >
+            Approve ready rows
+          </button>
+          <button
+            className="fv-btn-secondary"
+            disabled={reviewQueue.length === 0}
+            onClick={onSkipRemainingRows}
+            type="button"
+          >
+            Skip remaining rows
+          </button>
+        </div>
+      ) : null}
+      <button
+        className="fv-btn-primary"
+        disabled={approvedCount === 0}
+        onClick={onOpenScript}
+        type="button"
+      >
+        Generate Script
+      </button>
+    </section>
   );
 }
 
-// ── ReviewStudio (main) ────────────────────────────────────────
+function ReviewCurrentRowPanel({
+  currentRequirement,
+}: {
+  currentRequirement: ReviewRequirement;
+}) {
+  const assessment = assessRequirementSupport(currentRequirement);
+  const validation = evaluateRequirementValidation(currentRequirement, assessment);
+  const draft =
+    currentRequirement.generatedOutput.state === "mock-generated-draft"
+      ? currentRequirement.generatedOutput.draft
+      : null;
 
-function isExplorerFilter(val: string | null): val is ExplorerFilter {
-  return val === "all" || val === "pending" || val === "review" || val === "approved" || val === "skipped";
-}
+  return (
+    <section className="fv-card fv-review-current-card">
+      <div className="fv-review-current-header">
+        <div>
+          <p className="fv-review-kicker">Current row</p>
+          <h2 className="fv-review-card-title">
+            {currentRequirement.requirementId || "No ID"}
+          </h2>
+        </div>
+        <FvBadge tone={STATUS_TONE[currentRequirement.reviewStatus]}>
+          {STATUS_LABEL[currentRequirement.reviewStatus]}
+        </FvBadge>
+      </div>
 
-function filterExplorerRequirements(requirements: ReviewRequirement[], filter: ExplorerFilter): ReviewRequirement[] {
-  if (filter === "all") return requirements;
-  return requirements.filter((r) => r.reviewStatus === filter);
-}
+      <div className="fv-review-tags">
+        <span>L2: {currentRequirement.l2Process || "Unassigned"}</span>
+        <span>
+          L3: {currentRequirement.l3Process || currentRequirement.operation || "Unassigned"}
+        </span>
+        <span>{currentRequirement.demo ? "Demo" : "Non-demo"}</span>
+        <span>{currentRequirement.mvp ? "MVP" : "Non-MVP"}</span>
+      </div>
 
-function searchExplorerRequirements(requirements: ReviewRequirement[], query: string): ReviewRequirement[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return requirements;
-  return requirements.filter(
-    (r) =>
-      r.requirementId.toLowerCase().includes(q) ||
-      r.l2Process.toLowerCase().includes(q) ||
-      r.l3Process.toLowerCase().includes(q) ||
-      (r.generatedOutput.state === "mock-generated-draft" &&
-        r.generatedOutput.generatedCommentDraft?.toLowerCase().includes(q)),
+      <p className="fv-review-current-description">
+        {getRequirementText(currentRequirement)}
+      </p>
+
+      <div
+        className="fv-review-validation"
+        style={{
+          background: SEVERITY_BG[validation.severity],
+          borderColor: SEVERITY_BORDER[validation.severity],
+        }}
+      >
+        <p className="fv-review-kicker">Validation</p>
+        <strong>{validation.headline}</strong>
+        <span>{validation.guidance}</span>
+        {validation.signals.length > 0 ? (
+          <small>{validation.signals.join(" · ")}</small>
+        ) : (
+          <small>No validation flags from the draft heuristic.</small>
+        )}
+      </div>
+
+      {draft ? (
+        <div className="fv-review-draft-panel">
+          <p className="fv-review-kicker">Draft comment</p>
+          <p>{draft.generatedComment}</p>
+          {draft.demoSteps.length > 0 ? (
+            <div className="fv-review-step-list">
+              {draft.demoSteps.slice(0, 3).map((step, index) => (
+                <article key={step.id}>
+                  <strong>
+                    {index + 1}. {step.title}
+                  </strong>
+                  <span>{step.mesModuleOrScreen}</span>
+                </article>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <div className="fv-review-draft-panel">
+          <p className="fv-review-kicker">Draft comment</p>
+          <p>No generated draft exists for this requirement yet.</p>
+        </div>
+      )}
+    </section>
   );
 }
 
-function isRequirementReadyForBulkApproval(req: ReviewRequirement) {
-  const assessment = assessRequirementSupport(req);
-  const validation = evaluateRequirementValidation(req, assessment);
-  return validation.isSafeToApprove;
+function ReviewDecisionPanel({
+  canEdit,
+  onReviewAction,
+  requirement,
+}: {
+  canEdit: boolean;
+  onReviewAction: (
+    requirement: ReviewRequirement,
+    action: RequirementReviewAction,
+  ) => void;
+  requirement: ReviewRequirement;
+}) {
+  return (
+    <section className="fv-card fv-review-decision-card">
+      <div>
+        <p className="fv-review-kicker">Consultant decision</p>
+        <h2 className="fv-review-card-title">Approve, flag, or skip</h2>
+      </div>
+      <div className="fv-review-decision-actions">
+        <button
+          className="fv-btn-primary"
+          disabled={!canEdit}
+          onClick={() => onReviewAction(requirement, { type: "approve" })}
+          type="button"
+        >
+          Approve and next
+        </button>
+        <button
+          className="fv-btn-secondary"
+          disabled={!canEdit}
+          onClick={() => onReviewAction(requirement, { type: "flag" })}
+          type="button"
+        >
+          Needs review
+        </button>
+        <button
+          className="fv-btn-secondary"
+          disabled={!canEdit}
+          onClick={() => onReviewAction(requirement, { type: "skip" })}
+          type="button"
+        >
+          Skip row
+        </button>
+        <button
+          className="fv-btn-secondary"
+          disabled={!canEdit}
+          onClick={() => onReviewAction(requirement, { type: "resetToDraft" })}
+          type="button"
+        >
+          Reset draft
+        </button>
+      </div>
+      <label className="fv-review-field">
+        <span>Consultant comment</span>
+        <textarea
+          className="fv-input"
+          disabled={!canEdit}
+          onChange={(event) =>
+            onReviewAction(requirement, {
+              consultantComment: event.currentTarget.value,
+              type: "edit",
+            })
+          }
+          placeholder="Edit the customer-facing wording before approval."
+          rows={4}
+          value={requirement.consultantComment}
+        />
+      </label>
+      <label className="fv-review-field">
+        <span>Review note</span>
+        <textarea
+          className="fv-input"
+          disabled={!canEdit}
+          onChange={(event) =>
+            onReviewAction(requirement, {
+              reviewNote: event.currentTarget.value,
+              type: "edit",
+            })
+          }
+          placeholder="Why approve, flag, or skip this row?"
+          rows={3}
+          value={requirement.reviewNote}
+        />
+      </label>
+    </section>
+  );
+}
+
+function getProcessFilterOptions(rows: ReviewTableRow[]): string[] {
+  return Array.from(new Set(rows.map((row) => row.process))).sort((a, b) =>
+    a.localeCompare(b),
+  );
 }
 
 export default function ReviewStudio({
@@ -605,83 +693,146 @@ export default function ReviewStudio({
   const queryKey = `cm-mes-advisor:review-explorer-query:${projectId}`;
 
   const reviewQueue = generatedReviewableRequirements;
+  const generatedInventory = useMemo(
+    () =>
+      reviewRequirements.filter(
+        (requirement) =>
+          requirement.generatedOutput.state === "mock-generated-draft",
+      ),
+    [reviewRequirements],
+  );
+  const queuedRequirementKeys = useMemo(
+    () => new Set(reviewQueue.map((requirement) => requirement.requirementKey)),
+    [reviewQueue],
+  );
   const readyBulkRequirements = useMemo(
     () => reviewQueue.filter(isRequirementReadyForBulkApproval),
     [reviewQueue],
-  );
-  const generatedInventory = useMemo(
-    () => reviewRequirements.filter((r) => r.generatedOutput.state === "mock-generated-draft"),
-    [reviewRequirements],
   );
 
   const [selectedKey, setSelectedKey] = useState<string | null>(
     generatedReviewableRequirements[0]?.requirementKey ?? null,
   );
-  const [explorerFilter, setExplorerFilter] = useState<ExplorerFilter>("pending");
+  const [explorerFilter, setExplorerFilter] =
+    useState<ExplorerFilter>("all");
   const [explorerQuery, setExplorerQuery] = useState("");
+  const [processFilter, setProcessFilter] = useState<ProcessFilter>("all");
 
-  // Restore persisted state
   useEffect(() => {
     let frame = 0;
     try {
-      const s = window.localStorage.getItem(selectionKey);
-      const f = window.localStorage.getItem(filterKey);
-      const q = window.localStorage.getItem(queryKey);
+      const selection = window.localStorage.getItem(selectionKey);
+      const filter = window.localStorage.getItem(filterKey);
+      const query = window.localStorage.getItem(queryKey);
       frame = window.requestAnimationFrame(() => {
-        if (s) setSelectedKey(s);
-        if (isExplorerFilter(f)) setExplorerFilter(f);
-        if (q) setExplorerQuery(q);
+        if (selection) setSelectedKey(selection);
+        if (isExplorerFilter(filter)) setExplorerFilter(filter);
+        if (query) setExplorerQuery(query);
       });
-    } catch { /* ignore */ }
-    return () => { if (frame) window.cancelAnimationFrame(frame); };
+    } catch {
+      /* localStorage is optional */
+    }
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+    };
   }, [filterKey, queryKey, selectionKey]);
 
   const activeKey =
-    selectedKey && reviewQueue.some((r) => r.requirementKey === selectedKey)
+    selectedKey && reviewQueue.some((requirement) => requirement.requirementKey === selectedKey)
       ? selectedKey
       : (reviewQueue[0]?.requirementKey ?? null);
 
-  const currentRequirement = reviewQueue.find((r) => r.requirementKey === activeKey) ?? reviewQueue[0] ?? null;
+  const currentRequirement =
+    reviewQueue.find((requirement) => requirement.requirementKey === activeKey) ??
+    reviewQueue[0] ??
+    null;
   const activeQueueIndex = currentRequirement
-    ? reviewQueue.findIndex((r) => r.requirementKey === currentRequirement.requirementKey)
+    ? reviewQueue.findIndex(
+        (requirement) =>
+          requirement.requirementKey === currentRequirement.requirementKey,
+      )
     : -1;
 
-  const explorerRows = useMemo(
-    () => searchExplorerRequirements(filterExplorerRequirements(generatedInventory, explorerFilter), explorerQuery),
-    [explorerFilter, explorerQuery, generatedInventory],
+  const tableRows = useMemo(
+    () => buildReviewTableRows(generatedInventory, queuedRequirementKeys, activeKey),
+    [activeKey, generatedInventory, queuedRequirementKeys],
+  );
+  const processOptions = useMemo(
+    () => getProcessFilterOptions(tableRows),
+    [tableRows],
+  );
+  const visibleRows = useMemo(
+    () =>
+      filterReviewTableRows(
+        tableRows,
+        explorerFilter,
+        processFilter,
+        explorerQuery,
+      ),
+    [explorerFilter, explorerQuery, processFilter, tableRows],
   );
 
-  const queuedRequirementKeys = useMemo(
-    () => new Set(reviewQueue.map((r) => r.requirementKey)),
-    [reviewQueue],
+  const flaggedCount = reviewRequirements.filter(
+    (requirement) => requirement.reviewStatus === "review",
+  ).length;
+  const totalGeneratedCount = generatedInventory.length || generatedCount;
+  const completionProgress = getCompletionProgress(
+    approvedCount,
+    totalGeneratedCount,
   );
 
   const selectNext = useCallback(
-    (req: ReviewRequirement | null) => {
-      if (!req) { setSelectedKey(reviewQueue[0]?.requirementKey ?? null); return; }
-      const remaining = reviewQueue.filter((r) => r.requirementKey !== req.requirementKey);
-      const next = remaining.find((r) => r.sourceRowNumber > req.sourceRowNumber) ?? remaining[0] ?? null;
+    (requirement: ReviewRequirement | null) => {
+      if (!requirement) {
+        setSelectedKey(reviewQueue[0]?.requirementKey ?? null);
+        return;
+      }
+      const remaining = reviewQueue.filter(
+        (row) => row.requirementKey !== requirement.requirementKey,
+      );
+      const next =
+        remaining.find(
+          (row) => row.sourceRowNumber > requirement.sourceRowNumber,
+        ) ??
+        remaining[0] ??
+        null;
       setSelectedKey(next?.requirementKey ?? null);
     },
     [reviewQueue],
   );
 
   const selectPrevious = useCallback(
-    (req: ReviewRequirement | null) => {
-      if (reviewQueue.length === 0) { setSelectedKey(null); return; }
-      if (!req) { setSelectedKey(reviewQueue[0]?.requirementKey ?? null); return; }
-      const idx = reviewQueue.findIndex((r) => r.requirementKey === req.requirementKey);
-      setSelectedKey(idx <= 0 ? (reviewQueue[0]?.requirementKey ?? null) : (reviewQueue[idx - 1]?.requirementKey ?? null));
+    (requirement: ReviewRequirement | null) => {
+      if (reviewQueue.length === 0) {
+        setSelectedKey(null);
+        return;
+      }
+      if (!requirement) {
+        setSelectedKey(reviewQueue[0]?.requirementKey ?? null);
+        return;
+      }
+      const index = reviewQueue.findIndex(
+        (row) => row.requirementKey === requirement.requirementKey,
+      );
+      setSelectedKey(
+        index <= 0
+          ? (reviewQueue[0]?.requirementKey ?? null)
+          : (reviewQueue[index - 1]?.requirementKey ?? null),
+      );
     },
     [reviewQueue],
   );
 
   const handleReviewAction = useCallback(
-    (req: ReviewRequirement, action: RequirementReviewAction) => {
+    (requirement: ReviewRequirement, action: RequirementReviewAction) => {
       if (!canEditPhase1) return;
-      onReviewAction(req, action);
-      if (action.type === "approve" || action.type === "flag" || action.type === "skip") {
-        selectNext(req);
+      onReviewAction(requirement, action);
+      if (
+        action.type === "approve" ||
+        action.type === "flag" ||
+        action.type === "skip"
+      ) {
+        selectNext(requirement);
       }
     },
     [canEditPhase1, onReviewAction, selectNext],
@@ -689,87 +840,217 @@ export default function ReviewStudio({
 
   const handleApproveReadyRows = useCallback(() => {
     if (!canEditPhase1 || readyBulkRequirements.length === 0) return;
-    const approvedKeys = new Set(readyBulkRequirements.map((r) => r.requirementKey));
-    readyBulkRequirements.forEach((r) => onReviewAction(r, { type: "approve" }));
-    const next = reviewQueue.find((r) => !approvedKeys.has(r.requirementKey)) ?? null;
+    const approvedKeys = new Set(
+      readyBulkRequirements.map((requirement) => requirement.requirementKey),
+    );
+    readyBulkRequirements.forEach((requirement) =>
+      onReviewAction(requirement, { type: "approve" }),
+    );
+    const next =
+      reviewQueue.find(
+        (requirement) => !approvedKeys.has(requirement.requirementKey),
+      ) ?? null;
     setSelectedKey(next?.requirementKey ?? null);
   }, [canEditPhase1, onReviewAction, readyBulkRequirements, reviewQueue]);
 
   const handleSkipRemainingRows = useCallback(() => {
     if (!canEditPhase1 || reviewQueue.length === 0) return;
-    reviewQueue.forEach((r) => onReviewAction(r, { type: "skip" }));
+    reviewQueue.forEach((requirement) =>
+      onReviewAction(requirement, { type: "skip" }),
+    );
     setSelectedKey(null);
   }, [canEditPhase1, onReviewAction, reviewQueue]);
 
-  // Persist selection and filter
   useEffect(() => {
     if (!activeKey) return;
-    try { window.localStorage.setItem(selectionKey, activeKey); } catch { /* ignore */ }
+    try {
+      window.localStorage.setItem(selectionKey, activeKey);
+    } catch {
+      /* localStorage is optional */
+    }
   }, [activeKey, selectionKey]);
 
   useEffect(() => {
     try {
       window.localStorage.setItem(filterKey, explorerFilter);
       window.localStorage.setItem(queryKey, explorerQuery);
-    } catch { /* ignore */ }
-  }, [explorerFilter, filterKey, explorerQuery, queryKey]);
+    } catch {
+      /* localStorage is optional */
+    }
+  }, [explorerFilter, explorerQuery, filterKey, queryKey]);
 
-  // Keyboard shortcuts
   useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      const target = e.target as HTMLElement | null;
-      const typing = target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.getAttribute("contenteditable") === "true";
+    function onKeyDown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      const typing =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.getAttribute("contenteditable") === "true";
       if (typing || !currentRequirement) return;
-      if (e.key === "[") { e.preventDefault(); selectPrevious(currentRequirement); }
-      if (e.key === "]") { e.preventDefault(); selectNext(currentRequirement); }
+      if (event.key === "[") {
+        event.preventDefault();
+        selectPrevious(currentRequirement);
+      }
+      if (event.key === "]") {
+        event.preventDefault();
+        selectNext(currentRequirement);
+      }
       if (!canEditPhase1) return;
-      if (e.key.toLowerCase() === "a") { e.preventDefault(); handleReviewAction(currentRequirement, { type: "approve" }); }
-      if (e.key.toLowerCase() === "f") { e.preventDefault(); handleReviewAction(currentRequirement, { type: "flag" }); }
-      if (e.key.toLowerCase() === "s") { e.preventDefault(); handleReviewAction(currentRequirement, { type: "skip" }); }
-      if (e.key.toLowerCase() === "r") { e.preventDefault(); handleReviewAction(currentRequirement, { type: "resetToDraft" }); }
+      if (event.key.toLowerCase() === "a") {
+        event.preventDefault();
+        handleReviewAction(currentRequirement, { type: "approve" });
+      }
+      if (event.key.toLowerCase() === "f") {
+        event.preventDefault();
+        handleReviewAction(currentRequirement, { type: "flag" });
+      }
+      if (event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        handleReviewAction(currentRequirement, { type: "skip" });
+      }
+      if (event.key.toLowerCase() === "r") {
+        event.preventDefault();
+        handleReviewAction(currentRequirement, { type: "resetToDraft" });
+      }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [canEditPhase1, currentRequirement, handleReviewAction, selectNext, selectPrevious]);
+  }, [
+    canEditPhase1,
+    currentRequirement,
+    handleReviewAction,
+    selectNext,
+    selectPrevious,
+  ]);
 
   const reviewWorkspaceReady = generatedCount > 0 && currentRequirement !== null;
 
   if (!reviewWorkspaceReady) {
     return (
       <ReviewEmptyState
+        approvedCount={approvedCount}
         generatedCount={generatedCount}
         onGenerateDemoRows={onGenerateDemoRows}
         onGoToGenerate={onGoToGenerate}
+        onOpenScript={onOpenScript}
       />
     );
   }
 
   return (
-    <>
-      <div className="fv-review-grid">
-        <ReviewNavPanel
+    <div className="fv-review-workspace">
+      <FvPageHeader
+        actions={
+          <button
+            className="fv-btn-primary"
+            disabled={approvedCount === 0}
+            onClick={onOpenScript}
+            type="button"
+          >
+            Generate Script
+          </button>
+        }
+        description="Review generated MES requirements, resolve flagged rows, and approve the set before script generation."
+        eyebrow="Phase 1 / Requirements"
+        title="Requirements Review"
+      />
+
+      <div className="fv-stats-row fv-review-stats">
+        <FvStatCard
+          helper="Generated requirements"
+          label="Total"
+          tone="info"
+          value={formatCount(totalGeneratedCount)}
+        />
+        <FvStatCard
+          helper={`${completionProgress}% complete`}
+          label="Approved"
+          progress={completionProgress}
+          tone="success"
+          value={formatCount(approvedCount)}
+        />
+        <FvStatCard
+          helper="Flagged for consultant review"
+          label="Flagged"
+          tone="warning"
+          value={formatCount(flaggedCount)}
+        />
+        <FvStatCard
+          helper="Rows still in the review queue"
+          label="Pending"
+          tone="accent"
+          value={formatCount(reviewQueue.length)}
+        />
+      </div>
+
+      <FvToolbar
+        className="fv-review-toolbar"
+        left={
+          <>
+            <input
+              className="fv-search-input fv-review-search"
+              onChange={(event) => setExplorerQuery(event.target.value)}
+              placeholder="Search requirements..."
+              type="search"
+              value={explorerQuery}
+            />
+            <select
+              className="fv-select fv-review-filter"
+              onChange={(event) =>
+                setExplorerFilter(event.currentTarget.value as ExplorerFilter)
+              }
+              value={explorerFilter}
+            >
+              {(Object.keys(FILTER_LABEL) as ExplorerFilter[]).map((filter) => (
+                <option key={filter} value={filter}>
+                  {FILTER_LABEL[filter]}
+                </option>
+              ))}
+            </select>
+            <select
+              className="fv-select fv-review-filter"
+              onChange={(event) => setProcessFilter(event.currentTarget.value)}
+              value={processFilter}
+            >
+              <option value="all">All processes</option>
+              {processOptions.map((process) => (
+                <option key={process} value={process}>
+                  {process}
+                </option>
+              ))}
+            </select>
+          </>
+        }
+        right={
+          <span className="fv-review-showing">
+            Showing {visibleRows.length} of {tableRows.length}
+          </span>
+        }
+      />
+
+      <ReviewRequirementsTable
+        currentRequirement={currentRequirement}
+        onOpenRequirement={(requirement) =>
+          setSelectedKey(requirement.requirementKey)
+        }
+        rows={visibleRows}
+      />
+
+      <div className="fv-review-transition-grid">
+        <ReviewQueueControls
           activeQueueIndex={activeQueueIndex}
           approvedCount={approvedCount}
           canEdit={canEditPhase1}
           currentRequirement={currentRequirement}
-          explorerFilter={explorerFilter}
-          explorerQuery={explorerQuery}
-          explorerRows={explorerRows}
           onApproveReadyRows={handleApproveReadyRows}
-          onExplorerFilterChange={setExplorerFilter}
-          onExplorerQueryChange={setExplorerQuery}
-          onOpenRequirement={(req) => setSelectedKey(req.requirementKey)}
           onOpenScript={onOpenScript}
           onSelectNext={selectNext}
           onSelectPrevious={selectPrevious}
           onSkipRemainingRows={handleSkipRemainingRows}
-          queuedRequirementKeys={queuedRequirementKeys}
           readyBulkCount={readyBulkRequirements.length}
           reviewQueue={reviewQueue}
         />
-
-        <ReviewMainContent requirement={currentRequirement} />
-
+        <ReviewCurrentRowPanel currentRequirement={currentRequirement} />
         <ReviewDecisionPanel
           canEdit={canEditPhase1}
           onReviewAction={handleReviewAction}
@@ -777,21 +1058,39 @@ export default function ReviewStudio({
         />
       </div>
 
-      {/* Mobile action bar */}
       <div className="fv-mobile-action-bar">
-        <button type="button" disabled={!canEditPhase1} onClick={() => handleReviewAction(currentRequirement, { type: "approve" })} className="fv-btn-primary" style={{ justifyContent: "center" }}>
+        <button
+          className="fv-btn-primary"
+          disabled={!canEditPhase1}
+          onClick={() => handleReviewAction(currentRequirement, { type: "approve" })}
+          type="button"
+        >
           Approve
         </button>
-        <button type="button" disabled={!canEditPhase1} onClick={() => handleReviewAction(currentRequirement, { type: "flag" })} className="fv-btn-secondary" style={{ justifyContent: "center" }}>
+        <button
+          className="fv-btn-secondary"
+          disabled={!canEditPhase1}
+          onClick={() => handleReviewAction(currentRequirement, { type: "flag" })}
+          type="button"
+        >
           Flag
         </button>
-        <button type="button" disabled={!canEditPhase1} onClick={() => handleReviewAction(currentRequirement, { type: "skip" })} className="fv-btn-secondary" style={{ justifyContent: "center" }}>
+        <button
+          className="fv-btn-secondary"
+          disabled={!canEditPhase1}
+          onClick={() => handleReviewAction(currentRequirement, { type: "skip" })}
+          type="button"
+        >
           Skip
         </button>
-        <button type="button" onClick={() => selectNext(currentRequirement)} className="fv-btn-secondary" style={{ justifyContent: "center" }}>
+        <button
+          className="fv-btn-secondary"
+          onClick={() => selectNext(currentRequirement)}
+          type="button"
+        >
           Next
         </button>
       </div>
-    </>
+    </div>
   );
 }
