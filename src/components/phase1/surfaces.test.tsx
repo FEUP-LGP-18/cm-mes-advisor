@@ -322,8 +322,10 @@ describe("phase 1 redesigned surfaces", () => {
       />,
     );
 
+    expect(html).toContain("Requirements Review");
+    expect(html).toContain("Requirement Text");
     expect(html).toContain("Pending requirements");
-    expect(html).toContain("Inventory");
+    expect(html).toContain("Showing");
     expect(html).toContain("Approve ready rows");
     expect(html).toContain("Skip remaining rows");
     expect(html).toContain("Approve and next");

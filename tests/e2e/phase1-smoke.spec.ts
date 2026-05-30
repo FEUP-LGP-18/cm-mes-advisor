@@ -187,10 +187,15 @@ for (const theme of themes) {
     );
     await expect(
       page.getByRole("heading", {
-        name: "Review",
+        name: "Requirements Review",
       }),
     ).toBeVisible();
     await expect(page.getByText(/^Pending requirements$/).first()).toBeVisible();
+    await expect(
+      page.getByRole("table", {
+        name: "Generated requirements review table",
+      }),
+    ).toBeVisible();
     await expect(page.getByRole("button", { name: /approve/i }).first()).toBeVisible();
     await assertNoHorizontalOverflow(page);
 
