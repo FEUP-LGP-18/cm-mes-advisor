@@ -56,6 +56,11 @@ interface ReviewTableRow {
   statusTone: FvBadgeTone;
 }
 
+type BulkReviewActionType = Extract<
+  RequirementReviewAction["type"],
+  "approve" | "flag" | "skip"
+>;
+
 const STATUS_LABEL: Record<ReviewRequirement["reviewStatus"], string> = {
   pending: "Pending",
   review: "Needs review",
@@ -313,15 +318,28 @@ function ReviewEmptyState({
 }
 
 function ReviewRequirementsTable({
+  allVisibleRowsChecked,
+  checkedRowKeys,
   currentRequirement,
   onSelectRequirement,
+  onToggleRequirementChecked,
+  onToggleVisibleRows,
   rows,
   selectedRequirement,
+  someVisibleRowsChecked,
 }: {
+  allVisibleRowsChecked: boolean;
+  checkedRowKeys: Set<string>;
   currentRequirement: ReviewRequirement | null;
   onSelectRequirement: (requirement: ReviewRequirement) => void;
+  onToggleRequirementChecked: (
+    requirement: ReviewRequirement,
+    checked: boolean,
+  ) => void;
+  onToggleVisibleRows: (checked: boolean) => void;
   rows: ReviewTableRow[];
   selectedRequirement: ReviewRequirement | null;
+  someVisibleRowsChecked: boolean;
 }) {
   if (rows.length === 0) {
     return (
@@ -341,7 +359,24 @@ function ReviewRequirementsTable({
     >
       <thead>
         <tr>
-          <th aria-label="Selection status" className="fv-review-table-check" />
+          <th className="fv-review-table-check">
+            <input
+              aria-label="Select all visible requirements"
+              checked={allVisibleRowsChecked}
+              className="fv-review-checkbox"
+              disabled={rows.length === 0}
+              onChange={(event) =>
+                onToggleVisibleRows(event.currentTarget.checked)
+              }
+              ref={(input) => {
+                if (input) {
+                  input.indeterminate =
+                    someVisibleRowsChecked && !allVisibleRowsChecked;
+                }
+              }}
+              type="checkbox"
+            />
+          </th>
           <th>Req ID</th>
           <th>Requirement Text</th>
           <th>MES Object</th>
@@ -355,12 +390,20 @@ function ReviewRequirementsTable({
             currentRequirement?.requirementKey === row.requirement.requirementKey;
           const isSelected =
             selectedRequirement?.requirementKey === row.requirement.requirementKey;
+          const isChecked = checkedRowKeys.has(row.requirement.requirementKey);
 
           return (
             <tr
               aria-current={isCurrent ? "true" : undefined}
               aria-selected={isSelected ? "true" : undefined}
-              className={row.rowClassName}
+              className={
+                [
+                  row.rowClassName,
+                  isChecked ? "fv-review-table-row-checked" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")
+              }
               key={row.requirement.requirementKey}
               onClick={() => onSelectRequirement(row.requirement)}
               onKeyDown={(event) => {
@@ -372,23 +415,19 @@ function ReviewRequirementsTable({
               tabIndex={0}
             >
               <td className="fv-review-table-check">
-                <span
-                  aria-label={
-                    isSelected
-                      ? "Selected review row"
-                      : isCurrent
-                        ? "Current review row"
-                        : "Review row"
+                <input
+                  aria-label={`Select requirement ${row.requirementId}`}
+                  checked={isChecked}
+                  className="fv-review-checkbox"
+                  onChange={(event) =>
+                    onToggleRequirementChecked(
+                      row.requirement,
+                      event.currentTarget.checked,
+                    )
                   }
-                  className={
-                    [
-                      "fv-review-check-spacer",
-                      isCurrent ? "fv-review-check-spacer-current" : "",
-                      isSelected ? "fv-review-check-spacer-selected" : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")
-                  }
+                  onClick={(event) => event.stopPropagation()}
+                  onKeyDown={(event) => event.stopPropagation()}
+                  type="checkbox"
                 />
               </td>
               <td>
@@ -436,6 +475,62 @@ function ReviewRequirementsTable({
         })}
       </tbody>
     </FvTable>
+  );
+}
+
+function ReviewBulkActionBar({
+  canEdit,
+  onBulkAction,
+  onClearSelection,
+  selectedCount,
+}: {
+  canEdit: boolean;
+  onBulkAction: (actionType: BulkReviewActionType) => void;
+  onClearSelection: () => void;
+  selectedCount: number;
+}) {
+  if (selectedCount === 0) return null;
+
+  return (
+    <section
+      aria-label="Selected requirements"
+      className="fv-bulk-bar fv-review-bulk-bar"
+    >
+      <span className="fv-bulk-count">
+        {selectedCount} {selectedCount === 1 ? "selected" : "selected"}
+      </span>
+      <button
+        className="fv-bulk-action"
+        disabled={!canEdit}
+        onClick={() => onBulkAction("approve")}
+        type="button"
+      >
+        Approve selected
+      </button>
+      <button
+        className="fv-bulk-action"
+        disabled={!canEdit}
+        onClick={() => onBulkAction("flag")}
+        type="button"
+      >
+        Flag selected
+      </button>
+      <button
+        className="fv-bulk-action"
+        disabled={!canEdit}
+        onClick={() => onBulkAction("skip")}
+        type="button"
+      >
+        Skip selected
+      </button>
+      <button
+        className="fv-bulk-clear"
+        onClick={onClearSelection}
+        type="button"
+      >
+        Clear selection
+      </button>
+    </section>
   );
 }
 
@@ -772,6 +867,9 @@ export default function ReviewStudio({
   const [selectedRowKey, setSelectedRowKey] = useState<string | null>(
     generatedReviewableRequirements[0]?.requirementKey ?? null,
   );
+  const [checkedRowKeys, setCheckedRowKeys] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [explorerFilter, setExplorerFilter] =
     useState<ExplorerFilter>("all");
   const [explorerQuery, setExplorerQuery] = useState("");
@@ -838,6 +936,35 @@ export default function ReviewStudio({
       ),
     [explorerFilter, explorerQuery, processFilter, tableRows],
   );
+  const generatedInventoryKeys = useMemo(
+    () =>
+      new Set(
+        generatedInventory.map((requirement) => requirement.requirementKey),
+      ),
+    [generatedInventory],
+  );
+  const effectiveCheckedRowKeys = useMemo(
+    () =>
+      new Set(
+        Array.from(checkedRowKeys).filter((key) =>
+          generatedInventoryKeys.has(key),
+        ),
+      ),
+    [checkedRowKeys, generatedInventoryKeys],
+  );
+  const checkedRequirements = useMemo(
+    () =>
+      generatedInventory.filter((requirement) =>
+        effectiveCheckedRowKeys.has(requirement.requirementKey),
+      ),
+    [effectiveCheckedRowKeys, generatedInventory],
+  );
+  const checkedVisibleRowCount = visibleRows.filter((row) =>
+    effectiveCheckedRowKeys.has(row.requirement.requirementKey),
+  ).length;
+  const allVisibleRowsChecked =
+    visibleRows.length > 0 && checkedVisibleRowCount === visibleRows.length;
+  const someVisibleRowsChecked = checkedVisibleRowCount > 0;
   const selectedRequirement =
     visibleRows.find((row) => row.requirement.requirementKey === selectedRowKey)
       ?.requirement ?? null;
@@ -915,6 +1042,94 @@ export default function ReviewStudio({
     [canEditPhase1, onReviewAction, selectNext],
   );
 
+  const handleFilterChange = useCallback((nextFilter: ExplorerFilter) => {
+    setExplorerFilter(nextFilter);
+    setCheckedRowKeys(new Set());
+  }, []);
+
+  const handleProcessFilterChange = useCallback((nextFilter: ProcessFilter) => {
+    setProcessFilter(nextFilter);
+    setCheckedRowKeys(new Set());
+  }, []);
+
+  const handleQueryChange = useCallback((nextQuery: string) => {
+    setExplorerQuery(nextQuery);
+    setCheckedRowKeys(new Set());
+  }, []);
+
+  const handleToggleRequirementChecked = useCallback(
+    (requirement: ReviewRequirement, checked: boolean) => {
+      setCheckedRowKeys((previous) => {
+        const next = new Set(previous);
+        if (checked) {
+          next.add(requirement.requirementKey);
+        } else {
+          next.delete(requirement.requirementKey);
+        }
+        return next;
+      });
+    },
+    [],
+  );
+
+  const handleToggleVisibleRows = useCallback(
+    (checked: boolean) => {
+      setCheckedRowKeys((previous) => {
+        const next = new Set(previous);
+        visibleRows.forEach((row) => {
+          if (checked) {
+            next.add(row.requirement.requirementKey);
+          } else {
+            next.delete(row.requirement.requirementKey);
+          }
+        });
+        return next;
+      });
+    },
+    [visibleRows],
+  );
+
+  const clearCheckedRows = useCallback(() => {
+    setCheckedRowKeys(new Set());
+  }, []);
+
+  const clearActedCheckedRows = useCallback(
+    (requirements: ReviewRequirement[]) => {
+      if (requirements.length === 0) return;
+      const actedKeys = new Set(
+        requirements.map((requirement) => requirement.requirementKey),
+      );
+      setCheckedRowKeys((previous) => {
+        const next = new Set(previous);
+        actedKeys.forEach((key) => next.delete(key));
+        return next;
+      });
+    },
+    [],
+  );
+
+  const handleBulkReviewAction = useCallback(
+    (actionType: BulkReviewActionType) => {
+      if (!canEditPhase1 || checkedRequirements.length === 0) return;
+
+      const actionableRequirements =
+        actionType === "approve"
+          ? checkedRequirements.filter(isRequirementReadyForBulkApproval)
+          : checkedRequirements;
+
+      actionableRequirements.forEach((requirement) =>
+        onReviewAction(requirement, { type: actionType }),
+      );
+      clearActedCheckedRows(actionableRequirements);
+    },
+    [
+      canEditPhase1,
+      checkedRequirements,
+      clearActedCheckedRows,
+      onReviewAction,
+    ],
+  );
+
   const handleSelectedReviewAction = useCallback(
     (requirement: ReviewRequirement, action: RequirementReviewAction) => {
       if (!canEditPhase1) return;
@@ -943,18 +1158,26 @@ export default function ReviewStudio({
       reviewQueue.find(
         (requirement) => !approvedKeys.has(requirement.requirementKey),
       ) ?? null;
+    clearActedCheckedRows(readyBulkRequirements);
     setSelectedKey(next?.requirementKey ?? null);
     setSelectedRowKey(next?.requirementKey ?? null);
-  }, [canEditPhase1, onReviewAction, readyBulkRequirements, reviewQueue]);
+  }, [
+    canEditPhase1,
+    clearActedCheckedRows,
+    onReviewAction,
+    readyBulkRequirements,
+    reviewQueue,
+  ]);
 
   const handleSkipRemainingRows = useCallback(() => {
     if (!canEditPhase1 || reviewQueue.length === 0) return;
     reviewQueue.forEach((requirement) =>
       onReviewAction(requirement, { type: "skip" }),
     );
+    clearActedCheckedRows(reviewQueue);
     setSelectedKey(null);
     setSelectedRowKey(null);
-  }, [canEditPhase1, onReviewAction, reviewQueue]);
+  }, [canEditPhase1, clearActedCheckedRows, onReviewAction, reviewQueue]);
 
   useEffect(() => {
     if (!activeKey) return;
@@ -1084,7 +1307,7 @@ export default function ReviewStudio({
           <>
             <input
               className="fv-search-input fv-review-search"
-              onChange={(event) => setExplorerQuery(event.target.value)}
+              onChange={(event) => handleQueryChange(event.target.value)}
               placeholder="Search requirements..."
               type="search"
               value={explorerQuery}
@@ -1092,7 +1315,7 @@ export default function ReviewStudio({
             <select
               className="fv-select fv-review-filter"
               onChange={(event) =>
-                setExplorerFilter(event.currentTarget.value as ExplorerFilter)
+                handleFilterChange(event.currentTarget.value as ExplorerFilter)
               }
               value={explorerFilter}
             >
@@ -1104,7 +1327,9 @@ export default function ReviewStudio({
             </select>
             <select
               className="fv-select fv-review-filter"
-              onChange={(event) => setProcessFilter(event.currentTarget.value)}
+              onChange={(event) =>
+                handleProcessFilterChange(event.currentTarget.value)
+              }
               value={processFilter}
             >
               <option value="all">All processes</option>
@@ -1123,14 +1348,26 @@ export default function ReviewStudio({
         }
       />
 
+      <ReviewBulkActionBar
+        canEdit={canEditPhase1}
+        onBulkAction={handleBulkReviewAction}
+        onClearSelection={clearCheckedRows}
+        selectedCount={checkedRequirements.length}
+      />
+
       <div className="fv-review-table-detail-grid">
         <ReviewRequirementsTable
+          allVisibleRowsChecked={allVisibleRowsChecked}
+          checkedRowKeys={effectiveCheckedRowKeys}
           currentRequirement={currentRequirement}
           onSelectRequirement={(requirement) =>
             setSelectedRowKey(requirement.requirementKey)
           }
+          onToggleRequirementChecked={handleToggleRequirementChecked}
+          onToggleVisibleRows={handleToggleVisibleRows}
           rows={visibleRows}
           selectedRequirement={selectedRequirement}
+          someVisibleRowsChecked={someVisibleRowsChecked}
         />
         {selectedRequirement ? (
           <ReviewSelectedInspector

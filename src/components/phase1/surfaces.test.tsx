@@ -391,8 +391,13 @@ describe("phase 1 redesigned surfaces", () => {
     expect(html).toContain("MES object");
     expect(html).toContain("Consultant comment");
     expect(html).toContain("Review note");
+    expect(html).toContain("Select all visible requirements");
+    expect(html).toContain("Select requirement 01.01");
+    expect(html).toContain("Select requirement 01.02");
     expect(html).toContain("Select 01.02 for inspection");
     expect(html).not.toContain(">Export</button>");
+    expect(html).not.toContain("Export selected");
+    expect(html).not.toContain("Approve selected");
     expect(html).not.toContain("selected rows");
     expect(html).toContain("Approve ready rows");
     expect(html).toContain("Skip remaining rows");

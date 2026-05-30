@@ -3701,6 +3701,11 @@ textarea {
 
 .fv-bulk-action:hover { background: rgba(255, 255, 255, 0.28); }
 
+.fv-bulk-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .fv-bulk-clear {
   margin-left: auto;
   cursor: pointer;
@@ -5215,6 +5220,20 @@ textarea {
   table-layout: fixed;
 }
 
+.fv-review-bulk-bar {
+  margin-bottom: 0;
+}
+
+.fv-review-bulk-bar .fv-bulk-clear {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 600;
+  padding: 0;
+}
+
 .fv-review-table-detail-grid {
   align-items: start;
   display: grid;
@@ -5258,6 +5277,10 @@ textarea {
   box-shadow: inset 4px 0 0 var(--brand-primary);
 }
 
+.fv-review-table-row-checked {
+  background: color-mix(in srgb, var(--brand-primary) 7%, var(--surface));
+}
+
 .fv-review-table tbody tr[tabindex="0"] {
   cursor: pointer;
 }
@@ -5269,6 +5292,19 @@ textarea {
 
 .fv-review-table-check {
   text-align: center;
+}
+
+.fv-review-checkbox {
+  accent-color: var(--brand-primary);
+  cursor: pointer;
+  height: 1rem;
+  vertical-align: middle;
+  width: 1rem;
+}
+
+.fv-review-checkbox:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .fv-review-check-spacer {
@@ -5654,6 +5690,20 @@ textarea {
   .fv-review-transition-grid,
   .fv-review-queue-actions {
     grid-template-columns: 1fr;
+  }
+
+  .fv-review-bulk-bar {
+    align-items: stretch;
+  }
+
+  .fv-review-bulk-bar .fv-bulk-action,
+  .fv-review-bulk-bar .fv-bulk-clear {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .fv-review-bulk-bar .fv-bulk-clear {
+    margin-left: 0;
   }
 
   .fv-review-queue-strip {
