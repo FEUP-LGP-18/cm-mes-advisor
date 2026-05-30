@@ -203,12 +203,14 @@ for (const theme of themes) {
     await assertNoHorizontalOverflow(page);
     await attachFullPageScreenshot(page, testInfo, `${theme}-review-studio`);
 
-    await page
-      .getByRole("button", { name: "Select 01.02 for inspection" })
-      .click();
     const selectedInspector = page.getByRole("complementary", {
       name: "Selected requirement",
     });
+    await expect(selectedInspector.getByText("01.01", { exact: true })).toBeVisible();
+
+    await page
+      .getByRole("button", { name: "Select 01.02 for inspection" })
+      .click();
     await expect(selectedInspector).toBeVisible();
     await expect(selectedInspector.getByText("01.02", { exact: true })).toBeVisible();
     await expect(
@@ -227,6 +229,39 @@ for (const theme of themes) {
     }
 
     await attachFullPageScreenshot(page, testInfo, `${theme}-review-row-selected`);
+
+    const firstRowCheckbox = page.getByRole("checkbox", {
+      name: "Select requirement 01.01",
+    });
+    await expect(firstRowCheckbox).toBeEnabled();
+    await firstRowCheckbox.check();
+
+    const bulkBar = page.getByRole("region", {
+      name: "Selected requirements",
+    });
+    await expect(bulkBar).toBeVisible();
+    await expect(bulkBar.getByText("1 selected")).toBeVisible();
+    await expect(
+      bulkBar.getByRole("button", { name: "Approve selected" }),
+    ).toBeEnabled();
+    await expect(
+      bulkBar.getByRole("button", { name: "Flag selected" }),
+    ).toBeEnabled();
+    await expect(
+      bulkBar.getByRole("button", { name: "Skip selected" }),
+    ).toBeEnabled();
+    await expect(
+      bulkBar.getByRole("button", { name: /export selected/i }),
+    ).toHaveCount(0);
+    await expect(selectedInspector.getByText("01.02", { exact: true })).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+    await attachFullPageScreenshot(page, testInfo, `${theme}-review-rows-checked`);
+
+    await bulkBar.getByRole("button", { name: "Clear selection" }).click();
+    await expect(bulkBar).toBeHidden();
+    await firstRowCheckbox.check();
+    await bulkBar.getByRole("button", { name: "Approve selected" }).click();
+    await expect(bulkBar).toBeHidden();
   });
 
   test(`${theme}: verifies script and export surfaces, including direct export access when ready`, async ({
