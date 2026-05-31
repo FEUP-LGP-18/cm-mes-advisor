@@ -5,11 +5,13 @@ import { useEffect, useState } from "react";
 import MesLogo from "@/components/brand/mes-logo";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import {
+  clearActiveProfileEmail,
   getInitials,
   getDisplayName,
   getDefaultAvatarColor,
   getSavedAvatarColor,
-  DISPLAY_NAME_KEY,
+  getSavedDisplayName,
+  rememberProfileEmail,
 } from "@/lib/avatar";
 
 export default function Phase1Topbar({
@@ -26,30 +28,38 @@ export default function Phase1Topbar({
   const supabaseConfigured = isSupabaseConfigured();
   const [avatarColor, setAvatarColor] = useState(() => avatarColorProp ?? getDefaultAvatarColor(email));
   const [resolvedName, setResolvedName] = useState(() => displayName || getDisplayName(email));
+  const [resolvedInitials, setResolvedInitials] = useState(() => getInitials(displayName || email));
 
   useEffect(() => {
     if (avatarColorProp) {
       setAvatarColor(avatarColorProp);
-    } else {
+    } else if (supabaseConfigured || email) {
       setAvatarColor(getSavedAvatarColor(email));
+    } else {
+      setAvatarColor(getDefaultAvatarColor(email));
     }
-  }, [email, avatarColorProp]);
+  }, [email, avatarColorProp, supabaseConfigured]);
 
   useEffect(() => {
+    rememberProfileEmail(email);
+
     if (displayName) {
       setResolvedName(displayName);
+      setResolvedInitials(getInitials(displayName));
+    } else if (supabaseConfigured || email) {
+      const nextName = getSavedDisplayName(email) || getDisplayName(email);
+      setResolvedName(nextName);
+      setResolvedInitials(getInitials(nextName || email));
     } else {
-      try {
-        const saved = window.localStorage.getItem(DISPLAY_NAME_KEY);
-        setResolvedName(saved || getDisplayName(email));
-      } catch {
-        setResolvedName(getDisplayName(email));
-      }
+      const nextName = getDisplayName(email);
+      setResolvedName(nextName);
+      setResolvedInitials(getInitials(email));
     }
-  }, [email, displayName]);
-  const initials = getInitials(email);
+  }, [email, displayName, supabaseConfigured]);
 
   async function handleSignOut() {
+    clearActiveProfileEmail();
+
     if (!supabaseConfigured) {
       window.location.assign("/");
       return;
@@ -87,7 +97,7 @@ export default function Phase1Topbar({
           aria-label="Your profile"
           style={{ background: avatarColor }}
         >
-          {initials}
+          {resolvedInitials}
         </Link>
 
         {supabaseConfigured ? (
