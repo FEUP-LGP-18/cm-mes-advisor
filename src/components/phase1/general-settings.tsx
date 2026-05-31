@@ -323,7 +323,7 @@ export function GeneralSettingsView({
 
 // ── TemplatesTab ───────────────────────────────────────────────
 
-function TemplatesTab({
+export function TemplatesTab({
   canEditProjectState,
   currentIndustryTemplateId,
   onApplyProjectIndustryTemplate,
@@ -381,9 +381,11 @@ function TemplatesTab({
         </p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: selected ? "1fr 300px" : "1fr", gap: "1rem", alignItems: "start" }}>
+      <div
+        className={`fv-template-layout${selected ? " fv-template-layout-selected" : ""}`}
+      >
         {/* Template grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "0.75rem" }}>
+        <div className="fv-template-grid">
           {industryTemplateDefinitions.map((template) => {
             const isActive = selectedId === template.id;
             return (
@@ -433,7 +435,7 @@ function TemplatesTab({
 
         {/* Template details */}
         {selected && (
-          <div className="fv-card" style={{ position: "sticky", top: "1rem" }}>
+          <div className="fv-card fv-template-details">
             <div className="fv-card-title" style={{ marginBottom: "0.5rem" }}>{selected.label}</div>
             <p style={{ fontSize: "0.8rem", color: "var(--muted-fg)", margin: "0 0 1rem", lineHeight: 1.5 }}>
               {selected.description}
@@ -458,11 +460,10 @@ function TemplatesTab({
               >
                 Apply to project
               </button>
-              <div style={{ display: "flex", gap: "0.5rem" }}>
+              <div className="fv-template-actions-row">
                 <Link
                   href={`/projects/${projectId}/source`}
                   className="fv-btn-secondary"
-                  style={{ flex: 1, justifyContent: "center" }}
                 >
                   Back to source
                 </Link>
@@ -1162,6 +1163,7 @@ export default function GeneralSettings({
             {/* Tab nav */}
             <nav
               aria-label="Settings sections"
+              className="fv-settings-tabs"
               style={{
                 display: "flex",
                 gap: "0",

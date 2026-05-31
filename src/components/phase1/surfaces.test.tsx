@@ -20,6 +20,7 @@ import {
 import { getNextAction, getWorkflowProgress } from "@/lib/phase1/workflow";
 import ExportStudio from "./export-studio";
 import GenerateStudio from "./generate-studio";
+import { TemplatesTab } from "./general-settings";
 import Phase1Topbar from "./phase-topbar";
 import { ProjectCommandDesk } from "./project-home";
 import Phase1ProjectShell from "./project-shell";
@@ -303,6 +304,24 @@ describe("phase 1 redesigned surfaces", () => {
     expect(html).toContain("Before you continue");
     expect(html).toContain("Parsed Preview");
     expect(html).toContain("Electronics / Semiconductors");
+  });
+
+  it("renders selected industry template actions with responsive layout hooks", () => {
+    const html = render(
+      <TemplatesTab
+        canEditProjectState
+        currentIndustryTemplateId="automotive"
+        onApplyProjectIndustryTemplate={vi.fn()}
+        projectId={phase1UiFixtureProjectMetadata.projectId}
+      />,
+    );
+
+    expect(html).toContain("fv-template-layout-selected");
+    expect(html).toContain("fv-template-grid");
+    expect(html).toContain("fv-template-details");
+    expect(html).toContain("Apply to project");
+    expect(html).toContain("Back to source");
+    expect(html).toContain("Clear");
   });
 
   it("renders generate with the row explorer and recommended draft rail", () => {
