@@ -26,6 +26,7 @@ import Phase1ProjectShell from "./project-shell";
 import ReviewStudio from "./review-studio";
 import ScriptStudio from "./script-studio";
 import SourceStudio from "./source-studio";
+import MasterDataSetupStudio from "../phase2/master-data-setup-studio";
 
 function render(element: ReactElement) {
   return renderToStaticMarkup(element);
@@ -548,5 +549,70 @@ describe("phase 1 redesigned surfaces", () => {
     expect(html).toContain("Export still has review blockers");
     expect(html).not.toContain("Optional Phase 2 continuation");
     expect(html).not.toContain("Generate Master Data draft");
+  });
+
+  it("frames locked Phase 2 setup around approved Phase 1 rows", () => {
+    const html = render(
+      <MasterDataSetupStudio
+        applicableRequirements={[]}
+        approvedCount={0}
+        feedback={null}
+        hasAnalysisRun={false}
+        hasGeneratedPhase1Drafts
+        mode="mock"
+        onAnalyze={vi.fn()}
+        onContinueToProcess={vi.fn()}
+        onModeChange={vi.fn()}
+        onOpenPhase1Generate={vi.fn()}
+        onOpenPhase1Review={vi.fn()}
+        onToggleObjectType={vi.fn()}
+        onToggleRequirement={vi.fn()}
+        selectedObjectTypes={["area", "resource"]}
+        selectedRequirementKeys={[]}
+      />,
+    );
+
+    expect(html).toContain("Configure Master Data Scope");
+    expect(html).toContain("approved Phase 1 requirements");
+    expect(html).toContain("No second requirements upload is needed");
+    expect(html).toContain("Phase 1 source");
+    expect(html).toContain("Phase 1 review required");
+    expect(html).not.toContain("Browse files");
+    expect(html).not.toContain("Drag &amp; drop");
+    expect(html).not.toContain("Object scope");
+    expect(html).not.toContain("Industry Template");
+    expect(html).not.toContain("10.3.2");
+  });
+
+  it("keeps real Phase 2 setup choices without fake upload controls", () => {
+    const html = render(
+      <MasterDataSetupStudio
+        applicableRequirements={[]}
+        approvedCount={2}
+        feedback={null}
+        hasAnalysisRun={false}
+        hasGeneratedPhase1Drafts
+        mode="mock"
+        onAnalyze={vi.fn()}
+        onContinueToProcess={vi.fn()}
+        onModeChange={vi.fn()}
+        onOpenPhase1Generate={vi.fn()}
+        onOpenPhase1Review={vi.fn()}
+        onToggleObjectType={vi.fn()}
+        onToggleRequirement={vi.fn()}
+        selectedObjectTypes={["area", "resource"]}
+        selectedRequirementKeys={[]}
+      />,
+    );
+
+    expect(html).toContain("Object scope");
+    expect(html).toContain("Generation mode");
+    expect(html).toContain("Prototype drafts");
+    expect(html).toContain("Analyze Requirements");
+    expect(html).toContain("2 approved Phase 1 rows");
+    expect(html).not.toContain("Browse files");
+    expect(html).not.toContain("Drag &amp; drop");
+    expect(html).not.toContain("File Preview");
+    expect(html).not.toContain("Template Coverage");
   });
 });
