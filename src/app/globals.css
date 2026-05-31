@@ -2708,6 +2708,36 @@ textarea {
   height: 38px;
 }
 
+.fv-topbar-landing {
+  min-height: 58px;
+  padding: 0.5rem 0.75rem 0.5rem 0.875rem;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 1.25rem;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
+}
+
+.fv-topbar-landing .fv-topbar-brand {
+  gap: 0.95rem;
+}
+
+.fv-topbar-landing .fv-topbar-logo-full {
+  width: 148px;
+  height: 40px;
+}
+
+.fv-topbar-landing .fv-topbar-sub {
+  border-left-color: rgba(226, 232, 240, 0.22);
+  color: #c4cfdd;
+}
+
+.fv-topbar-landing .fv-topbar-right {
+  gap: 0.625rem;
+}
+
+.fv-topbar-landing .fv-topbar-link {
+  padding: 0.45rem 0.7rem;
+}
+
 .fv-topbar-sub {
   border-left: 1px solid rgba(255, 255, 255, 0.14);
   color: var(--topbar-muted);
@@ -2744,10 +2774,16 @@ textarea {
   font-size: 0.875rem;
   font-weight: 500;
   text-decoration: none;
+  border-radius: 999px;
   transition: color 120ms ease;
 }
 
 .fv-topbar-link:hover {
+  color: var(--topbar-fg);
+}
+
+.fv-topbar-link-active {
+  background: rgba(255, 255, 255, 0.08);
   color: var(--topbar-fg);
 }
 
@@ -4696,9 +4732,20 @@ textarea {
     padding: 0 1rem;
   }
 
+  .fv-topbar-landing {
+    min-height: 56px;
+    padding: 0.5rem 0.65rem;
+    border-radius: 1rem;
+  }
+
   .fv-topbar-logo-full {
     width: 124px;
     height: 34px;
+  }
+
+  .fv-topbar-landing .fv-topbar-logo-full {
+    width: 134px;
+    height: 36px;
   }
 
   .fv-sidebar {
@@ -4756,6 +4803,10 @@ textarea {
 
   .fv-topbar-right {
     gap: 0.5rem;
+  }
+
+  .fv-topbar-landing .fv-topbar-link {
+    padding: 0.4rem 0.55rem;
   }
 
   .fv-topbar-project-pill {

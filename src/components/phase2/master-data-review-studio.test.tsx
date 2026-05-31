@@ -109,4 +109,32 @@ describe("MasterDataReviewStudio", () => {
     expect(html).toContain("Lisbon Site");
     expect(html).toContain("2 of 2");
   });
+
+  it("renders duplicate visible requirement IDs without using them as identity", () => {
+    const generatedObjects = createEmptyMasterDataObjectMap();
+    const object = createObject("enterprise", "enterprise-1", "Customer X");
+    object.sourceRequirementIds = ["05.03", "05.03"];
+    object.sourceRequirementKeys = ["22:05.03", "23:05.03"];
+    object.sourceRowNumbers = [22, 23];
+    generatedObjects.enterprise = [object];
+    const phase2 = {
+      ...createInitialMasterDataPhase2State(),
+      active: true,
+      currentStep: "review" as const,
+      generatedObjects,
+    };
+    const html = render(
+      <MasterDataReviewStudio
+        onOpenExport={vi.fn()}
+        onOpenTraceability={vi.fn()}
+        onReturnToProcess={vi.fn()}
+        onUpdateField={vi.fn()}
+        onUpdateReviewStatus={vi.fn()}
+        phase2={phase2}
+      />,
+    );
+
+    expect(html.match(/05\.03/g)).toHaveLength(2);
+    expect(html).toContain("Source Requirements (2)");
+  });
 });

@@ -21,11 +21,14 @@ function getDisplayName(email?: string | null): string {
 export default function Phase1Topbar({
   email,
   projectId,
+  variant = "app",
 }: {
   email?: string | null;
   projectId?: string | null;
+  variant?: "app" | "landing";
 }) {
   const supabaseConfigured = isSupabaseConfigured();
+  const isLanding = variant === "landing";
 
   async function handleSignOut() {
     if (!supabaseConfigured) {
@@ -40,7 +43,10 @@ export default function Phase1Topbar({
   }
 
   return (
-    <nav aria-label="Product" className="fv-topbar">
+    <nav
+      aria-label="Product"
+      className={`fv-topbar${isLanding ? " fv-topbar-landing" : ""}`}
+    >
       <Link href="/" aria-label="Projects" className="fv-topbar-brand">
         <MesLogo className="fv-topbar-logo-full" tone="white" />
         <span className="fv-topbar-sub">Critical Manufacturing</span>
@@ -51,7 +57,13 @@ export default function Phase1Topbar({
           <span className="fv-topbar-project-pill">{projectId}</span>
         ) : null}
 
-        <Link href="/" className="fv-topbar-link">Projects</Link>
+        <Link
+          href="/"
+          className={`fv-topbar-link${isLanding ? " fv-topbar-link-active" : ""}`}
+          aria-current={isLanding ? "page" : undefined}
+        >
+          Projects
+        </Link>
 
         {email ? (
           <span className="fv-topbar-username">{getDisplayName(email)}</span>

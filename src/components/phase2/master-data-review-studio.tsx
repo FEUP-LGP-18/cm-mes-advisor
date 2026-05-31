@@ -286,11 +286,17 @@ export default function MasterDataReviewStudio({
                 Source Requirements ({activeObject.sourceRequirementIds.length})
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem" }}>
-                {activeObject.sourceRequirementIds.map((id) => (
-                  <span key={id} style={{ fontSize: "0.75rem", background: "var(--surface-border)", color: "var(--foreground)", padding: "0.2rem 0.5rem", borderRadius: "4px", fontFamily: "monospace" }}>
-                    {id}
-                  </span>
-                ))}
+                {activeObject.sourceRequirementIds.map((id, index) => {
+                  const sourceKey =
+                    activeObject.sourceRequirementKeys[index] ??
+                    `${id}-${activeObject.sourceRowNumbers[index] ?? index}`;
+
+                  return (
+                    <span key={sourceKey} style={{ fontSize: "0.75rem", background: "var(--surface-border)", color: "var(--foreground)", padding: "0.2rem 0.5rem", borderRadius: "4px", fontFamily: "monospace" }}>
+                      {id}
+                    </span>
+                  );
+                })}
               </div>
             </div>
           ) : null}
