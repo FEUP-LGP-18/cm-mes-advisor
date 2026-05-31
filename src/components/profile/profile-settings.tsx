@@ -69,9 +69,13 @@ export default function ProfileSettings({
       setDisplayName(body.name ?? "");
       // Only now commit the pending color to the topbar and localStorage
       setSavedColor(pendingColor);
-      localStorage.setItem(AVATAR_COLOR_KEY, pendingColor);
-      if (body.name) localStorage.setItem(DISPLAY_NAME_KEY, body.name);
-      else localStorage.removeItem(DISPLAY_NAME_KEY);
+      try {
+        window.localStorage.setItem(AVATAR_COLOR_KEY, pendingColor);
+        if (body.name) window.localStorage.setItem(DISPLAY_NAME_KEY, body.name);
+        else window.localStorage.removeItem(DISPLAY_NAME_KEY);
+      } catch {
+        // localStorage is optional; server-side profile update already succeeded.
+      }
       setFeedback({ message: "Profile saved.", tone: "success" });
       onSaved?.(body);
     } catch {
@@ -189,6 +193,7 @@ export default function ProfileSettings({
                       key={color}
                       type="button"
                       aria-label={`Select color ${color}`}
+                      aria-pressed={pendingColor === color}
                       onClick={() => setPendingColor(color)}
                       style={{
                         width: "28px",

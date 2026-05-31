@@ -8,9 +8,10 @@ export const DISPLAY_NAME_KEY = "mes-advisor:display-name";
 
 export function getInitials(email?: string | null): string {
   if (!email) return "U";
-  const parts = email.split("@")[0].split(/[._-]/);
+  const localPart = email.split("@")[0];
+  const parts = localPart.split(/[._-]/).filter(Boolean);
   if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  return email.slice(0, 2).toUpperCase();
+  return localPart.slice(0, 2).toUpperCase();
 }
 
 export function getDisplayName(email?: string | null): string {
@@ -26,5 +27,9 @@ export function getDefaultAvatarColor(email?: string | null): string {
 
 export function getSavedAvatarColor(email?: string | null): string {
   if (typeof window === "undefined") return getDefaultAvatarColor(email);
-  return localStorage.getItem(AVATAR_COLOR_KEY) ?? getDefaultAvatarColor(email);
+  try {
+    return window.localStorage.getItem(AVATAR_COLOR_KEY) ?? getDefaultAvatarColor(email);
+  } catch {
+    return getDefaultAvatarColor(email);
+  }
 }

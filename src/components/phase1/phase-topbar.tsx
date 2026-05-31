@@ -39,8 +39,12 @@ export default function Phase1Topbar({
     if (displayName) {
       setResolvedName(displayName);
     } else {
-      const saved = localStorage.getItem(DISPLAY_NAME_KEY);
-      setResolvedName(saved || getDisplayName(email));
+      try {
+        const saved = window.localStorage.getItem(DISPLAY_NAME_KEY);
+        setResolvedName(saved || getDisplayName(email));
+      } catch {
+        setResolvedName(getDisplayName(email));
+      }
     }
   }, [email, displayName]);
   const initials = getInitials(email);
