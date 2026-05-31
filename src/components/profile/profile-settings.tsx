@@ -1,8 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Phase1Topbar from "@/components/phase1/phase-topbar";
+import {
+  AVATAR_COLORS,
+  AVATAR_COLOR_KEY,
+  DISPLAY_NAME_KEY,
+  getInitials,
+  getDefaultAvatarColor,
+  getSavedAvatarColor,
+} from "@/lib/avatar";
 import type { CurrentUserProfile } from "@/lib/projects/types";
 
 export default function ProfileSettings({
@@ -14,11 +22,21 @@ export default function ProfileSettings({
 }) {
   const [displayName, setDisplayName] = useState(initialProfile.name ?? "");
   const [profile, setProfile] = useState(initialProfile);
+  // pendingColor: what the picker shows (updates instantly for preview in card)
+  // savedColor: committed value shown in the topbar (only updates on Save)
+  const [pendingColor, setPendingColor] = useState(() => getDefaultAvatarColor(initialProfile.email));
+  const [savedColor, setSavedColor] = useState(() => getDefaultAvatarColor(initialProfile.email));
   const [feedback, setFeedback] = useState<{
     message: string;
     tone: "error" | "success";
   } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    const color = getSavedAvatarColor(initialProfile.email);
+    setPendingColor(color);
+    setSavedColor(color);
+  }, [initialProfile.email]);
 
   async function handleSubmit(event: { preventDefault(): void }) {
     event.preventDefault();
@@ -49,6 +67,11 @@ export default function ProfileSettings({
 
       setProfile(body);
       setDisplayName(body.name ?? "");
+      // Only now commit the pending color to the topbar and localStorage
+      setSavedColor(pendingColor);
+      localStorage.setItem(AVATAR_COLOR_KEY, pendingColor);
+      if (body.name) localStorage.setItem(DISPLAY_NAME_KEY, body.name);
+      else localStorage.removeItem(DISPLAY_NAME_KEY);
       setFeedback({ message: "Profile saved.", tone: "success" });
       onSaved?.(body);
     } catch {
@@ -61,9 +84,18 @@ export default function ProfileSettings({
     }
   }
 
+  // Card preview: shows draft state (updates while typing / picking)
+  const previewName = displayName || profile.email?.split("@")[0] || "User";
+  // Topbar: shows saved state only
+  const savedName = profile.name || undefined;
+
   return (
     <div className="fv-shell">
-      <Phase1Topbar email={profile.email ?? undefined} />
+      <Phase1Topbar
+        email={profile.email ?? undefined}
+        displayName={savedName}
+        avatarColor={savedColor}
+      />
 
       <div className="fv-body">
         <nav className="fv-sidebar" aria-label="Account navigation">
@@ -117,6 +149,63 @@ export default function ProfileSettings({
             ) : null}
 
             <div className="fv-card">
+              {/* Avatar preview — shows draft state */}
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1.5rem" }}>
+                <div
+                  style={{
+                    width: "64px",
+                    height: "64px",
+                    borderRadius: "50%",
+                    background: pendingColor,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "1.375rem",
+                    fontWeight: 700,
+                    color: "#fff",
+                    flexShrink: 0,
+                    letterSpacing: "-0.02em",
+                  }}
+                  aria-hidden="true"
+                >
+                  {getInitials(profile.email)}
+                </div>
+                <div>
+                  <div style={{ fontSize: "1rem", fontWeight: 600, color: "var(--foreground)" }}>
+                    {previewName}
+                  </div>
+                  <div style={{ fontSize: "0.8rem", color: "var(--muted-fg)", marginTop: "0.125rem" }}>
+                    {profile.email}
+                  </div>
+                </div>
+              </div>
+
+              {/* Color picker — pending only, applied on Save */}
+              <div style={{ marginBottom: "1.5rem" }}>
+                <div className="fv-field-label" style={{ marginBottom: "0.5rem" }}>Avatar color</div>
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                  {AVATAR_COLORS.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      aria-label={`Select color ${color}`}
+                      onClick={() => setPendingColor(color)}
+                      style={{
+                        width: "28px",
+                        height: "28px",
+                        borderRadius: "50%",
+                        background: color,
+                        border: pendingColor === color ? "3px solid var(--foreground)" : "3px solid transparent",
+                        cursor: "pointer",
+                        padding: 0,
+                        outline: pendingColor === color ? "2px solid var(--surface)" : "none",
+                        outlineOffset: "-4px",
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+
               <div className="fv-card-title" style={{ marginBottom: "0.75rem" }}>
                 Account details
               </div>
