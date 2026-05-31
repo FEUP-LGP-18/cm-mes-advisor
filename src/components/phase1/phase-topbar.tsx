@@ -53,13 +53,13 @@ export default function Phase1Topbar({
 
         <Link href="/" className="fv-topbar-link">Projects</Link>
 
-        {email ? (
-          <span className="fv-topbar-username">{getDisplayName(email)}</span>
-        ) : null}
+        <Link href="/profile" className="fv-topbar-username" aria-label="Your profile">
+          {email ? getDisplayName(email) : "Profile"}
+        </Link>
 
-        <div className="fv-topbar-avatar" aria-hidden="true">
+        <Link href="/profile" className="fv-topbar-avatar" aria-label="Your profile">
           {getInitials(email)}
-        </div>
+        </Link>
 
         {supabaseConfigured ? (
           <button
