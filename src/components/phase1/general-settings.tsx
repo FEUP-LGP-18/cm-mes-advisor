@@ -1200,7 +1200,6 @@ export default function GeneralSettings({
               <TemplatesTab
                 canEditProjectState={canEditPhase1}
                 currentIndustryTemplateId={currentSourceMetadata.industryTemplateId}
-                key={currentSourceMetadata.industryTemplateId ?? "no-template"}
                 onApplyProjectIndustryTemplate={updateProjectIndustryTemplate}
                 projectId={projectId}
               />
