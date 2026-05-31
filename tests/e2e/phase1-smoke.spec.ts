@@ -369,6 +369,16 @@ for (const theme of themes) {
     await expect(page.getByRole("button", { name: /export pdf/i })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /export excel/i })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /share/i })).toHaveCount(0);
+    await expect(page.getByText("Optional Phase 2 continuation")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /generate master data draft/i }),
+    ).toBeEnabled();
+    await expect(
+      page.getByText(
+        /continue only if you want the optional master data package/i,
+      ),
+    ).toBeVisible();
+    await expect(page.getByText(/required pilot demo/i)).toHaveCount(0);
     await assertNoHorizontalOverflow(page);
 
     if (testInfo.project.name.includes("mobile")) {
@@ -379,5 +389,10 @@ for (const theme of themes) {
     }
 
     await attachFullPageScreenshot(page, testInfo, `${theme}-export-studio`);
+
+    await page.goto(`/projects/${project.projectId}/handoff`);
+    await expect(page).toHaveURL(
+      new RegExp(`/projects/${project.projectId}/export$`),
+    );
   });
 }

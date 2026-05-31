@@ -25,6 +25,8 @@ export default function ExportStudio({
   pendingReviewCount,
   projectMetadata,
 }: ExportStudioProps) {
+  const canContinueToMasterData = exportReady && approvedCount > 0;
+
   return (
     <div style={{ display: "grid", gap: "1.25rem" }}>
       <DemoScriptExportPanel
@@ -36,33 +38,67 @@ export default function ExportStudio({
         projectMetadata={projectMetadata}
       />
 
-      <div className="fv-card" style={{ borderLeft: "3px solid var(--brand-primary)" }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
-          <div>
-            <div style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted-fg)", marginBottom: "0.25rem" }}>
-              Optional Phase 2 continuation
-            </div>
-            <h3 style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--foreground)", margin: "0 0 0.375rem" }}>
-              Start Phase 2 from approved Phase 1 rows
-            </h3>
-            <p style={{ fontSize: "0.8rem", color: "var(--muted-fg)", margin: 0, lineHeight: 1.6, maxWidth: "520px" }}>
-              Phase 1 is complete when this handoff is exported. Continue into the Master Data path only when the optional Phase 2 walkthrough is in scope.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onOpenMasterData}
-            disabled={!exportReady || approvedCount === 0}
-            className="fv-btn-primary"
+      {canContinueToMasterData ? (
+        <section
+          className="fv-card"
+          style={{ borderLeft: "3px solid var(--brand-primary)" }}
+        >
+          <div
             style={{
-              opacity: exportReady && approvedCount > 0 ? 1 : 0.5,
-              cursor: exportReady && approvedCount > 0 ? "pointer" : "not-allowed",
+              alignItems: "flex-start",
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "1rem",
+              justifyContent: "space-between",
             }}
           >
-            Start Phase 2 →
-          </button>
-        </div>
-      </div>
+            <div>
+              <div
+                style={{
+                  color: "var(--muted-fg)",
+                  fontSize: "0.65rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.1em",
+                  marginBottom: "0.25rem",
+                  textTransform: "uppercase",
+                }}
+              >
+                Optional Phase 2 continuation
+              </div>
+              <h3
+                style={{
+                  color: "var(--foreground)",
+                  fontSize: "0.95rem",
+                  fontWeight: 700,
+                  margin: "0 0 0.375rem",
+                }}
+              >
+                Generate Master Data draft
+              </h3>
+              <p
+                style={{
+                  color: "var(--muted-fg)",
+                  fontSize: "0.8rem",
+                  lineHeight: 1.6,
+                  margin: 0,
+                  maxWidth: "520px",
+                }}
+              >
+                Phase 1 is complete once the Markdown handoff is exported.
+                Continue only if you want the optional Master Data package for
+                Phase 2.
+              </p>
+            </div>
+            <button
+              className="fv-btn-primary"
+              onClick={onOpenMasterData}
+              type="button"
+            >
+              Generate Master Data draft
+            </button>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }
