@@ -28,6 +28,8 @@ package-lock.json
 # misc
 .DS_Store
 *.pem
+__MACOSX/
+VISUALS/
 
 # debug
 npm-debug.log*
