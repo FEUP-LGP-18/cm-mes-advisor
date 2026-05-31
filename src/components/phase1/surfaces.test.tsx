@@ -513,7 +513,40 @@ describe("phase 1 redesigned surfaces", () => {
     expect(html).not.toContain("Export Excel");
     expect(html).not.toContain("Share link");
     expect(html).toContain("Optional Phase 2 continuation");
-    expect(html).toContain("Start Phase 2");
-    expect(html).toContain("Phase 1 is complete when this handoff is exported.");
+    expect(html).toContain("Generate Master Data draft");
+    expect(html).toContain(
+      "Phase 1 is complete once the Markdown handoff is exported.",
+    );
+    expect(html).toContain(
+      "Continue only if you want the optional Master Data package",
+    );
+    expect(html).not.toContain("required pilot demo");
+  });
+
+  it("hides the optional Phase 2 CTA until export is ready", () => {
+    const reviewRequirements = createPhase1UiFixtureReviewRequirements({
+      "01.01": "approved",
+      "01.02": "pending",
+    });
+    const draft = createDefaultDemoScriptDraft(
+      phase1UiFixtureProjectMetadata.projectName,
+    );
+    const assembly = assembleDemoScript(reviewRequirements, draft);
+    const html = render(
+      <ExportStudio
+        approvedCount={1}
+        assembly={assembly}
+        exportReady={false}
+        onGoToReview={vi.fn()}
+        onGoToScript={vi.fn()}
+        onOpenMasterData={vi.fn()}
+        pendingReviewCount={1}
+        projectMetadata={phase1UiFixtureProjectMetadata}
+      />,
+    );
+
+    expect(html).toContain("Export still has review blockers");
+    expect(html).not.toContain("Optional Phase 2 continuation");
+    expect(html).not.toContain("Generate Master Data draft");
   });
 });
