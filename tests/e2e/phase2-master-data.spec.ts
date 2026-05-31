@@ -1,4 +1,5 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { Buffer } from "node:buffer";
 import { themeStorageKey } from "../../src/app/theme";
 import {
   PHASE1_PROJECT_REGISTRY_STORAGE_KEY,
@@ -142,10 +143,15 @@ test("approved Phase 1 rows can move through Phase 2 draft review and traceabili
   await expect(page.getByRole("heading", { name: "Upload Requirements File" })).toBeVisible();
   await expect(page.getByText(/phase 1 requirements loaded/i)).toBeVisible();
   await expect(page.getByText(/2 approved rows/i)).toBeVisible();
+  await expect(page.getByRole("button", { name: /browse files/i })).toBeEnabled();
   await expect(
     page.getByRole("button", { name: /analyze requirements/i }),
   ).toBeVisible();
-  await page.getByRole("button", { name: /analyze requirements/i }).click();
+  await page.getByLabel(/phase 2 requirements workbook/i).setInputFiles({
+    buffer: Buffer.from("fixture workbook payload"),
+    mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    name: "customer-master-data.xlsx",
+  });
   await expect(page.getByRole("heading", { name: "Requirements Analysis" })).toBeVisible();
   await expect(page.getByText("Requirements → MES Object Mapping")).toBeVisible();
   await expect(

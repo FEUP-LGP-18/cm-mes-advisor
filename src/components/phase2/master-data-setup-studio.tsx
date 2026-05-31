@@ -1,6 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import {
+  useId,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type DragEvent,
+} from "react";
 import {
   MASTER_DATA_APPROVAL_REQUIRED_FEEDBACK,
   masterDataObjectTypeLabels,
@@ -292,11 +298,82 @@ function UploadConfigureScreen({
   showAdvanced: boolean;
   setShowAdvanced: (v: boolean) => void;
   analyzing: boolean;
-  onAnalyze: () => void;
+  onAnalyze: () => void | Promise<void>;
   visibleFeedback: string | null;
   onOpenPhase1Generate: () => void;
   onOpenPhase1Review: () => void;
 }) {
+  const fileInputId = useId();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const [selectedFilename, setSelectedFilename] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const canAcceptUpload = !isPhase2Locked && !analyzing;
+
+  async function handleUploadedFile(file?: File | null) {
+    if (!file || !canAcceptUpload) {
+      return;
+    }
+
+    if (!/\.(xlsx|xls)$/i.test(file.name)) {
+      setUploadError("Use an Excel .xlsx or .xls workbook.");
+      return;
+    }
+
+    setUploadError(null);
+    setSelectedFilename(file.name);
+    await onAnalyze();
+  }
+
+  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.item(0) ?? null;
+    void handleUploadedFile(file);
+    event.currentTarget.value = "";
+  }
+
+  function handleDragEnter(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+
+    if (!canAcceptUpload) {
+      return;
+    }
+
+    setDragActive(true);
+  }
+
+  function handleDragOver(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+
+    if (!canAcceptUpload) {
+      return;
+    }
+
+    event.dataTransfer.dropEffect = "copy";
+    setDragActive(true);
+  }
+
+  function handleDragLeave(event: DragEvent<HTMLDivElement>) {
+    const nextTarget = event.relatedTarget;
+
+    if (
+      !(nextTarget instanceof Node) ||
+      !event.currentTarget.contains(nextTarget)
+    ) {
+      setDragActive(false);
+    }
+  }
+
+  function handleDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+
+    if (!canAcceptUpload) {
+      return;
+    }
+
+    setDragActive(false);
+    void handleUploadedFile(event.dataTransfer.files.item(0));
+  }
+
   return (
     <div>
       <div style={{ marginBottom: "1.25rem" }}>
@@ -329,7 +406,12 @@ function UploadConfigureScreen({
         <div style={{ display: "grid", gap: "1.25rem" }}>
           {/* Dropzone */}
           <div
-            className={`fv-dropzone${approvedCount > 0 ? " fv-dropzone-ready" : ""}`}
+            aria-disabled={!canAcceptUpload}
+            className={`fv-dropzone${approvedCount > 0 ? " fv-dropzone-ready" : ""}${dragActive ? " fv-dropzone-active" : ""}${uploadError ? " fv-dropzone-error" : ""}`}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
           >
             <svg className="fv-dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -338,9 +420,37 @@ function UploadConfigureScreen({
             </svg>
             <div className="fv-dropzone-title">Drag & drop your .xlsx file here</div>
             <div className="fv-dropzone-sub">Supports Excel workbooks from MES requirements templates</div>
-            <button type="button" className="fv-btn-secondary" style={{ marginTop: "0.5rem", fontSize: "0.8rem" }}>
+            <label htmlFor={fileInputId} className="fv-sr-only">
+              Phase 2 requirements workbook
+            </label>
+            <input
+              accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+              className="fv-sr-only"
+              disabled={!canAcceptUpload}
+              id={fileInputId}
+              onChange={handleFileChange}
+              ref={fileInputRef}
+              type="file"
+            />
+            <button
+              className="fv-btn-secondary fv-file-input-trigger"
+              disabled={!canAcceptUpload}
+              onClick={() => fileInputRef.current?.click()}
+              style={{ fontSize: "0.8rem" }}
+              type="button"
+            >
               Browse files
             </button>
+            {selectedFilename ? (
+              <div className="fv-dropzone-meta">
+                Selected {selectedFilename}; starting analysis…
+              </div>
+            ) : null}
+            {uploadError ? (
+              <div className="fv-dropzone-meta" role="alert">
+                {uploadError}
+              </div>
+            ) : null}
           </div>
 
           {/* File loaded state */}

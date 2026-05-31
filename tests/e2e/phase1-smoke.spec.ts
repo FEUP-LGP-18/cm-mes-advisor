@@ -224,6 +224,27 @@ for (const theme of themes) {
       selectedInspector.getByRole("button", { name: "Approve" }),
     ).toBeVisible();
 
+    if (!testInfo.project.name.includes("mobile")) {
+      const content = page.locator(".fv-content");
+      const sidebar = page.locator(".fv-sidebar");
+      const sidebarBefore = await sidebar.boundingBox();
+
+      await content.evaluate((element) => {
+        element.scrollTop = 900;
+      });
+      await expect(selectedInspector).toBeInViewport({ ratio: 0.5 });
+
+      const sidebarAfter = await sidebar.boundingBox();
+      const inspectorAfter = await selectedInspector.boundingBox();
+
+      expect(Math.abs((sidebarAfter?.y ?? 0) - (sidebarBefore?.y ?? 0))).toBeLessThan(1);
+      expect(inspectorAfter?.y ?? Number.POSITIVE_INFINITY).toBeLessThan(120);
+
+      await content.evaluate((element) => {
+        element.scrollTop = 0;
+      });
+    }
+
     if (testInfo.project.name.includes("mobile")) {
       await expect(
         selectedInspector.getByRole("button", { name: "Approve" }),
@@ -369,6 +390,24 @@ for (const theme of themes) {
     await expect(page.getByRole("button", { name: /export pdf/i })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /export excel/i })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /share/i })).toHaveCount(0);
+    if (!testInfo.project.name.includes("mobile")) {
+      const projectNav = page.getByRole("navigation", {
+        name: "Project navigation",
+      });
+      const exportNavLinks = projectNav.getByRole("link", { name: "Export" });
+      await expect(exportNavLinks).toHaveCount(2);
+      await expect(exportNavLinks.nth(0)).toHaveAttribute(
+        "aria-current",
+        "step",
+      );
+      await expect(exportNavLinks.nth(1)).toHaveAttribute(
+        "href",
+        `/projects/${project.projectId}/master-data/export`,
+      );
+      await expect(
+        projectNav.locator(".fv-nav-item-active").filter({ hasText: /^Export$/ }),
+      ).toHaveCount(1);
+    }
     await expect(page.getByText("Optional Phase 2 continuation")).toBeVisible();
     await expect(
       page.getByRole("button", { name: /generate master data draft/i }),

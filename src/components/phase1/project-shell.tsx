@@ -207,8 +207,8 @@ export default function Phase1ProjectShell({
               Master Data
             </Link>
             <Link
-              href={`/projects/${project.projectId}/export`}
-              className={`fv-nav-item${currentStep === "export" ? " fv-nav-item-active" : ""}`}
+              href={`/projects/${project.projectId}/master-data/export`}
+              className="fv-nav-item"
             >
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
                 <path d="M8 2v8M5 7l3 3 3-3" />
