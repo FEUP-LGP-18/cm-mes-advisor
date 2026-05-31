@@ -20,6 +20,12 @@ import {
   FvPageHeader,
   FvStatCard,
 } from "@/components/ui/fv";
+import {
+  formatGeneralOutputMetadata,
+  normalizeGeneralOutputPreferences,
+  type GeneralOutputPreferences,
+  type OutputMetadataEntry,
+} from "@/lib/settings";
 
 interface DemoScriptEditingPanelProps {
   assembly: DemoScriptAssembly;
@@ -35,6 +41,8 @@ interface DemoScriptEditingPanelProps {
 interface DemoScriptExportPanelProps {
   assembly: DemoScriptAssembly;
   exportReady?: boolean;
+  initialDownloadedAt?: string | null;
+  outputPreferences?: GeneralOutputPreferences | null;
   pendingReviewCount?: number;
   onSwitchToReview: () => void;
   onSwitchToScript: () => void;
@@ -53,6 +61,8 @@ interface DemoScriptExportOverview {
   hasWarnings: boolean;
   hasTraceability: boolean;
 }
+
+const GENERAL_OUTPUT_PREFS_STORAGE_KEY = "mes-advisor-general-prefs";
 
 export default function DemoScriptEditingPanel({
   assembly,
@@ -331,6 +341,8 @@ export default function DemoScriptEditingPanel({
 export function DemoScriptExportPanel({
   assembly,
   exportReady = !assembly.emptyState,
+  initialDownloadedAt = null,
+  outputPreferences: providedOutputPreferences,
   pendingReviewCount = 0,
   onSwitchToReview,
   onSwitchToScript,
@@ -340,49 +352,135 @@ export function DemoScriptExportPanel({
   const blockerCopy = assembly.emptyState
     ? getDemoScriptEmptyStateCopy(assembly.emptyState)
     : null;
-  const [downloadedAt, setDownloadedAt] = useState<string | null>(null);
+  const [downloadedAt, setDownloadedAt] = useState<string | null>(
+    initialDownloadedAt,
+  );
+  const [storedOutputPreferences, setStoredOutputPreferences] =
+    useState<GeneralOutputPreferences | null>(providedOutputPreferences ?? null);
+  const activeOutputPreferences =
+    providedOutputPreferences ?? storedOutputPreferences;
+  const outputMetadataEntries = activeOutputPreferences
+    ? formatGeneralOutputMetadata(activeOutputPreferences)
+    : [];
+  const exportFilename = createDemoScriptExportFilename(
+    assembly.title,
+    projectMetadata.projectName,
+  );
+  const hasReadyPayload =
+    exportReady && !assembly.emptyState && assembly.approvedRequirementCount > 0;
+  const readinessLabel = hasReadyPayload ? "Ready" : "Blocked";
+  const exportDescription = hasReadyPayload
+    ? "Package the reviewed Phase 1 script as the supported Markdown handoff."
+    : "Complete review and script readiness before downloading the Phase 1 handoff.";
+
+  useEffect(() => {
+    if (providedOutputPreferences !== undefined) {
+      setStoredOutputPreferences(providedOutputPreferences);
+      return;
+    }
+
+    setStoredOutputPreferences(readGeneralOutputPreferencesFromStorage());
+  }, [providedOutputPreferences]);
+
+  const handleDownloadMarkdown = () => {
+    const outputPreferences =
+      activeOutputPreferences ?? readGeneralOutputPreferencesFromStorage();
+
+    downloadDemoScriptMarkdown({
+      assembly,
+      outputPreferences,
+      projectMetadata,
+    });
+    setDownloadedAt(formatExportDownloadTime(new Date()));
+  };
 
   if (assembly.emptyState) {
     return (
-      <section className="phase-document-workspace">
-        <aside className="phase-document-sidebar">
-          <section className="phase-sidebar-panel">
-            <div className="phase-sidebar-copy">
-              <p className="phase-overline">Export</p>
-              <h3 className="phase-rail-title">Export is still blocked</h3>
-            </div>
-
-            <div className="phase-feedback phase-feedback-error">
-              <strong>{blockerCopy?.title}</strong> {blockerCopy?.body}
-            </div>
-
-            <div className="phase-rail-stack">
+      <section className="fv-page fv-export-page">
+        <FvPageHeader
+          actions={
+            <div className="fv-export-header-actions">
               <button
-                type="button"
+                className="fv-btn-secondary"
                 onClick={onSwitchToScript}
-                className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-semibold transition"
+                type="button"
               >
-                Back to script
+                Back to Script
               </button>
               <button
-                type="button"
+                className="fv-btn-secondary"
                 onClick={onSwitchToReview}
-                className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-semibold transition"
+                type="button"
               >
-                Back to review
+                Back to Review
               </button>
             </div>
-          </section>
-        </aside>
+          }
+          description={exportDescription}
+          eyebrow="Phase 1 / Export"
+          title="Export Handoff"
+        />
 
-        <section className="document-panel min-w-0 rounded-[1.75rem] p-5 sm:p-6">
-          <EmptyDemoScriptState
-            actionLabel="Back to review"
-            emptyState={assembly.emptyState}
-            onAction={onSwitchToReview}
-            secondaryActionLabel="Back to script"
-            onSecondaryAction={onSwitchToScript}
-            titleEyebrow="Export blocked"
+        <div className="fv-stats-row fv-export-stats-row">
+          <FvStatCard
+            helper="Export remains disabled until a reviewed script exists"
+            label="Readiness"
+            tone="warning"
+            value="Blocked"
+          />
+          <FvStatCard
+            helper={`${assembly.approvedRequirementCount} approved row${
+              assembly.approvedRequirementCount === 1 ? "" : "s"
+            } available`}
+            label="Approved requirements"
+            tone="warning"
+            value={assembly.approvedRequirementCount}
+          />
+          <FvStatCard
+            helper="Only the supported Phase 1 handoff format is shown"
+            label="Export format"
+            tone="info"
+            value="Markdown"
+          />
+        </div>
+
+        <FvCallout
+          className="fv-export-status-callout"
+          role="alert"
+          title="Export is still blocked"
+          tone="error"
+        >
+          {blockerCopy ? (
+            <>
+              <strong>{blockerCopy.title}.</strong> {blockerCopy.body}
+            </>
+          ) : (
+            "No exportable script content is available yet. Return to review or script to finish Phase 1."
+          )}
+        </FvCallout>
+
+        <section className="fv-card fv-export-blocked-card">
+          <FvEmptyState
+            action={
+              <div className="fv-export-action-row">
+                <button
+                  className="fv-btn-primary"
+                  onClick={onSwitchToReview}
+                  type="button"
+                >
+                  Back to Review
+                </button>
+                <button
+                  className="fv-btn-secondary"
+                  onClick={onSwitchToScript}
+                  type="button"
+                >
+                  Back to Script
+                </button>
+              </div>
+            }
+            body={blockerCopy?.body}
+            title={blockerCopy?.title ?? "Export is still blocked"}
           />
         </section>
       </section>
@@ -390,260 +488,197 @@ export function DemoScriptExportPanel({
   }
 
   return (
-    <section className="phase-document-workspace">
-      <aside className="phase-document-sidebar">
-        <div className="phase-document-sidebar-scroll">
-          <div className="grid gap-4">
-            <section className="phase-sidebar-panel">
-              <div className="phase-rail-header">
-                <div>
-                  <p className="phase-overline">Export</p>
-                  <h3 className="phase-rail-title">
-                    {exportReady ? "Ready to download" : "Export is still blocked"}
-                  </h3>
-                </div>
-                <span className="phase-count-pill">
-                  {assembly.approvedRequirementCount} approved
-                </span>
-              </div>
-
-              {pendingReviewCount > 0 ? (
-                <div className="phase-feedback">
-                  {pendingReviewCount} generated row
-                  {pendingReviewCount === 1 ? "" : "s"} still need consultant
-                  review before this handoff can be downloaded.
-                </div>
-              ) : null}
-
-              <div className="theme-shell-card rounded-[1.25rem] p-4 text-sm leading-6 theme-shell-body">
-                <p>
-                  <span className="theme-shell-title font-bold">Format:</span>{" "}
-                  Markdown
-                </p>
-                <p>
-                  <span className="theme-shell-title font-bold">Filename:</span>{" "}
-                  {createDemoScriptExportFilename(
-                    assembly.title,
-                    projectMetadata.projectName,
-                  )}
-                </p>
-                <p>
-                  <span className="theme-shell-title font-bold">Scope:</span>{" "}
-                  Phase 1 handoff only.
-                </p>
-              </div>
-
-              <div className="phase-status-list">
-                <DocumentChecklistItem
-                  label="Approved rows"
-                  ready={assembly.approvedRequirementCount > 0}
-                  value={`${assembly.approvedRequirementCount} confirmed`}
-                />
-                <DocumentChecklistItem
-                  label="Warnings and assumptions"
-                  ready
-                  value={
-                    overview.hasWarnings || overview.hasAssumptions
-                      ? "Included when present"
-                      : "None recorded"
-                  }
-                />
-                <DocumentChecklistItem
-                  label="Traceability"
-                  ready={overview.hasTraceability}
-                  value={
-                    overview.hasTraceability
-                      ? "Included"
-                      : "Still missing references"
-                  }
-                />
-                <DocumentChecklistItem
-                  label="Export"
-                  ready={exportReady}
-                  value={exportReady ? "Ready to download" : "Blocked"}
-                />
-                <DocumentChecklistItem
-                  label="Download status"
-                  ready={downloadedAt !== null}
-                  value={
-                    downloadedAt ? `Downloaded at ${downloadedAt}` : "Not downloaded yet"
-                  }
-                />
-              </div>
-
-              <div className="phase-rail-stack">
-                <button
-                  type="button"
-                  disabled={!exportReady}
-                  onClick={() => {
-                    downloadDemoScriptMarkdown({
-                      assembly,
-                      projectMetadata,
-                    });
-                    setDownloadedAt(formatExportDownloadTime(new Date()));
-                  }}
-                  className="focus-premium theme-button-primary rounded-2xl px-4 py-3 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Download Markdown
-                </button>
-                <div
-                  role="status"
-                  className={`rounded-2xl border px-4 py-3 text-sm ${
-                    downloadedAt ? "tone-positive" : "tone-neutral"
-                  }`}
-                >
-                  {downloadedAt
-                    ? `Markdown downloaded at ${downloadedAt}.`
-                    : "Not downloaded yet"}
-                </div>
-                <button
-                  type="button"
-                  onClick={onSwitchToScript}
-                  className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-bold transition"
-                >
-                  Back to script
-                </button>
-                <button
-                  type="button"
-                  onClick={onSwitchToReview}
-                  className="focus-premium theme-shell-button-secondary rounded-2xl px-4 py-3 text-sm font-bold transition"
-                >
-                  Back to review
-                </button>
-              </div>
-            </section>
-
-            <section className="phase-sidebar-panel phase-desktop-only">
-              <ExportCoverageContent overview={overview} />
-            </section>
+    <section className="fv-page fv-export-page">
+      <FvPageHeader
+        actions={
+          <div className="fv-export-header-actions">
+            <button
+              className="fv-btn-primary"
+              disabled={!hasReadyPayload}
+              onClick={handleDownloadMarkdown}
+              type="button"
+            >
+              Download Markdown
+            </button>
+            <button
+              className="fv-btn-secondary"
+              onClick={onSwitchToScript}
+              type="button"
+            >
+              Back to Script
+            </button>
+            <button
+              className="fv-btn-secondary"
+              onClick={onSwitchToReview}
+              type="button"
+            >
+              Back to Review
+            </button>
           </div>
-        </div>
-      </aside>
+        }
+        description={exportDescription}
+        eyebrow="Phase 1 / Export"
+        title="Export Handoff"
+      />
 
-      <section className="phase-document-main document-panel min-w-0 rounded-[1.75rem] p-5 sm:p-6">
-        <div className="theme-doc-card rounded-[1.5rem] p-5">
-          <p className="theme-doc-kicker mono-label text-[0.68rem]">
-            Export handoff
-          </p>
-          <h3 className="theme-doc-title mt-3 text-3xl font-bold tracking-[-0.045em] sm:text-4xl">
-            Finalize the Phase 1 deliverable
-          </h3>
-          <p className="theme-doc-body mt-3 max-w-3xl text-sm leading-7">
-            Review what is going into the handoff, confirm the included
-            requirement coverage, and download the final Markdown deliverable.
-          </p>
+      <div className="fv-stats-row fv-export-stats-row">
+        <FvStatCard
+          helper={`${assembly.approvedRequirementCount} approved row${
+            assembly.approvedRequirementCount === 1 ? "" : "s"
+          } included`}
+          label="Approved requirements"
+          tone={assembly.approvedRequirementCount > 0 ? "success" : "warning"}
+          value={assembly.approvedRequirementCount}
+        />
+        <FvStatCard
+          helper={exportFilename}
+          label="Export format"
+          tone="info"
+          value="Markdown"
+        />
+        <FvStatCard
+          helper={
+            downloadedAt
+              ? `Markdown downloaded at ${downloadedAt}`
+              : "Local session status only"
+          }
+          label="Download status"
+          tone={downloadedAt ? "success" : hasReadyPayload ? "info" : "warning"}
+          value={downloadedAt ? "Downloaded" : readinessLabel}
+        />
+      </div>
 
-          <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(260px,0.95fr)]">
-            <div className="theme-doc-card-contrast rounded-[1.4rem] p-5">
-              <p className="theme-shell-kicker mono-label text-[0.56rem]">
-                Deliverable
-              </p>
-              <h4 className="mt-4 text-3xl font-bold tracking-[-0.045em] text-[color:var(--document-contrast-ink)]">
-                {assembly.title || projectMetadata.projectName}
-              </h4>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                <ExportKeyValue
-                  label="Project"
-                  value={projectMetadata.projectName}
-                />
-                <ExportKeyValue
-                  label="Customer"
-                  value={projectMetadata.customerName}
-                />
-                <ExportKeyValue
-                  breakWords
-                  label="Source workbook"
-                  value={projectMetadata.sourceFilename}
-                />
-                <ExportKeyValue label="Output" value="Markdown handoff" />
-              </div>
-            </div>
-
-            <div className="theme-doc-card-muted rounded-[1.4rem] p-5">
-              <p className="theme-doc-subtle mono-label text-[0.56rem]">
-                Readiness
-              </p>
-              <div className="mt-4 grid gap-2">
-                <ExportPresencePill label="Approved rows" present />
-                <ExportPresencePill
-                  label="Assumptions"
-                  present={overview.hasAssumptions}
-                />
-                <ExportPresencePill
-                  label="Warnings"
-                  present={overview.hasWarnings}
-                />
-                <ExportPresencePill
-                  label="Traceability"
-                  present={overview.hasTraceability}
-                />
-                <ExportPresencePill label="Step groups" present />
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-            <section className="theme-doc-card rounded-[1.4rem] p-4">
-              <p className="theme-doc-subtle mono-label text-[0.56rem]">
-                Included requirements
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {overview.includedRequirementIds.slice(0, 12).map((id) => (
-                  <span
-                    key={id}
-                    className="theme-doc-chip-muted rounded-full px-3 py-1.5 text-xs font-bold"
-                  >
-                    {id}
-                  </span>
-                ))}
-                {overview.includedRequirementIds.length > 12 ? (
-                  <span className="theme-doc-chip rounded-full px-3 py-1.5 text-xs font-bold theme-doc-subtle">
-                    +{overview.includedRequirementIds.length - 12} more
-                  </span>
-                ) : null}
-              </div>
-            </section>
-
-            <section className="theme-doc-card rounded-[1.4rem] p-4">
-              <p className="theme-doc-subtle mono-label text-[0.56rem]">
-                Section coverage
-              </p>
-              <div className="mt-3 grid gap-2">
-                {overview.sectionSummaries.map((section) => (
-                  <div
-                    key={section.key}
-                    className="theme-doc-card-muted rounded-2xl px-3 py-3"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="theme-doc-title text-sm font-bold">
-                        {section.title}
-                      </p>
-                      <span className="theme-doc-subtle text-xs font-bold">
-                        {section.stepCount} steps
-                      </span>
-                    </div>
-                    <p className="theme-doc-subtle mt-1 text-xs">
-                      {section.requirementCount} approved requirement
-                      {section.requirementCount === 1 ? "" : "s"} grouped here.
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </div>
-        </div>
-      </section>
-
-      {overview.sectionSummaries.length > 0 ? (
-        <details className="phase-sidebar-panel phase-mobile-only">
-          <summary className="theme-shell-title cursor-pointer text-sm font-bold">
-            Included sections
-          </summary>
-          <div className="mt-4">
-            <ExportCoverageContent overview={overview} />
-          </div>
-        </details>
+      {pendingReviewCount > 0 ? (
+        <FvCallout
+          className="fv-export-status-callout"
+          title="Export still has review blockers"
+          tone="warning"
+        >
+          {pendingReviewCount} generated row
+          {pendingReviewCount === 1 ? "" : "s"} still need consultant review
+          before this handoff can be downloaded.
+        </FvCallout>
       ) : null}
+
+      {!hasReadyPayload ? (
+        <FvCallout
+          className="fv-export-status-callout"
+          role="alert"
+          title="Export is still blocked"
+          tone="warning"
+        >
+          Finish review and script readiness before downloading the Markdown
+          handoff.
+        </FvCallout>
+      ) : null}
+
+      <div className="fv-export-workspace">
+        <section
+          aria-labelledby="export-deliverable-heading"
+          className="fv-card fv-export-main-card"
+        >
+          <div className="fv-export-card-header">
+            <div className="fv-export-title-stack">
+              <p className="fv-overline">Markdown handoff</p>
+              <h2 className="fv-card-title" id="export-deliverable-heading">
+                Finalize Markdown handoff
+              </h2>
+              <p className="fv-body-muted">
+                Review the script package, confirm the metadata that will be
+                included, and download the supported Markdown file for handoff.
+              </p>
+            </div>
+            <div className="fv-export-badge-row">
+              <FvBadge tone={hasReadyPayload ? "success" : "warning"}>
+                {hasReadyPayload ? "Ready to download" : "Blocked"}
+              </FvBadge>
+              <FvBadge tone="info">Phase 1 only</FvBadge>
+            </div>
+          </div>
+
+          <dl className="fv-export-key-grid">
+            <ExportKeyValue label="Project" value={projectMetadata.projectName} />
+            <ExportKeyValue label="Customer" value={projectMetadata.customerName} />
+            <ExportKeyValue
+              breakWords
+              label="Source workbook"
+              value={projectMetadata.sourceFilename}
+            />
+            <ExportKeyValue label="Filename" value={exportFilename} />
+          </dl>
+
+          <ExportOutputMetadata entries={outputMetadataEntries} />
+
+          <div className="fv-export-detail-grid">
+            <ExportRequirementCoverage overview={overview} />
+            <ExportSectionCoverage overview={overview} />
+          </div>
+        </section>
+
+        <aside className="fv-export-side-stack" aria-label="Export status">
+          <section className="fv-card fv-export-status-card">
+            <div className="fv-export-side-heading">
+              <p className="fv-overline">Session status</p>
+              <h2 className="fv-card-title">
+                {downloadedAt ? "Downloaded in this session" : readinessLabel}
+              </h2>
+            </div>
+            <div
+              className={`fv-export-download-status ${
+                downloadedAt ? "fv-export-download-status-success" : ""
+              }`}
+              role="status"
+            >
+              {downloadedAt
+                ? `Markdown downloaded at ${downloadedAt}. This is a local session status only.`
+                : hasReadyPayload
+                  ? "Not downloaded in this session."
+                  : "Export is blocked until the Phase 1 script is ready."}
+            </div>
+            <p className="fv-body-muted">
+              Markdown is the only enabled export format in this slice. PDF,
+              Excel, and sharing actions are intentionally not shown.
+            </p>
+          </section>
+
+          <section className="fv-card fv-export-status-card">
+            <div className="fv-export-side-heading">
+              <p className="fv-overline">Readiness</p>
+              <h2 className="fv-card-title">Handoff contents</h2>
+            </div>
+            <div className="fv-export-readiness-list">
+              <ExportReadinessItem
+                label="Approved rows"
+                ready={assembly.approvedRequirementCount > 0}
+                value={`${assembly.approvedRequirementCount} confirmed`}
+              />
+              <ExportReadinessItem
+                label="Warnings and assumptions"
+                ready
+                value={
+                  overview.hasWarnings || overview.hasAssumptions
+                    ? "Included when present"
+                    : "None recorded"
+                }
+              />
+              <ExportReadinessItem
+                label="Traceability"
+                ready={overview.hasTraceability}
+                value={
+                  overview.hasTraceability
+                    ? "Included"
+                    : "Still missing references"
+                }
+              />
+              <ExportReadinessItem
+                label="Phase 2"
+                ready
+                value="Optional continuation; not required for Phase 1"
+              />
+            </div>
+          </section>
+        </aside>
+      </div>
     </section>
   );
 }
@@ -760,37 +795,110 @@ function ScriptCoverageContent({
   );
 }
 
-function ExportCoverageContent({
+function ExportOutputMetadata({ entries }: { entries: OutputMetadataEntry[] }) {
+  return (
+    <section
+      aria-labelledby="export-output-metadata-heading"
+      className="fv-export-panel"
+    >
+      <div className="fv-export-panel-heading">
+        <p className="fv-overline">Output metadata</p>
+        <h3 className="fv-card-title" id="export-output-metadata-heading">
+          General preferences
+        </h3>
+      </div>
+
+      {entries.length > 0 ? (
+        <dl className="fv-export-metadata-list">
+          {entries.map((entry) => (
+            <div key={entry.label} className="fv-export-metadata-item">
+              <dt>{entry.label}</dt>
+              <dd>{entry.value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : (
+        <p className="fv-export-empty-note">No output metadata configured.</p>
+      )}
+    </section>
+  );
+}
+
+function ExportRequirementCoverage({
+  overview,
+}: {
+  overview: DemoScriptExportOverview;
+}) {
+  const visibleRequirements = overview.includedRequirementIds.slice(0, 12);
+  const remainingCount =
+    overview.includedRequirementIds.length - visibleRequirements.length;
+
+  return (
+    <section
+      aria-labelledby="export-requirements-heading"
+      className="fv-export-panel"
+    >
+      <div className="fv-export-panel-heading">
+        <p className="fv-overline">Included requirements</p>
+        <h3 className="fv-card-title" id="export-requirements-heading">
+          Approved row coverage
+        </h3>
+      </div>
+
+      {visibleRequirements.length > 0 ? (
+        <div className="fv-export-chip-list">
+          {visibleRequirements.map((id) => (
+            <FvBadge key={id} tone="info">
+              {id}
+            </FvBadge>
+          ))}
+          {remainingCount > 0 ? (
+            <FvBadge tone="neutral">+{remainingCount} more</FvBadge>
+          ) : null}
+        </div>
+      ) : (
+        <p className="fv-export-empty-note">No approved requirements included.</p>
+      )}
+    </section>
+  );
+}
+
+function ExportSectionCoverage({
   overview,
 }: {
   overview: DemoScriptExportOverview;
 }) {
   return (
-    <>
-      <div className="phase-sidebar-copy">
-        <p className="phase-overline">Coverage</p>
-        <h3 className="phase-rail-title">Included sections</h3>
+    <section
+      aria-labelledby="export-sections-heading"
+      className="fv-export-panel"
+    >
+      <div className="fv-export-panel-heading">
+        <p className="fv-overline">Included sections</p>
+        <h3 className="fv-card-title" id="export-sections-heading">
+          Script package
+        </h3>
       </div>
 
-      <div className="phase-coverage-list">
+      <div className="fv-export-section-list">
         {overview.sectionSummaries.map((section) => (
-          <div key={section.key} className="phase-coverage-item">
+          <div key={section.key} className="fv-export-section-item">
             <div>
-              <p className="phase-overlay-row-title">{section.title}</p>
-              <p className="phase-overlay-row-body">
+              <p>{section.title}</p>
+              <span>
                 {section.requirementCount} approved requirement
                 {section.requirementCount === 1 ? "" : "s"}
-              </p>
+              </span>
             </div>
-            <span>{section.stepCount} steps</span>
+            <strong>{section.stepCount} steps</strong>
           </div>
         ))}
       </div>
-    </>
+    </section>
   );
 }
 
-function DocumentChecklistItem({
+function ExportReadinessItem({
   label,
   ready,
   value,
@@ -800,15 +908,13 @@ function DocumentChecklistItem({
   value: string;
 }) {
   return (
-    <div className="phase-status-item">
-      <span
-        className={`phase-status-dot ${
-          ready ? "phase-status-complete" : "phase-status-waiting"
-        }`}
-      />
+    <div className="fv-export-readiness-item">
+      <FvBadge compact dot tone={ready ? "success" : "warning"}>
+        {ready ? "Ready" : "Needs check"}
+      </FvBadge>
       <div>
-        <p className="phase-status-label">{label}</p>
-        <p className="phase-status-meta">{value}</p>
+        <p>{label}</p>
+        <span>{value}</span>
       </div>
     </div>
   );
@@ -887,17 +993,67 @@ function formatExportDownloadTime(date: Date) {
   }).format(date);
 }
 
+function readGeneralOutputPreferencesFromStorage(): GeneralOutputPreferences | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const storedValue = window.localStorage.getItem(
+      GENERAL_OUTPUT_PREFS_STORAGE_KEY,
+    );
+
+    if (!storedValue) {
+      return null;
+    }
+
+    return normalizeStoredGeneralOutputPreferences(JSON.parse(storedValue));
+  } catch {
+    return null;
+  }
+}
+
+function normalizeStoredGeneralOutputPreferences(
+  value: unknown,
+): GeneralOutputPreferences | null {
+  const normalized = normalizeGeneralOutputPreferences(
+    addGeneralPreferenceAliases(value),
+  );
+
+  return formatGeneralOutputMetadata(normalized).length > 0
+    ? normalized
+    : null;
+}
+
+function addGeneralPreferenceAliases(value: unknown): unknown {
+  if (!isRecord(value)) {
+    return value;
+  }
+
+  return {
+    ...value,
+    outputLanguage: value.outputLanguage ?? value.language,
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 export function downloadDemoScriptMarkdown({
   assembly,
+  outputPreferences,
   projectMetadata,
 }: {
   assembly: DemoScriptAssembly;
+  outputPreferences?: GeneralOutputPreferences | null;
   projectMetadata: ReviewProjectMetadata;
 }): void {
   const exportTimestamp = new Date().toISOString();
   const markdown = serializeDemoScriptToMarkdown({
     assembly,
     exportTimestamp,
+    outputPreferences: outputPreferences ?? undefined,
     projectMetadata,
   });
   const filename = createDemoScriptExportFilename(
@@ -1135,35 +1291,9 @@ function ExportKeyValue({
   value: string;
 }) {
   return (
-    <div>
-      <p className="theme-doc-subtle text-xs font-bold uppercase tracking-[0.18em]">
-        {label}
-      </p>
-      <p
-        className={`mt-1 text-sm font-semibold text-[color:var(--document-contrast-ink)] ${
-          breakWords ? "break-all" : ""
-        }`}
-      >
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function ExportPresencePill({
-  label,
-  present,
-}: {
-  label: string;
-  present: boolean;
-}) {
-  return (
-    <div
-      className={`rounded-full border px-3 py-2 text-xs font-bold ${
-        present ? "theme-doc-chip-brand" : "theme-doc-chip-muted"
-      }`}
-    >
-      {label}: {present ? "Included" : "None"}
+    <div className="fv-export-key-value">
+      <dt>{label}</dt>
+      <dd className={breakWords ? "fv-export-break" : undefined}>{value}</dd>
     </div>
   );
 }

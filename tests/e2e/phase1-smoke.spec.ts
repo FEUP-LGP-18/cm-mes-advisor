@@ -10,6 +10,13 @@ import {
   createPhase1UiFixtureRegistry,
 } from "../../src/lib/phase1/ui-fixtures";
 
+const GENERAL_OUTPUT_PREFS_STORAGE_KEY = "mes-advisor-general-prefs";
+const generalOutputPreferencesFixture = {
+  consultantName: "Example Consultant",
+  mesVersion: "CM V10",
+  outputLanguage: "English",
+};
+
 async function attachFullPageScreenshot(
   page: Page,
   testInfo: TestInfo,
@@ -35,14 +42,27 @@ async function seedProjectRegistry(
   theme: ThemeMode,
 ) {
   await page.addInitScript(
-    ({ storageKey, themeStorageKey, theme, value }) => {
+    ({
+      generalPrefsStorageKey,
+      generalPrefsValue,
+      storageKey,
+      themeStorageKey,
+      theme,
+      value,
+    }) => {
       window.localStorage.clear();
       window.localStorage.setItem(storageKey, JSON.stringify(value));
+      window.localStorage.setItem(
+        generalPrefsStorageKey,
+        JSON.stringify(generalPrefsValue),
+      );
       window.localStorage.setItem(themeStorageKey, theme);
       document.documentElement.dataset.theme = theme;
       document.documentElement.style.colorScheme = theme;
     },
     {
+      generalPrefsStorageKey: GENERAL_OUTPUT_PREFS_STORAGE_KEY,
+      generalPrefsValue: generalOutputPreferencesFixture,
       storageKey: PHASE1_PROJECT_REGISTRY_STORAGE_KEY,
       themeStorageKey,
       theme,
@@ -331,19 +351,30 @@ for (const theme of themes) {
     await expect(page).toHaveURL(new RegExp(`/projects/${project.projectId}/export$`));
     await expect(
       page.getByRole("heading", {
+        exact: true,
         name: "Export",
       }),
     ).toBeVisible();
-    await expect(page.getByText("Finalize the Phase 1 deliverable")).toBeVisible();
+    await expect(page.getByText("Finalize Markdown handoff")).toBeVisible();
+    await expect(page.getByText("Output metadata")).toBeVisible();
+    await expect(page.getByText("Example Consultant")).toBeVisible();
+    await expect(
+      page.getByText(
+        /English \(saved for future outputs; existing generated content is not translated\)/,
+      ),
+    ).toBeVisible();
     await expect(
       page.getByRole("button", { name: /download markdown/i }),
     ).toBeEnabled();
+    await expect(page.getByRole("button", { name: /export pdf/i })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /export excel/i })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /share/i })).toHaveCount(0);
     await assertNoHorizontalOverflow(page);
 
     if (testInfo.project.name.includes("mobile")) {
       await expectLocatorAbove(
         page.getByText(/^Download Markdown$/).first(),
-        page.locator("summary").filter({ hasText: /^Included sections$/ }).first(),
+        page.getByText(/^Included requirements$/).first(),
       );
     }
 

@@ -506,8 +506,12 @@ describe("phase 1 redesigned surfaces", () => {
     expect(draft.title).toContain(phase1UiFixtureProjectMetadata.projectName);
     expect(html).toContain("Ready to download");
     expect(html).toContain("Download Markdown");
-    expect(html).toContain("Not downloaded yet");
-    expect(html).toContain("Format:");
+    expect(html).toContain("Not downloaded in this session");
+    expect(html).toContain("No output metadata configured");
+    expect(html).toContain("Markdown is the only enabled export format");
+    expect(html).not.toContain("Export PDF");
+    expect(html).not.toContain("Export Excel");
+    expect(html).not.toContain("Share link");
     expect(html).toContain("Optional Phase 2 continuation");
     expect(html).toContain("Start Phase 2");
     expect(html).toContain("Phase 1 is complete when this handoff is exported.");
