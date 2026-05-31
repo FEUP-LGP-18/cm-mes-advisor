@@ -323,11 +323,24 @@ export function GeneralSettingsView({
 
 // ── TemplatesTab ───────────────────────────────────────────────
 
-function TemplatesTab({ projectId }: { projectId: string }) {
+function TemplatesTab({
+  canEditProjectState,
+  currentIndustryTemplateId,
+  onApplyProjectIndustryTemplate,
+  projectId,
+}: {
+  canEditProjectState: boolean;
+  currentIndustryTemplateId: IndustryTemplateId | null;
+  onApplyProjectIndustryTemplate: (
+    industryTemplateId: IndustryTemplateId | null,
+  ) => void;
+  projectId: string;
+}) {
   const [selectedId, setSelectedId] = useState<IndustryTemplateId | null>(() =>
-    typeof window === "undefined"
+    currentIndustryTemplateId ??
+    (typeof window === "undefined"
       ? null
-      : loadSettingsBehaviorSnapshot(window.localStorage).industryTemplateId,
+      : loadSettingsBehaviorSnapshot(window.localStorage).industryTemplateId),
   );
   const [saved, setSaved] = useState(false);
   const selected =
@@ -340,6 +353,19 @@ function TemplatesTab({ projectId }: { projectId: string }) {
       ...snapshot,
       industryTemplateId: selectedId,
     });
+    onApplyProjectIndustryTemplate(selectedId);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  }
+
+  function handleClearTemplate() {
+    const snapshot = loadSettingsBehaviorSnapshot(window.localStorage);
+    saveSettingsBehaviorSnapshot(window.localStorage, {
+      ...snapshot,
+      industryTemplateId: null,
+    });
+    onApplyProjectIndustryTemplate(null);
+    setSelectedId(null);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   }
@@ -427,9 +453,10 @@ function TemplatesTab({ projectId }: { projectId: string }) {
                 type="button"
                 onClick={handleApplyTemplate}
                 className="fv-btn-primary"
+                disabled={!canEditProjectState}
                 style={{ flex: 1, justifyContent: "center" }}
               >
-                Use for next project
+                Apply to project
               </button>
               <div style={{ display: "flex", gap: "0.5rem" }}>
                 <Link
@@ -439,13 +466,23 @@ function TemplatesTab({ projectId }: { projectId: string }) {
                 >
                   Back to source
                 </Link>
-                <button type="button" onClick={() => setSelectedId(null)} className="fv-btn-secondary">
+                <button
+                  type="button"
+                  onClick={handleClearTemplate}
+                  className="fv-btn-secondary"
+                  disabled={!canEditProjectState}
+                >
                   Clear
                 </button>
               </div>
               {saved ? (
                 <p role="status" className="fv-help-text" style={{ margin: 0 }}>
-                  Template saved for the next project you create.
+                  Template applied to this project and saved for the next project you create.
+                </p>
+              ) : null}
+              {!canEditProjectState ? (
+                <p role="status" className="fv-help-text" style={{ margin: 0 }}>
+                  Viewers can inspect templates, but cannot change this project.
                 </p>
               ) : null}
             </div>
@@ -925,9 +962,12 @@ export default function GeneralSettings({
   serverProject: Project | null;
 }) {
   const {
+    canEditPhase1,
+    currentSourceMetadata,
     project: localProject,
     removeLocalProjectFromQueue,
     resetLocalProjectProgress,
+    updateProjectIndustryTemplate,
     updateLocalProjectMetadata,
   } = usePhase1Project();
   const router = useRouter();
@@ -1156,7 +1196,15 @@ export default function GeneralSettings({
             </nav>
 
             {/* Tab content */}
-            {activeTab === "templates" && <TemplatesTab projectId={projectId} />}
+            {activeTab === "templates" && (
+              <TemplatesTab
+                canEditProjectState={canEditPhase1}
+                currentIndustryTemplateId={currentSourceMetadata.industryTemplateId}
+                key={currentSourceMetadata.industryTemplateId ?? "no-template"}
+                onApplyProjectIndustryTemplate={updateProjectIndustryTemplate}
+                projectId={projectId}
+              />
+            )}
 
             {activeTab === "general" && (
               <div style={{ display: "grid", gap: "1.25rem" }}>

@@ -98,7 +98,7 @@ import type {
   ProjectCapability,
   ProjectRole,
 } from "@/lib/projects/types";
-import type { SettingsBehaviorSnapshot } from "@/lib/settings";
+import type { IndustryTemplateId, SettingsBehaviorSnapshot } from "@/lib/settings";
 
 type MockGenerationStageStatus = "waiting" | "running" | "complete";
 
@@ -215,6 +215,9 @@ interface Phase1ProjectContextValue {
   updateLocalProjectMetadata: (
     name: string,
     customerName: string | null,
+  ) => void;
+  updateProjectIndustryTemplate: (
+    industryTemplateId: IndustryTemplateId | null,
   ) => void;
   resetLocalProjectProgress: () => void;
   removeLocalProjectFromQueue: () => void;
@@ -637,6 +640,34 @@ export function Phase1ProjectProvider({
       project,
       workspaceState,
     ],
+  );
+
+  const updateProjectIndustryTemplate = useCallback(
+    (industryTemplateId: IndustryTemplateId | null) => {
+      if (!project) {
+        return;
+      }
+
+      if (hasServerProject && !initialCanEditPhase1) {
+        setPersistenceFeedback({
+          tone: "error",
+          message: "Viewers can inspect this project, but cannot save Phase 1 changes.",
+        });
+        return;
+      }
+
+      persistProject((currentProject) =>
+        updatePhase1ProjectRecord(
+          currentProject,
+          applyProjectIndustryTemplate(
+            currentProject.workspaceState,
+            industryTemplateId,
+          ),
+          currentProject.currentStep,
+        ),
+      );
+    },
+    [hasServerProject, initialCanEditPhase1, persistProject, project],
   );
 
   const updateMasterDataState = useCallback(
@@ -1551,6 +1582,7 @@ export function Phase1ProjectProvider({
       workspaceState,
       updateDemoScriptDraft: updateDemoScriptDraftAction,
       updateLocalProjectMetadata,
+      updateProjectIndustryTemplate,
       resetLocalProjectProgress,
       removeLocalProjectFromQueue,
       updateMasterDataObjectField,
@@ -1599,6 +1631,7 @@ export function Phase1ProjectProvider({
       summary,
       updateDemoScriptDraftAction,
       updateLocalProjectMetadata,
+      updateProjectIndustryTemplate,
       updateMasterDataObjectField,
       updateMasterDataObjectReviewStatus,
       updateRequirementReview,

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { applyProjectIdentity } from "@/lib/phase1/project-registry";
+import { PHASE1_PERSISTED_STATE_KEY } from "@/lib/phase1/persisted-state";
 import { requireProjectCapability } from "@/lib/projects/permissions.server";
 import {
   deleteUploadedProjectFileMetadata,
@@ -16,7 +17,9 @@ import { assertRequirementsWorkbookFilename } from "@/lib/requirements/workbook-
 import { createRequirementsWorkspaceState } from "@/lib/requirements/workspace-state";
 import {
   normalizeSettingsBehaviorSnapshot,
+  normalizeIndustryTemplateId,
   SETTINGS_BEHAVIOR_STATE_KEY,
+  type IndustryTemplateId,
 } from "@/lib/settings";
 import { createClient } from "@/lib/supabase/server";
 
@@ -113,6 +116,17 @@ export async function POST(request: Request, context: UploadRouteContext) {
   const settings = normalizeSettingsBehaviorSnapshot(
     settingsStateResult.data?.state,
   );
+  const phase1StateResult = await getProjectPhaseState(
+    projectId,
+    PHASE1_PERSISTED_STATE_KEY,
+    accessResult.data.id,
+  );
+  if (!phase1StateResult.ok) {
+    return projectFailureResponse(phase1StateResult);
+  }
+  const industryTemplateId =
+    readIndustryTemplateIdFromPhase1State(phase1StateResult.data?.state) ??
+    settings.industryTemplateId;
 
   const checksum = createSha256Checksum(workbookBuffer);
   const uploadedAt = new Date().toISOString();
@@ -139,7 +153,7 @@ export async function POST(request: Request, context: UploadRouteContext) {
 
   const sourceMetadata = createUploadSourceMetadata(file.name, workbookBuffer, {
     customerName: projectResult.data.customerName,
-    industryTemplateId: settings.industryTemplateId,
+    industryTemplateId,
     projectName: projectResult.data.name,
     sourceId: storagePath,
     uploadedAt,
@@ -218,6 +232,25 @@ export async function POST(request: Request, context: UploadRouteContext) {
     projectFile: fileResult.data,
     workspaceState,
   });
+}
+
+function readIndustryTemplateIdFromPhase1State(
+  value: unknown,
+): IndustryTemplateId | null {
+  if (!isRecord(value) || !isRecord(value.workspaceState)) {
+    return null;
+  }
+
+  const workspaceState = value.workspaceState;
+  if (!isRecord(workspaceState.source)) {
+    return null;
+  }
+
+  return normalizeIndustryTemplateId(workspaceState.source.industryTemplateId);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function validateWorkbookFile(file: File) {
