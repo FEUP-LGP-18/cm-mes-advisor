@@ -1,5 +1,9 @@
 import type { ReviewProjectMetadata } from "./review";
 import { assertRequirementsWorkbookFilename } from "./workbook-file";
+import {
+  normalizeIndustryTemplateId,
+  type IndustryTemplateId,
+} from "@/lib/settings";
 
 export type RequirementsSourceKind = "fixture" | "upload";
 
@@ -10,6 +14,7 @@ export interface RequirementsSourceMetadata {
   sourceFilename: string;
   projectName: string;
   customerName: string;
+  industryTemplateId: IndustryTemplateId | null;
   uploadedAt: string | null;
 }
 
@@ -23,6 +28,7 @@ export function createFixtureSourceMetadata(
     sourceFilename: project.sourceFilename,
     projectName: project.projectName,
     customerName: project.customerName,
+    industryTemplateId: null,
     uploadedAt: null,
   };
 }
@@ -32,6 +38,7 @@ export function createUploadSourceMetadata(
   workbookBytes: ArrayBuffer | Uint8Array,
   options: {
     customerName?: string | null;
+    industryTemplateId?: string | null;
     projectName?: string | null;
     sourceId?: string;
     uploadedAt?: string;
@@ -52,6 +59,7 @@ export function createUploadSourceMetadata(
     sourceFilename: fileName,
     projectName,
     customerName,
+    industryTemplateId: normalizeIndustryTemplateId(options.industryTemplateId),
     uploadedAt: options.uploadedAt ?? new Date().toISOString(),
   };
 }

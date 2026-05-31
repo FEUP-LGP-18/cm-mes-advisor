@@ -38,3 +38,10 @@ export {
   type UsageStatsProjectLike,
   type UsageStatsRequirementLike,
 } from "./usage-stats";
+export {
+  loadSettingsBehaviorSnapshot,
+  saveSettingsBehaviorSnapshot,
+  SETTINGS_BEHAVIOR_STATE_KEY,
+  SETTINGS_BEHAVIOR_STORAGE_KEY,
+  updateSettingsBehaviorSnapshot,
+} from "./persistence";

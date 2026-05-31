@@ -14,6 +14,10 @@ import { parseRequirementsWorkbook } from "@/lib/requirements/parser";
 import { createUploadSourceMetadata } from "@/lib/requirements/source";
 import { assertRequirementsWorkbookFilename } from "@/lib/requirements/workbook-file";
 import { createRequirementsWorkspaceState } from "@/lib/requirements/workspace-state";
+import {
+  normalizeSettingsBehaviorSnapshot,
+  SETTINGS_BEHAVIOR_STATE_KEY,
+} from "@/lib/settings";
 import { createClient } from "@/lib/supabase/server";
 
 const MAX_WORKBOOK_SIZE_BYTES = 10 * 1024 * 1024;
@@ -98,6 +102,18 @@ export async function POST(request: Request, context: UploadRouteContext) {
     return projectFailureResponse(projectResult);
   }
 
+  const settingsStateResult = await getProjectPhaseState(
+    projectId,
+    SETTINGS_BEHAVIOR_STATE_KEY,
+    accessResult.data.id,
+  );
+  if (!settingsStateResult.ok) {
+    return projectFailureResponse(settingsStateResult);
+  }
+  const settings = normalizeSettingsBehaviorSnapshot(
+    settingsStateResult.data?.state,
+  );
+
   const checksum = createSha256Checksum(workbookBuffer);
   const uploadedAt = new Date().toISOString();
   const storageObjectPath = createWorkbookStorageObjectPath(
@@ -123,6 +139,7 @@ export async function POST(request: Request, context: UploadRouteContext) {
 
   const sourceMetadata = createUploadSourceMetadata(file.name, workbookBuffer, {
     customerName: projectResult.data.customerName,
+    industryTemplateId: settings.industryTemplateId,
     projectName: projectResult.data.name,
     sourceId: storagePath,
     uploadedAt,

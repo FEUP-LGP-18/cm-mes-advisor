@@ -33,6 +33,7 @@ import type {
 } from "@/lib/master-data/api";
 import type { ParsedRequirement } from "@/lib/requirements/types";
 import {
+  applyProjectIndustryTemplate,
   applyProjectIdentity,
   createFixtureWorkspaceStateForProject,
   createEmptyProjectFromServerIdentity,
@@ -97,6 +98,7 @@ import type {
   ProjectCapability,
   ProjectRole,
 } from "@/lib/projects/types";
+import type { SettingsBehaviorSnapshot } from "@/lib/settings";
 
 type MockGenerationStageStatus = "waiting" | "running" | "complete";
 
@@ -239,6 +241,7 @@ export function Phase1ProjectProvider({
   initialServerPhase1Version = 0,
   initialServerProject,
   initialServerWorkspaceState,
+  initialSettingsBehaviorSnapshot,
   routeProjectId,
 }: PropsWithChildren<{
   fallbackWorkspaceState: RequirementsWorkspaceState;
@@ -251,6 +254,7 @@ export function Phase1ProjectProvider({
   initialServerPhase1Version?: number;
   initialServerProject?: Project | null;
   initialServerWorkspaceState?: RequirementsWorkspaceState | null;
+  initialSettingsBehaviorSnapshot?: SettingsBehaviorSnapshot;
   routeProjectId: string;
 }>) {
   const hasServerProject = Boolean(initialServerProject);
@@ -262,6 +266,7 @@ export function Phase1ProjectProvider({
           initialServerPhase1State,
           initialServerProject,
           initialServerWorkspaceState,
+          initialSettingsBehaviorSnapshot,
           routeProjectId,
         })
       : null,
@@ -290,6 +295,7 @@ export function Phase1ProjectProvider({
           initialServerPhase1State,
           initialServerProject,
           initialServerWorkspaceState,
+          initialSettingsBehaviorSnapshot,
           routeProjectId,
         }),
       );
@@ -316,6 +322,7 @@ export function Phase1ProjectProvider({
     initialServerPhase1State,
     initialServerProject,
     initialServerWorkspaceState,
+    initialSettingsBehaviorSnapshot,
     routeProjectId,
   ]);
 
@@ -908,6 +915,9 @@ export function Phase1ProjectProvider({
         const sourceMetadata = createUploadSourceMetadata(
           file.name,
           workbookBuffer,
+          {
+            industryTemplateId: project.workspaceState.source.industryTemplateId,
+          },
         );
         const uploadedWorkspaceState = createRequirementsWorkspaceState(
           sourceMetadata,
@@ -1642,30 +1652,52 @@ function createServerProjectRegistry({
   initialServerPhase1State,
   initialServerProject,
   initialServerWorkspaceState,
+  initialSettingsBehaviorSnapshot,
   routeProjectId,
 }: {
   initialServerPhase1State: PersistedPhase1State | null;
   initialServerProject: Project;
   initialServerWorkspaceState?: RequirementsWorkspaceState | null;
+  initialSettingsBehaviorSnapshot?: SettingsBehaviorSnapshot;
   routeProjectId: string;
 }) {
   let nextRegistry = createPhase1ProjectRegistry([], routeProjectId);
+  const industryTemplateId =
+    initialSettingsBehaviorSnapshot?.industryTemplateId ?? null;
 
   if (initialServerPhase1State) {
+    const workspaceState = applyProjectIndustryTemplate(
+      initialServerPhase1State.workspaceState,
+      initialServerPhase1State.workspaceState.source.industryTemplateId ??
+        industryTemplateId,
+    );
+
     return upsertPhase1Project(
       nextRegistry,
-      createProjectRecordFromPersistedPhase1State(initialServerPhase1State, {
-        createdAt: initialServerProject.createdAt,
-        projectId: initialServerProject.id,
-        updatedAt: initialServerProject.updatedAt,
-      }),
+      createProjectRecordFromPersistedPhase1State(
+        {
+          ...initialServerPhase1State,
+          workspaceState,
+        },
+        {
+          createdAt: initialServerProject.createdAt,
+          projectId: initialServerProject.id,
+          updatedAt: initialServerProject.updatedAt,
+        },
+      ),
     );
   }
 
   if (initialServerWorkspaceState) {
+    const workspaceState = applyProjectIndustryTemplate(
+      initialServerWorkspaceState,
+      initialServerWorkspaceState.source.industryTemplateId ??
+        industryTemplateId,
+    );
+
     return upsertPhase1Project(
       nextRegistry,
-      createPhase1ProjectRecordFromWorkspaceState(initialServerWorkspaceState, {
+      createPhase1ProjectRecordFromWorkspaceState(workspaceState, {
         createdAt: initialServerProject.createdAt,
         projectId: initialServerProject.id,
         updatedAt: initialServerProject.updatedAt,
@@ -1682,6 +1714,8 @@ function createServerProjectRegistry({
         projectId: initialServerProject.id,
         projectName: initialServerProject.name,
         updatedAt: initialServerProject.updatedAt,
+      }, {
+        industryTemplateId,
       }),
     );
   }

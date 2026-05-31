@@ -33,6 +33,7 @@ describe("requirements source metadata", () => {
       sourceFilename: "Customer X Requirements.xlsx",
       projectName: "Customer X Requirements",
       customerName: "Customer X Requirements",
+      industryTemplateId: null,
     });
     expect(metadata.sourceLabel).toContain("Customer X Requirements.xlsx");
     expect(metadata.uploadedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
@@ -44,6 +45,7 @@ describe("requirements source metadata", () => {
       new Uint8Array([9, 8, 7, 6]),
       {
         customerName: "Customer X",
+        industryTemplateId: "medical-devices",
         projectName: "Customer X MES demo",
         sourceId:
           "db-backed://projects/22222222-2222-4222-8222-222222222222/source/source.xlsx",
@@ -53,6 +55,7 @@ describe("requirements source metadata", () => {
 
     expect(metadata).toMatchObject({
       customerName: "Customer X",
+      industryTemplateId: "medical",
       projectName: "Customer X MES demo",
       sourceId:
         "db-backed://projects/22222222-2222-4222-8222-222222222222/source/source.xlsx",

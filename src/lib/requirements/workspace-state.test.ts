@@ -74,6 +74,9 @@ describe("requirements workspace state", () => {
     const uploadSource = createUploadSourceMetadata(
       "Customer X Upload.xlsx",
       new Uint8Array([1, 2, 3, 4]),
+      {
+        industryTemplateId: "electronics",
+      },
     );
     const fixtureState = createFixtureWorkspaceState(fixtureSource, [
       parsedRequirement,
@@ -124,6 +127,27 @@ describe("requirements workspace state", () => {
         getRequirementsWorkspaceStorageKey(uploadSource.sourceId),
       ),
     ).toBeTruthy();
+  });
+
+  it("normalizes a saved industry template on source metadata", () => {
+    const fixtureState = createFixtureWorkspaceState(
+      createFixtureSourceMetadata(projectMetadata),
+      [parsedRequirement],
+    );
+    const parsedState = parseRequirementsWorkspaceState(
+      {
+        version: 1,
+        source: {
+          ...fixtureState.source,
+          industryTemplateId: "food-beverage",
+        },
+        parsedRequirements: [parsedRequirement],
+        reviewState: fixtureState.reviewState,
+      },
+      fixtureState,
+    );
+
+    expect(parsedState.source.industryTemplateId).toBe("food");
   });
 
   it("migrates the legacy fixture review state into the new workspace storage", () => {

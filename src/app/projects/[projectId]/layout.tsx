@@ -22,6 +22,12 @@ import {
   type PersistedPhase1State,
 } from "@/lib/phase1/persisted-state";
 import {
+  defaultSettingsBehaviorSnapshot,
+  normalizeSettingsBehaviorSnapshot,
+  SETTINGS_BEHAVIOR_STATE_KEY,
+  type SettingsBehaviorSnapshot,
+} from "@/lib/settings";
+import {
   parseRequirementsWorkspaceState,
   type RequirementsWorkspaceState,
 } from "@/lib/requirements/workspace-state";
@@ -56,6 +62,8 @@ export default async function ProjectLayout({
   let initialServerWorkspaceState: RequirementsWorkspaceState | null = null;
   let initialServerPhase1State: PersistedPhase1State | null = null;
   let initialServerPhase1Version = 0;
+  let initialSettingsBehaviorSnapshot: SettingsBehaviorSnapshot =
+    defaultSettingsBehaviorSnapshot;
   let initialCurrentUser: CurrentUser | null = null;
   let initialCurrentUserCapabilities: ProjectCapability[] = [];
   let initialCurrentUserRole: ProjectRole | null = null;
@@ -93,6 +101,18 @@ export default async function ProjectLayout({
       notFound();
     }
     initialServerProject = projectResult.data;
+
+    const settingsStateResult = await getProjectPhaseState(
+      projectId,
+      SETTINGS_BEHAVIOR_STATE_KEY,
+      capabilityResult.data.id,
+    );
+    if (!settingsStateResult.ok) {
+      throw new Error(settingsStateResult.message);
+    }
+    initialSettingsBehaviorSnapshot = normalizeSettingsBehaviorSnapshot(
+      settingsStateResult.data?.state,
+    );
 
     const phase1StateResult = await getProjectPhaseState(
       projectId,
@@ -152,6 +172,7 @@ export default async function ProjectLayout({
       initialServerPhase1Version={initialServerPhase1Version}
       initialServerProject={initialServerProject}
       initialServerWorkspaceState={initialServerWorkspaceState}
+      initialSettingsBehaviorSnapshot={initialSettingsBehaviorSnapshot}
       routeProjectId={projectId}
     >
       {children}
