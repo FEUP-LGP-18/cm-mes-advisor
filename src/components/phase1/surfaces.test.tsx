@@ -278,7 +278,10 @@ describe("phase 1 redesigned surfaces", () => {
   });
 
   it("renders source as a dedicated workbook confirmation surface", () => {
-    const source = createPhase1UiFixtureSource();
+    const source = {
+      ...createPhase1UiFixtureSource(),
+      industryTemplateId: "electronics" as const,
+    };
     const requirements = createPhase1UiFixtureReviewRequirements({});
     const html = render(
       <SourceStudio
@@ -299,6 +302,7 @@ describe("phase 1 redesigned surfaces", () => {
     expect(html).toContain("Continue to Generate");
     expect(html).toContain("Before you continue");
     expect(html).toContain("Parsed Preview");
+    expect(html).toContain("Electronics / Semiconductors");
   });
 
   it("renders generate with the row explorer and recommended draft rail", () => {

@@ -7,6 +7,12 @@ import Phase1Topbar from "./phase-topbar";
 import { usePhase1Project } from "./project-provider";
 import CopyProjectLinkButton from "./copy-project-link-button";
 import type { Project, ProjectActivityEvent } from "@/lib/projects/types";
+import {
+  industryTemplateDefinitions,
+  loadSettingsBehaviorSnapshot,
+  saveSettingsBehaviorSnapshot,
+  type IndustryTemplateId,
+} from "@/lib/settings";
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -18,59 +24,6 @@ interface ActionFeedback {
 type SettingsTab = "templates" | "general" | "ai" | "about";
 
 // ── Industry templates data ────────────────────────────────────
-
-const TEMPLATES = [
-  {
-    id: "electronics",
-    name: "Electronics / Semiconductors",
-    description: "PCB assembly, SMT lines, wafer fabrication, and test",
-    categories: 12,
-    tags: ["PCB", "SMT", "Pick & Place", "AOI", "Reflow", "ICT"],
-    detail: "Covers surface mount technology workflows, automated optical inspection, in-circuit testing, and serialised component traceability for IPC-compliant lines.",
-  },
-  {
-    id: "automotive",
-    name: "Automotive",
-    description: "Body shop, paint shop, and final assembly lines",
-    categories: 14,
-    tags: ["BIW", "Paint", "Final Assembly", "FMEA", "Traceability"],
-    detail: "Supports IATF 16949 quality processes, takt-based sequencing, VIN traceability, and FMEA-driven defect tracking across body-in-white through delivery.",
-  },
-  {
-    id: "medical",
-    name: "Medical Devices",
-    description: "Class II/III devices, cleanroom processes, UDI compliance",
-    categories: 11,
-    tags: ["FDA 21 CFR", "ISO 13485", "UDI", "Cleanroom", "Sterile"],
-    detail: "Designed for regulated environments — covers device history records (DHR), UDI assignment, non-conformance tracking, and CAPA workflows under ISO 13485.",
-  },
-  {
-    id: "food",
-    name: "Food & Beverage",
-    description: "Batch processing, allergen control, quality traceability",
-    categories: 9,
-    tags: ["HACCP", "GMP", "Batch", "Allergens", "CIP/SIP"],
-    detail: "Addresses FSMA and HACCP requirements, lot/batch genealogy, allergen segregation, and clean-in-place scheduling for food-safe production environments.",
-  },
-  {
-    id: "aerospace",
-    name: "Aerospace & Defence",
-    description: "AS9100, ITAR compliance, serialised parts",
-    categories: 13,
-    tags: ["AS9100", "ITAR", "FAI", "NCR", "Serialization"],
-    detail: "Covers first article inspections, non-conformance reports, supplier qualification, configuration management, and full part serialisation under AS9100 Rev D.",
-  },
-  {
-    id: "generic",
-    name: "Generic / Custom",
-    description: "Flexible baseline for any manufacturing context",
-    categories: 8,
-    tags: ["Custom", "General", "Baseline", "Flexible"],
-    detail: "A minimal starting point with core MES modules — production orders, work orders, quality checks, and basic traceability — that can be extended for any vertical.",
-  },
-] as const;
-
-type TemplateId = (typeof TEMPLATES)[number]["id"];
 
 // ── GeneralSettingsView ────────────────────────────────────────
 
@@ -371,8 +324,25 @@ export function GeneralSettingsView({
 // ── TemplatesTab ───────────────────────────────────────────────
 
 function TemplatesTab({ projectId }: { projectId: string }) {
-  const [selectedId, setSelectedId] = useState<TemplateId | null>(null);
-  const selected = TEMPLATES.find((t) => t.id === selectedId) ?? null;
+  const [selectedId, setSelectedId] = useState<IndustryTemplateId | null>(() =>
+    typeof window === "undefined"
+      ? null
+      : loadSettingsBehaviorSnapshot(window.localStorage).industryTemplateId,
+  );
+  const [saved, setSaved] = useState(false);
+  const selected =
+    industryTemplateDefinitions.find((template) => template.id === selectedId) ??
+    null;
+
+  function handleApplyTemplate() {
+    const snapshot = loadSettingsBehaviorSnapshot(window.localStorage);
+    saveSettingsBehaviorSnapshot(window.localStorage, {
+      ...snapshot,
+      industryTemplateId: selectedId,
+    });
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  }
 
   return (
     <div style={{ display: "grid", gap: "1.5rem" }}>
@@ -388,13 +358,16 @@ function TemplatesTab({ projectId }: { projectId: string }) {
       <div style={{ display: "grid", gridTemplateColumns: selected ? "1fr 300px" : "1fr", gap: "1rem", alignItems: "start" }}>
         {/* Template grid */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "0.75rem" }}>
-          {TEMPLATES.map((tmpl) => {
-            const isActive = selectedId === tmpl.id;
+          {industryTemplateDefinitions.map((template) => {
+            const isActive = selectedId === template.id;
             return (
               <button
-                key={tmpl.id}
+                key={template.id}
                 type="button"
-                onClick={() => setSelectedId(isActive ? null : tmpl.id)}
+                onClick={() => {
+                  setSelectedId(isActive ? null : template.id);
+                  setSaved(false);
+                }}
                 style={{
                   display: "grid",
                   gap: "0.5rem",
@@ -410,7 +383,7 @@ function TemplatesTab({ projectId }: { projectId: string }) {
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
                   <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--foreground)" }}>
-                    {tmpl.name}
+                    {template.label}
                   </span>
                   {isActive && (
                     <svg viewBox="0 0 16 16" fill="none" style={{ width: 14, height: 14, flexShrink: 0, color: "var(--brand-primary)" }}>
@@ -420,11 +393,11 @@ function TemplatesTab({ projectId }: { projectId: string }) {
                   )}
                 </div>
                 <p style={{ fontSize: "0.75rem", color: "var(--muted-fg)", margin: 0, lineHeight: 1.4 }}>
-                  {tmpl.description}
+                  {template.description}
                 </p>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem", marginTop: "0.25rem" }}>
                   <span style={{ fontSize: "0.65rem", fontWeight: 700, padding: "0.1rem 0.4rem", background: "var(--surface-muted)", borderRadius: "3px", color: "var(--muted-fg)" }}>
-                    {tmpl.categories} categories
+                    {template.defaults.requirementFocus.length} focus areas
                   </span>
                 </div>
               </button>
@@ -435,12 +408,12 @@ function TemplatesTab({ projectId }: { projectId: string }) {
         {/* Template details */}
         {selected && (
           <div className="fv-card" style={{ position: "sticky", top: "1rem" }}>
-            <div className="fv-card-title" style={{ marginBottom: "0.5rem" }}>{selected.name}</div>
+            <div className="fv-card-title" style={{ marginBottom: "0.5rem" }}>{selected.label}</div>
             <p style={{ fontSize: "0.8rem", color: "var(--muted-fg)", margin: "0 0 1rem", lineHeight: 1.5 }}>
-              {selected.detail}
+              {selected.description}
             </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem", marginBottom: "1.25rem" }}>
-              {selected.tags.map((tag) => (
+              {[...selected.defaults.processGuidance, ...selected.defaults.requirementFocus].map((tag) => (
                 <span
                   key={tag}
                   style={{ fontSize: "0.7rem", fontWeight: 600, padding: "0.2rem 0.5rem", background: "color-mix(in srgb, var(--brand-primary) 10%, transparent)", color: "var(--brand-primary)", borderRadius: "4px" }}
@@ -449,17 +422,32 @@ function TemplatesTab({ projectId }: { projectId: string }) {
                 </span>
               ))}
             </div>
-            <div style={{ display: "flex", gap: "0.5rem" }}>
-              <Link
-                href={`/projects/${projectId}/source`}
+            <div style={{ display: "grid", gap: "0.75rem" }}>
+              <button
+                type="button"
+                onClick={handleApplyTemplate}
                 className="fv-btn-primary"
                 style={{ flex: 1, justifyContent: "center" }}
               >
-                Apply template
-              </Link>
-              <button type="button" onClick={() => setSelectedId(null)} className="fv-btn-secondary">
-                Clear
+                Use for next project
               </button>
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                <Link
+                  href={`/projects/${projectId}/source`}
+                  className="fv-btn-secondary"
+                  style={{ flex: 1, justifyContent: "center" }}
+                >
+                  Back to source
+                </Link>
+                <button type="button" onClick={() => setSelectedId(null)} className="fv-btn-secondary">
+                  Clear
+                </button>
+              </div>
+              {saved ? (
+                <p role="status" className="fv-help-text" style={{ margin: 0 }}>
+                  Template saved for the next project you create.
+                </p>
+              ) : null}
             </div>
           </div>
         )}
