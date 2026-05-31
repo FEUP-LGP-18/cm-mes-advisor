@@ -5,13 +5,14 @@ export const AVATAR_COLORS = [
 
 export const AVATAR_COLOR_KEY = "mes-advisor:avatar-color";
 export const DISPLAY_NAME_KEY = "mes-advisor:display-name";
+export const ACTIVE_PROFILE_EMAIL_KEY = "mes-advisor:active-profile-email";
 
 export function getInitials(email?: string | null): string {
   if (!email) return "U";
-  const localPart = email.split("@")[0];
-  const parts = localPart.split(/[._-]/).filter(Boolean);
+  const localPart = email.includes("@") ? email.split("@")[0] : email.trim();
+  const parts = localPart.split(/[\s._-]+/).filter(Boolean);
   if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  return localPart.slice(0, 2).toUpperCase();
+  return (parts[0] ?? localPart).slice(0, 2).toUpperCase() || "U";
 }
 
 export function getDisplayName(email?: string | null): string {
@@ -26,10 +27,95 @@ export function getDefaultAvatarColor(email?: string | null): string {
 }
 
 export function getSavedAvatarColor(email?: string | null): string {
-  if (typeof window === "undefined") return getDefaultAvatarColor(email);
+  const profileEmail = resolvePreferenceEmail(email);
+  const fallback = getDefaultAvatarColor(profileEmail ?? email);
+  if (!profileEmail) return fallback;
+
+  const savedColor = readStorage(scopedPreferenceKey(AVATAR_COLOR_KEY, profileEmail));
+  return savedColor && AVATAR_COLORS.includes(savedColor) ? savedColor : fallback;
+}
+
+export function getSavedDisplayName(email?: string | null): string | null {
+  const profileEmail = resolvePreferenceEmail(email);
+  if (!profileEmail) return null;
+
+  const savedName = readStorage(scopedPreferenceKey(DISPLAY_NAME_KEY, profileEmail));
+  return savedName?.trim() || null;
+}
+
+export function rememberProfileEmail(email?: string | null): void {
+  const profileEmail = normalizeEmail(email);
+  if (!profileEmail) return;
+  writeStorage(ACTIVE_PROFILE_EMAIL_KEY, profileEmail);
+}
+
+export function clearActiveProfileEmail(): void {
+  removeStorage(ACTIVE_PROFILE_EMAIL_KEY);
+}
+
+export function saveProfilePreferences(
+  email: string | null | undefined,
+  displayName: string | null | undefined,
+  avatarColor: string,
+): void {
+  const profileEmail = normalizeEmail(email);
+  if (!profileEmail) return;
+
+  rememberProfileEmail(profileEmail);
+
+  if (AVATAR_COLORS.includes(avatarColor)) {
+    writeStorage(scopedPreferenceKey(AVATAR_COLOR_KEY, profileEmail), avatarColor);
+  } else {
+    removeStorage(scopedPreferenceKey(AVATAR_COLOR_KEY, profileEmail));
+  }
+
+  const normalizedDisplayName = displayName?.trim();
+  if (normalizedDisplayName) {
+    writeStorage(scopedPreferenceKey(DISPLAY_NAME_KEY, profileEmail), normalizedDisplayName);
+  } else {
+    removeStorage(scopedPreferenceKey(DISPLAY_NAME_KEY, profileEmail));
+  }
+
+  removeStorage(AVATAR_COLOR_KEY);
+  removeStorage(DISPLAY_NAME_KEY);
+}
+
+function resolvePreferenceEmail(email?: string | null): string | null {
+  return normalizeEmail(email) ?? normalizeEmail(readStorage(ACTIVE_PROFILE_EMAIL_KEY));
+}
+
+function normalizeEmail(email?: string | null): string | null {
+  const normalized = email?.trim().toLowerCase();
+  return normalized || null;
+}
+
+function scopedPreferenceKey(baseKey: string, email: string): string {
+  return `${baseKey}:${email}`;
+}
+
+function readStorage(key: string): string | null {
+  if (typeof window === "undefined") return null;
   try {
-    return window.localStorage.getItem(AVATAR_COLOR_KEY) ?? getDefaultAvatarColor(email);
+    return window.localStorage.getItem(key);
   } catch {
-    return getDefaultAvatarColor(email);
+    return null;
+  }
+}
+
+function writeStorage(key: string, value: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Browser storage is optional for this local preference.
+  }
+}
+
+function removeStorage(key: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Browser storage is optional for this local preference.
   }
 }

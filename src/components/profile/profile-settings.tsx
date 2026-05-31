@@ -5,11 +5,10 @@ import { useEffect, useState } from "react";
 import Phase1Topbar from "@/components/phase1/phase-topbar";
 import {
   AVATAR_COLORS,
-  AVATAR_COLOR_KEY,
-  DISPLAY_NAME_KEY,
   getInitials,
   getDefaultAvatarColor,
   getSavedAvatarColor,
+  saveProfilePreferences,
 } from "@/lib/avatar";
 import type { CurrentUserProfile } from "@/lib/projects/types";
 
@@ -69,13 +68,7 @@ export default function ProfileSettings({
       setDisplayName(body.name ?? "");
       // Only now commit the pending color to the topbar and localStorage
       setSavedColor(pendingColor);
-      try {
-        window.localStorage.setItem(AVATAR_COLOR_KEY, pendingColor);
-        if (body.name) window.localStorage.setItem(DISPLAY_NAME_KEY, body.name);
-        else window.localStorage.removeItem(DISPLAY_NAME_KEY);
-      } catch {
-        // localStorage is optional; server-side profile update already succeeded.
-      }
+      saveProfilePreferences(body.email ?? profile.email, body.name, pendingColor);
       setFeedback({ message: "Profile saved.", tone: "success" });
       onSaved?.(body);
     } catch {
@@ -172,7 +165,7 @@ export default function ProfileSettings({
                   }}
                   aria-hidden="true"
                 >
-                  {getInitials(profile.email)}
+                  {getInitials(previewName || profile.email)}
                 </div>
                 <div>
                   <div style={{ fontSize: "1rem", fontWeight: 600, color: "var(--foreground)" }}>

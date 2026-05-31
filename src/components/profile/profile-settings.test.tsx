@@ -22,12 +22,11 @@ describe("ProfileSettings", () => {
     expect(html).toContain("Save profile");
   });
 
-  it("renders avatar initials from email", () => {
+  it("renders avatar initials from display name", () => {
     const html = renderToStaticMarkup(
       <ProfileSettings initialProfile={BASE_PROFILE} onSaved={vi.fn()} />,
     );
-    // OW from "owner" (no separator → first two chars)
-    expect(html).toContain("OW");
+    expect(html).toContain("OU");
   });
 
   it("renders color picker swatches", () => {
