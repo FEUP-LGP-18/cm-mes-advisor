@@ -10,6 +10,7 @@ import {
   type StorageLike,
 } from "./review-storage";
 import type { RequirementsSourceMetadata } from "./source";
+import { normalizeIndustryTemplateId } from "@/lib/settings";
 
 export const REQUIREMENTS_WORKSPACE_ACTIVE_SOURCE_STORAGE_KEY =
   "cm-mes-advisor:phase1-active-source-id";
@@ -293,6 +294,9 @@ function normalizeSourceMetadata(
       value.customerName.trim().length > 0
         ? value.customerName
         : fallbackSource.customerName,
+    industryTemplateId: normalizeIndustryTemplateId(
+      value.industryTemplateId ?? fallbackSource.industryTemplateId,
+    ),
     uploadedAt:
       typeof value.uploadedAt === "string" || value.uploadedAt === null
         ? value.uploadedAt

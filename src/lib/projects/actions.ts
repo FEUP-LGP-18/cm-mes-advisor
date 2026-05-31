@@ -5,8 +5,15 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getPhase1StepPath } from "@/lib/phase1/workflow";
 import { requireUser } from "./permissions.server";
-import { createProjectForUser } from "./repository.server";
+import {
+  createProjectForUser,
+  saveProjectPhaseState,
+} from "./repository.server";
 import type { CreateProjectActionState, ProjectRole } from "./types";
+import {
+  normalizeSettingsBehaviorSnapshot,
+  SETTINGS_BEHAVIOR_STATE_KEY,
+} from "@/lib/settings";
 
 export async function createProjectAction(
   _previousState: CreateProjectActionState,
@@ -34,6 +41,26 @@ export async function createProjectAction(
       message: result.message,
       status: "error",
     };
+  }
+
+  const settings = normalizeSettingsBehaviorSnapshot({
+    industryTemplateId: readFormText(formData, "industryTemplateId"),
+  });
+  if (settings.industryTemplateId) {
+    const settingsResult = await saveProjectPhaseState(
+      result.data.id,
+      SETTINGS_BEHAVIOR_STATE_KEY,
+      settings,
+      0,
+      userResult.data.id,
+    );
+
+    if (!settingsResult.ok) {
+      return {
+        message: settingsResult.message,
+        status: "error",
+      };
+    }
   }
 
   revalidatePath("/");

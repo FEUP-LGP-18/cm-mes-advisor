@@ -12,6 +12,10 @@ import {
 } from "@/lib/requirements/review-storage";
 import type { RequirementsSourceMetadata } from "@/lib/requirements/source";
 import {
+  normalizeIndustryTemplateId,
+  type IndustryTemplateId,
+} from "@/lib/settings";
+import {
   getRequirementsWorkspaceStorageKey,
   createRequirementsWorkspaceState,
   loadRequirementsWorkspaceState,
@@ -382,10 +386,14 @@ export function createSampleProject(
 
 export function createEmptyProjectFromServerIdentity(
   identity: ServerProjectIdentity,
+  options: {
+    industryTemplateId?: IndustryTemplateId | null;
+  } = {},
 ): Phase1ProjectRecord {
   const customerName = identity.customerName?.trim() || "No customer set";
   const source: RequirementsSourceMetadata = {
     customerName,
+    industryTemplateId: options.industryTemplateId ?? null,
     projectName: identity.projectName,
     sourceFilename: "No workbook selected yet",
     sourceId: `empty:${identity.projectId}`,
@@ -414,6 +422,19 @@ export function createUploadedWorkspaceStateForProject(
   });
 }
 
+export function applyProjectIndustryTemplate(
+  workspaceState: RequirementsWorkspaceState,
+  industryTemplateId: IndustryTemplateId | null,
+): RequirementsWorkspaceState {
+  return {
+    ...workspaceState,
+    source: {
+      ...workspaceState.source,
+      industryTemplateId,
+    },
+  };
+}
+
 export function createFixtureWorkspaceStateForProject(
   project: Phase1ProjectRecord,
   fallbackWorkspaceState: RequirementsWorkspaceState,
@@ -421,6 +442,7 @@ export function createFixtureWorkspaceStateForProject(
   const source: RequirementsSourceMetadata = {
     ...fallbackWorkspaceState.source,
     customerName: project.customerName,
+    industryTemplateId: project.workspaceState.source.industryTemplateId,
     projectName: project.projectName,
   };
 
@@ -1031,6 +1053,9 @@ function normalizeSourceMetadata(
       value.customerName.trim().length > 0
         ? value.customerName
         : fallbackSource.customerName,
+    industryTemplateId: normalizeIndustryTemplateId(
+      value.industryTemplateId ?? fallbackSource.industryTemplateId,
+    ),
     uploadedAt:
       typeof value.uploadedAt === "string" || value.uploadedAt === null
         ? value.uploadedAt

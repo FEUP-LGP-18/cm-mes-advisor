@@ -3,6 +3,7 @@
 import { useState, type ChangeEvent } from "react";
 import type { ReviewRequirement } from "@/lib/requirements/review";
 import type { RequirementsSourceMetadata } from "@/lib/requirements/source";
+import { getIndustryTemplateDefinition } from "@/lib/settings";
 
 interface SourceStudioProps {
   canContinue?: boolean;
@@ -41,6 +42,9 @@ export default function SourceStudio({
 
   const isFixture = currentSourceMetadata.sourceKind === "fixture";
   const previewRows = requirements.slice(0, 8);
+  const industryTemplate = getIndustryTemplateDefinition(
+    currentSourceMetadata.industryTemplateId,
+  );
 
   async function handleUpload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.currentTarget.files?.[0] ?? null;
@@ -192,6 +196,7 @@ export default function SourceStudio({
               { label: "Total rows", value: sourceRowCount.toLocaleString() },
               { label: "Demo rows", value: demoCount.toLocaleString() },
               { label: "MVP rows", value: mvpCount.toLocaleString() },
+              { label: "Template", value: industryTemplate?.label ?? "None" },
             ].map((row) => (
               <div key={row.label} className="fv-detail-kv">
                 <dt className="fv-detail-kv-label">{row.label}</dt>
@@ -218,6 +223,7 @@ export default function SourceStudio({
               {[
                 { label: "Project", value: currentSourceMetadata.projectName },
                 { label: "Customer", value: currentSourceMetadata.customerName },
+                { label: "Industry template", value: industryTemplate?.label ?? "No template selected" },
                 { label: "Source label", value: currentSourceMetadata.sourceLabel },
                 { label: "Filename", value: currentSourceMetadata.sourceFilename },
               ].map((row) => (

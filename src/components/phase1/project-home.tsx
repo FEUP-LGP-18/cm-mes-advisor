@@ -14,6 +14,12 @@ import {
   getPhase1StepPath,
   type Phase1WorkflowStep,
 } from "@/lib/phase1/workflow";
+import {
+  industryTemplateDefinitions,
+  loadSettingsBehaviorSnapshot,
+  saveSettingsBehaviorSnapshot,
+  type IndustryTemplateId,
+} from "@/lib/settings";
 import Phase1Topbar from "./phase-topbar";
 
 type ProjectSort = "recent" | "customer" | "role";
@@ -324,6 +330,14 @@ function CreateProjectDialog({
   isPending: boolean;
   onClose: () => void;
 }) {
+  const [industryTemplateId, setIndustryTemplateId] =
+    useState<IndustryTemplateId | "">(() =>
+      typeof window === "undefined"
+        ? ""
+        : loadSettingsBehaviorSnapshot(window.localStorage).industryTemplateId ??
+          "",
+    );
+
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape" && !isPending) {
@@ -333,6 +347,15 @@ function CreateProjectDialog({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isPending, onClose]);
+
+  function handleIndustryTemplateChange(value: IndustryTemplateId | "") {
+    setIndustryTemplateId(value);
+    const currentSnapshot = loadSettingsBehaviorSnapshot(window.localStorage);
+    saveSettingsBehaviorSnapshot(window.localStorage, {
+      ...currentSnapshot,
+      industryTemplateId: value || null,
+    });
+  }
 
   return (
     <div
@@ -386,6 +409,34 @@ function CreateProjectDialog({
               className="fv-input"
               style={{ resize: "vertical" }}
             />
+          </div>
+          <div>
+            <label className="fv-field-label" htmlFor="proj-template">
+              Industry Template
+            </label>
+            <select
+              id="proj-template"
+              name="industryTemplateId"
+              value={industryTemplateId}
+              onChange={(event) =>
+                handleIndustryTemplateChange(
+                  event.currentTarget.value as IndustryTemplateId | "",
+                )
+              }
+              className="fv-input"
+              style={{ cursor: "pointer" }}
+            >
+              <option value="">No template - use default setup</option>
+              {industryTemplateDefinitions.map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.label}
+                </option>
+              ))}
+            </select>
+            <p className="fv-help-text" style={{ marginTop: "0.35rem" }}>
+              Saved as project setup context. It does not change uploaded
+              workbook rows or activate Phase 2.
+            </p>
           </div>
 
           {errorMessage ? (
