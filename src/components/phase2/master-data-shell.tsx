@@ -13,7 +13,7 @@ import {
 } from "@/lib/master-data/types";
 
 const STEP_LABELS: Record<MasterDataWorkflowStep, string> = {
-  setup: "Configure Scope",
+  setup: "Upload Requirements",
   process: "Generate Master Data",
   review: "Review & Approve",
   export: "Export & Download",
@@ -21,7 +21,7 @@ const STEP_LABELS: Record<MasterDataWorkflowStep, string> = {
 };
 
 const STEP_SUBLABELS: Partial<Record<MasterDataWorkflowStep, string>> = {
-  setup: "Approved Phase 1 rows",
+  setup: "Select Excel file",
   process: "AI processing…",
   review: "Review objects",
   export: "Configure & export",

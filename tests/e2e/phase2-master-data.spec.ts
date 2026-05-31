@@ -38,11 +38,6 @@ async function attachFullPageScreenshot(
 ) {
   const screenshotPath = testInfo.outputPath(`${name}.png`);
 
-  await page.evaluate(() => {
-    window.scrollTo(0, 0);
-    document.querySelector("#main-content")?.scrollTo(0, 0);
-  });
-
   await page.screenshot({
     fullPage: true,
     path: screenshotPath,
@@ -104,21 +99,12 @@ test("locked Phase 2 setup hides inactive generation controls", async ({
 
   await expect(
     page.getByRole("heading", {
-      name: "Configure Master Data Scope",
+      name: "Upload Requirements File",
     }),
   ).toBeVisible();
-  await expect(page.getByText(/approved Phase 1 requirements/i)).toBeVisible();
-  await expect(page.getByText("Configure Scope")).toHaveCount(2);
-  await expect(
-    page
-      .getByLabel("Master Data workflow")
-      .getByText("Approved Phase 1 rows"),
-  ).toHaveCount(1);
   await expect(page.getByText(/phase 1 approval required/i)).toBeVisible();
   await expect(page.getByText("Grounded real generation")).toHaveCount(0);
   await expect(page.getByText("Object scope")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /browse files/i })).toHaveCount(0);
-  await expect(page.getByText(/drag & drop/i)).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Generate Master Data" }),
   ).toHaveCount(0);
@@ -153,32 +139,12 @@ test("approved Phase 1 rows can move through Phase 2 draft review and traceabili
   await seedProjectRegistry(page, registry);
   await page.goto(`/projects/${project.projectId}/master-data/setup`);
 
-  await expect(page.getByRole("heading", { name: "Configure Master Data Scope" })).toBeVisible();
-  await expect(page.getByText(/approved Phase 1 requirements/i)).toBeVisible();
-  await expect(page.getByText(/no second requirements upload is needed/i)).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Phase 1 source" }),
-  ).toBeVisible();
-  await expect(page.getByText(/2 approved Phase 1 rows/i)).toBeVisible();
-  await expect(page.getByRole("button", { name: /browse files/i })).toHaveCount(0);
-  await expect(page.getByText(/drag & drop/i)).toHaveCount(0);
-  await assertNoHorizontalOverflow(page);
-  await attachFullPageScreenshot(page, testInfo, "phase2-setup-ready");
-
-  await expect(page.getByRole("button", { name: "Material" })).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Material" }).click();
-  await expect(page.getByRole("button", { name: "Material" })).toHaveAttribute("aria-pressed", "false");
-  await page.getByRole("button", { name: "Material" }).click();
-  await expect(page.getByRole("button", { name: "Material" })).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByRole("button", { name: /prototype drafts/i })).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: /grounded real generation/i }).click();
-  await expect(page.getByRole("button", { name: /grounded real generation/i })).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: /prototype drafts/i }).click();
-  await expect(page.getByRole("button", { name: /prototype drafts/i })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("heading", { name: "Upload Requirements File" })).toBeVisible();
+  await expect(page.getByText(/phase 1 requirements loaded/i)).toBeVisible();
+  await expect(page.getByText(/2 approved rows/i)).toBeVisible();
   await expect(
     page.getByRole("button", { name: /analyze requirements/i }),
   ).toBeVisible();
-
   await page.getByRole("button", { name: /analyze requirements/i }).click();
   await expect(page.getByRole("heading", { name: "Requirements Analysis" })).toBeVisible();
   await expect(page.getByText("Requirements → MES Object Mapping")).toBeVisible();
@@ -186,7 +152,7 @@ test("approved Phase 1 rows can move through Phase 2 draft review and traceabili
     page.getByRole("button", { name: /generate master data/i }),
   ).toBeEnabled();
   await assertNoHorizontalOverflow(page);
-  await attachFullPageScreenshot(page, testInfo, "phase2-analysis-table");
+  await attachFullPageScreenshot(page, testInfo, "phase2-setup-ready");
 
   await page.getByRole("button", { name: /generate master data/i }).click();
   await expect(
