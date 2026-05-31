@@ -1,31 +1,53 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import MesLogo from "@/components/brand/mes-logo";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-
-function getInitials(email?: string | null): string {
-  if (!email) return "U";
-  const parts = email.split("@")[0].split(/[._-]/);
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[1][0]).toUpperCase();
-  }
-  return email.slice(0, 2).toUpperCase();
-}
-
-function getDisplayName(email?: string | null): string {
-  if (!email) return "User";
-  return email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
+import {
+  getInitials,
+  getDisplayName,
+  getDefaultAvatarColor,
+  getSavedAvatarColor,
+  DISPLAY_NAME_KEY,
+} from "@/lib/avatar";
 
 export default function Phase1Topbar({
   email,
   projectId,
+  displayName,
+  avatarColor: avatarColorProp,
 }: {
   email?: string | null;
   projectId?: string | null;
+  displayName?: string | null;
+  avatarColor?: string | null;
 }) {
   const supabaseConfigured = isSupabaseConfigured();
+  const [avatarColor, setAvatarColor] = useState(() => avatarColorProp ?? getDefaultAvatarColor(email));
+  const [resolvedName, setResolvedName] = useState(() => displayName || getDisplayName(email));
+
+  useEffect(() => {
+    if (avatarColorProp) {
+      setAvatarColor(avatarColorProp);
+    } else {
+      setAvatarColor(getSavedAvatarColor(email));
+    }
+  }, [email, avatarColorProp]);
+
+  useEffect(() => {
+    if (displayName) {
+      setResolvedName(displayName);
+    } else {
+      try {
+        const saved = window.localStorage.getItem(DISPLAY_NAME_KEY);
+        setResolvedName(saved || getDisplayName(email));
+      } catch {
+        setResolvedName(getDisplayName(email));
+      }
+    }
+  }, [email, displayName]);
+  const initials = getInitials(email);
 
   async function handleSignOut() {
     if (!supabaseConfigured) {
@@ -54,12 +76,19 @@ export default function Phase1Topbar({
         <Link href="/" className="fv-topbar-link">Projects</Link>
 
         {email ? (
-          <span className="fv-topbar-username">{getDisplayName(email)}</span>
+          <Link href="/profile" className="fv-topbar-username" aria-label="Your profile">
+            {resolvedName}
+          </Link>
         ) : null}
 
-        <div className="fv-topbar-avatar" aria-hidden="true">
-          {getInitials(email)}
-        </div>
+        <Link
+          href="/profile"
+          className="fv-topbar-avatar"
+          aria-label="Your profile"
+          style={{ background: avatarColor }}
+        >
+          {initials}
+        </Link>
 
         {supabaseConfigured ? (
           <button
