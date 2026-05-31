@@ -140,3 +140,11 @@ repeat the page title or restate obvious instructions.
 bar, no-results recovery, and all-reviewed states. Remaining Review work should
 be treated as final product QA, not another feature slice. Script and Export
 remain owned by #65.
+
+## Output Completion Note
+
+#65 now covers the Script Output workspace, Export readiness/downloaded states,
+honest output metadata, and the Handoff compatibility redirect. Markdown remains
+the only enabled export format, Phase 2 remains optional, and actual Phase 2
+implementation belongs to #67. Remaining output polish should be handled under
+final #69 QA rather than new #65 feature slices.
