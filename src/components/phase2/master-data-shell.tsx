@@ -1,17 +1,40 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import type { Phase1ProjectRecord } from "@/lib/phase1/project-registry";
 import Phase1Topbar from "@/components/phase1/phase-topbar";
-import {
-  getMasterDataStepPath,
-} from "@/lib/master-data/workflow";
+import { getMasterDataStepPath } from "@/lib/master-data/workflow";
 import {
   masterDataWorkflowMeta,
   masterDataWorkflowSteps,
   type MasterDataPhase2State,
   type MasterDataWorkflowStep,
 } from "@/lib/master-data/types";
+
+const STEP_LABELS: Record<MasterDataWorkflowStep, string> = {
+  setup: "Upload Requirements",
+  process: "Generate Master Data",
+  review: "Review & Approve",
+  export: "Export & Download",
+  traceability: "Traceability",
+};
+
+const STEP_SUBLABELS: Partial<Record<MasterDataWorkflowStep, string>> = {
+  setup: "Select Excel file",
+  process: "AI processing…",
+  review: "Review objects",
+  export: "Configure & export",
+  traceability: "View trace",
+};
+
+function CheckIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+      <polyline points="2 6 5 9 10 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 export default function MasterDataProjectShell({
   children,
@@ -27,161 +50,270 @@ export default function MasterDataProjectShell({
     (total, entries) => total + entries.length,
     0,
   );
-  const pendingApprovalCount = Object.values(phase2.generatedObjects)
+  const approvedCount = Object.values(phase2.generatedObjects)
     .flat()
-    .filter((objectDraft) => objectDraft.reviewStatus !== "approved").length;
-  const currentStepMeta = masterDataWorkflowMeta[currentStep];
-  const phaseModeLabel =
-    project.snapshot.approvedCount === 0
-      ? "Phase 1 approval needed"
-      : phase2.mode === "real"
-        ? "Grounded generation"
-        : "Prototype drafts";
+    .filter((o) => o.reviewStatus === "approved").length;
+  const modifiedCount = Object.values(phase2.generatedObjects)
+    .flat()
+    .filter((o) => o.reviewStatus === "review").length;
+  const pendingCount = objectCount - approvedCount - modifiedCount;
+
+  const currentStepIndex = masterDataWorkflowSteps.indexOf(currentStep);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const currentLabel = STEP_LABELS[currentStep] ?? currentStep;
+
+  const sessionDate = new Date().toISOString().slice(0, 10);
+
+  const contextSections = buildContextSections(currentStep, phase2, {
+    objectCount,
+    approvedCount,
+    modifiedCount,
+    pendingCount,
+    sessionDate,
+    projectId: project.projectId,
+    customerName: project.snapshot.sourceFilename ?? project.projectName,
+  });
 
   return (
-    <main className="app-canvas min-h-screen text-[color:var(--shell-ink)]">
-      <div className="mx-auto flex w-full max-w-[1560px] flex-col gap-6 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
-        <Phase1Topbar />
+    <div className="fv-shell">
+      <Phase1Topbar
+        email={undefined}
+        projectId={project.projectId.slice(0, 8).toUpperCase()}
+      />
 
-        <header className="phase-shell-header">
-          <div className="phase-shell-header-top">
-            <div className="phase-shell-breadcrumbs">
-              <Link href="/" className="phase-product-link">
-                Projects
-              </Link>
-              <span className="phase-shell-divider">/</span>
-              <Link
-                href={`/projects/${encodeURIComponent(project.projectId)}/export`}
-                className="phase-product-link"
-              >
-                {project.projectName}
-              </Link>
-              <span className="phase-shell-divider">/</span>
-              <span>Master Data</span>
-            </div>
+      {/* Mobile nav — hidden on desktop via CSS */}
+      <div className="fv-mobile-nav" aria-label="Mobile navigation">
+        <div className="fv-mobile-nav-bar">
+          <div>
+            <div className="fv-mobile-nav-label">{project.projectName}</div>
+            <div className="fv-mobile-nav-current">{currentLabel}</div>
+          </div>
+          <button
+            type="button"
+            className="fv-mobile-nav-toggle"
+            aria-expanded={mobileNavOpen}
+            onClick={() => setMobileNavOpen((o) => !o)}
+          >
+            {mobileNavOpen ? "✕ Close" : "☰ Steps"}
+          </button>
+        </div>
+        {mobileNavOpen ? (
+          <div className="fv-mobile-nav-drawer">
+            <Link href="/" className="fv-nav-item" onClick={() => setMobileNavOpen(false)}>
+              Projects
+            </Link>
+            {masterDataWorkflowSteps.map((step) => {
+              const href = getMasterDataStepPath(project.projectId, step);
+              const isActive = currentStep === step;
+              const status = getMasterDataStepStatus(phase2, step);
+              const label = STEP_LABELS[step];
+              if (status === "blocked") {
+                return (
+                  <span key={step} className="fv-nav-item" style={{ opacity: 0.45, cursor: "not-allowed" }} aria-disabled="true">
+                    {label}
+                  </span>
+                );
+              }
+              return (
+                <Link
+                  key={step}
+                  href={href}
+                  aria-current={isActive ? "step" : undefined}
+                  className={`fv-nav-item${isActive ? " fv-nav-item-active" : ""}`}
+                  onClick={() => setMobileNavOpen(false)}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
+        ) : null}
+      </div>
 
-            <div className="phase-shell-pill-row">
-              <span className="phase-shell-pill">Phase 2</span>
-              <span className="phase-shell-pill phase-shell-pill-muted">
-                {currentStepMeta.label}
-              </span>
-              <span className="phase-shell-pill phase-shell-pill-muted">
-                {phaseModeLabel}
-              </span>
+      <div className="fv-body">
+        {/* Sidebar */}
+        <nav className="fv-sidebar" aria-label="Master Data workflow">
+          {/* Steps */}
+          <div className="fv-sidebar-section">
+            <span className="fv-sidebar-label">Progress</span>
+            <div className="fv-step-list">
+              {masterDataWorkflowSteps.map((step, idx) => {
+                const isDone = idx < currentStepIndex;
+                const isActive = step === currentStep;
+                const href = getMasterDataStepPath(project.projectId, step);
+                const status = getMasterDataStepStatus(phase2, step);
+
+                return (
+                  <Link
+                    key={step}
+                    href={status !== "blocked" ? href : "#"}
+                    aria-current={isActive ? "step" : undefined}
+                    className={`fv-step-item${isActive ? " fv-step-item-active" : ""}`}
+                    onClick={status === "blocked" ? (e) => e.preventDefault() : undefined}
+                    style={status === "blocked" && !isDone ? { opacity: 0.5, pointerEvents: "none" } : undefined}
+                  >
+                    <div
+                      className={`fv-step-circle ${
+                        isDone
+                          ? "fv-step-circle-done"
+                          : isActive
+                            ? "fv-step-circle-active"
+                            : "fv-step-circle-future"
+                      }`}
+                    >
+                      {isDone ? <CheckIcon /> : idx + 1}
+                    </div>
+                    <div className="fv-step-text">
+                      <span
+                        className={`fv-step-name ${
+                          isActive
+                            ? "fv-step-name-active"
+                            : isDone
+                              ? "fv-step-name-done"
+                              : ""
+                        }`}
+                      >
+                        {STEP_LABELS[step]}
+                      </span>
+                      {isActive && STEP_SUBLABELS[step] ? (
+                        <span className="fv-step-sub">{STEP_SUBLABELS[step]}</span>
+                      ) : isDone && step === "setup" && phase2.applicableRequirements.length > 0 ? (
+                        <span className="fv-step-sub">{phase2.applicableRequirements.length > 0 ? masterDataWorkflowMeta[step]?.subtitle : ""}</span>
+                      ) : null}
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           </div>
 
-          <div className="phase-shell-header-main">
-            <div className="phase-shell-title-block">
-              <h1 className="phase-shell-title">Master Data continuation</h1>
-              <p className="phase-shell-helper">
-                Turn the reviewed requirement slice into a consultant-approved
-                MES package without leaving the project workspace.
-              </p>
+          {/* Contextual stats */}
+          {contextSections.map((section) => (
+            <div className="fv-sidebar-section" key={section.label}>
+              <span className="fv-sidebar-label">{section.label}</span>
+              {section.items.map((item) => (
+                <div className="fv-sidebar-kv" key={item.label}>
+                  <span className="fv-sidebar-kv-label">{item.label}</span>
+                  <span className={`fv-sidebar-kv-value${item.tone ? ` fv-sidebar-kv-value-${item.tone}` : ""}`}>
+                    {item.value}
+                  </span>
+                </div>
+              ))}
+              {section.cta ? (
+                <button
+                  type="button"
+                  onClick={section.cta.onClick}
+                  disabled={section.cta.disabled}
+                  className="fv-sidebar-btn"
+                >
+                  {section.cta.label}
+                </button>
+              ) : null}
             </div>
-
-            <div className="phase-shell-summary">
-              <div className="phase-shell-summary-main">
-                <SummaryItem
-                  emphasis
-                  label="Current stage"
-                  value={currentStepMeta.label}
-                />
-                <SummaryItem
-                  label="Selected rows"
-                  value={String(phase2.selectedRequirementKeys.length)}
-                />
-              </div>
-
-              <div className="phase-shell-summary-stats">
-                <SummaryStat label="Objects" value={objectCount} />
-                <SummaryStat
-                  label="Needs review"
-                  tone={pendingApprovalCount > 0 ? "attention" : "positive"}
-                  value={pendingApprovalCount}
-                />
-                <SummaryStat
-                  label="Traceability"
-                  value={phase2.traceability.length}
-                />
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <nav aria-label="Phase 2 stages" className="phase-stage-nav">
-          {masterDataWorkflowSteps.map((step) => {
-            const href = getMasterDataStepPath(project.projectId, step);
-            const isActive = currentStep === step;
-            const status = getMasterDataStepStatus(phase2, step);
-
-            return (
-              <Link
-                key={step}
-                href={href}
-                aria-current={isActive ? "step" : undefined}
-                className={`phase-stage-link ${
-                  isActive ? "phase-stage-link-active" : ""
-                } ${status === "blocked" ? "phase-stage-link-blocked" : ""}`}
-              >
-                <span className="phase-stage-eyebrow">{status}</span>
-                <span className="phase-stage-title">
-                  {masterDataWorkflowMeta[step].label}
-                </span>
-                <span className="phase-stage-subtitle">
-                  {masterDataWorkflowMeta[step].subtitle}
-                </span>
-              </Link>
-            );
-          })}
+          ))}
         </nav>
 
-        <section className="phase-workspace-body min-w-0">{children}</section>
+        {/* Content */}
+        <main className="fv-content" id="main-content">
+          <div className="fv-page">
+            <nav className="fv-breadcrumb" aria-label="Breadcrumb">
+              <Link href="/" className="fv-breadcrumb-link">Projects</Link>
+              <span className="fv-breadcrumb-sep">/</span>
+              <Link href={`/projects/${encodeURIComponent(project.projectId)}/export`} className="fv-breadcrumb-link">
+                {project.projectName}
+              </Link>
+              <span className="fv-breadcrumb-sep">/</span>
+              <span>Master Data</span>
+            </nav>
+
+            {children}
+          </div>
+        </main>
       </div>
-    </main>
-  );
-}
-
-function SummaryItem({
-  emphasis = false,
-  label,
-  value,
-}: {
-  emphasis?: boolean;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div
-      className={`phase-shell-summary-item ${
-        emphasis ? "phase-shell-summary-item-emphasis" : ""
-      }`}
-    >
-      <span>{label}</span>
-      <strong title={value}>{value}</strong>
     </div>
   );
 }
 
-function SummaryStat({
-  label,
-  tone = "default",
-  value,
-}: {
+type ContextItem = { label: string; value: string; tone?: "positive" | "warning" | "danger" };
+type ContextSection = {
   label: string;
-  tone?: "attention" | "default" | "positive";
-  value: number | string;
-}) {
-  return (
-    <div
-      className={`phase-shell-summary-stat phase-shell-summary-stat-${tone}`}
-    >
-      <span>{label}</span>
-      <strong title={String(value)}>
-        {typeof value === "number" ? value.toLocaleString("en-US") : value}
-      </strong>
-    </div>
-  );
+  items: ContextItem[];
+  cta?: { label: string; onClick: () => void; disabled?: boolean };
+};
+
+function buildContextSections(
+  step: MasterDataWorkflowStep,
+  phase2: MasterDataPhase2State,
+  ctx: {
+    objectCount: number;
+    approvedCount: number;
+    modifiedCount: number;
+    pendingCount: number;
+    sessionDate: string;
+    projectId: string;
+    customerName: string;
+  },
+): ContextSection[] {
+  const sections: ContextSection[] = [];
+
+  if (step === "setup") {
+    sections.push({
+      label: "Session",
+      items: [
+        { label: "Customer", value: ctx.customerName.slice(0, 12) },
+        { label: "Project", value: ctx.projectId.slice(0, 8).toUpperCase() },
+        { label: "Date", value: ctx.sessionDate },
+      ],
+    });
+  }
+
+  if (step === "process") {
+    const total = phase2.selectedRequirementKeys.length;
+    sections.push({
+      label: "Generation",
+      items: [
+        { label: "Completed", value: `${ctx.objectCount} / ${total}` },
+        { label: "Processing", value: phase2.generationStatus === "running" ? "Running…" : phase2.generationStatus },
+        { label: "ETA", value: "~12 sec" },
+      ],
+    });
+  }
+
+  if (step === "review") {
+    sections.push({
+      label: "Review Stats",
+      items: [
+        { label: "Approved", value: String(ctx.approvedCount), tone: ctx.approvedCount > 0 ? "positive" : undefined },
+        { label: "Modified", value: String(ctx.modifiedCount), tone: ctx.modifiedCount > 0 ? "warning" : undefined },
+        { label: "Pending", value: String(ctx.pendingCount) },
+      ],
+    });
+  }
+
+  if (step === "export") {
+    sections.push({
+      label: "Export Summary",
+      items: [
+        { label: "Total", value: String(ctx.objectCount) },
+        { label: "Approved", value: String(ctx.approvedCount), tone: "positive" },
+        { label: "Modified", value: String(ctx.modifiedCount), tone: ctx.modifiedCount > 0 ? "warning" : undefined },
+        { label: "Issues", value: String(ctx.pendingCount), tone: ctx.pendingCount > 0 ? "danger" : undefined },
+      ],
+    });
+  }
+
+  if (step === "setup" && phase2.applicableRequirements.length > 0) {
+    sections.push({
+      label: "Analysis",
+      items: [
+        { label: "Total req.", value: String(phase2.applicableRequirements.length) },
+        { label: "Applicable", value: String(phase2.applicableRequirements.filter((r) => r.preselected).length) },
+        { label: "Selected", value: String(phase2.selectedRequirementKeys.length) },
+      ],
+    });
+  }
+
+  return sections;
 }
 
 function getMasterDataStepStatus(
@@ -196,7 +328,7 @@ function getMasterDataStepStatus(
     objectCount > 0 &&
     Object.values(phase2.generatedObjects)
       .flat()
-      .every((objectDraft) => objectDraft.reviewStatus === "approved");
+      .every((o) => o.reviewStatus === "approved");
 
   switch (step) {
     case "setup":

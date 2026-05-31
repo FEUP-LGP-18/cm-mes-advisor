@@ -7,6 +7,7 @@ import {
   filterReviewRequirements,
   mockGenerationStageLabels,
 } from "@/lib/requirements";
+import type { ReviewRequirement } from "@/lib/requirements";
 import type { ProjectListItem } from "@/lib/projects/types";
 import {
   createPhase1UiFixtureProjectRecord,
@@ -56,6 +57,65 @@ function createDashboardProject(
   };
 }
 
+function createReviewRequirementsWithFirstSourceReference(
+  url: string,
+): ReviewRequirement[] {
+  const requirements = createPhase1UiFixtureReviewRequirements({
+    "01.01": "pending",
+    "01.02": "pending",
+  });
+  const [firstRequirement, ...remainingRequirements] = requirements;
+
+  if (
+    !firstRequirement ||
+    firstRequirement.generatedOutput.state !== "mock-generated-draft"
+  ) {
+    throw new Error("Fixture expected a generated review requirement.");
+  }
+
+  const generatedOutput = firstRequirement.generatedOutput;
+  const existingReference = generatedOutput.draft.sourceReferences[0];
+
+  return [
+    {
+      ...firstRequirement,
+      generatedOutput: {
+        ...generatedOutput,
+        draft: {
+          ...generatedOutput.draft,
+          sourceReferences: [
+            {
+              id: existingReference?.id ?? "source-reference-test",
+              kind: existingReference?.kind ?? "mock-ai",
+              label: "Safety source reference",
+              note: "Reference note stays visible.",
+              url,
+            },
+            ...generatedOutput.draft.sourceReferences.slice(1),
+          ],
+        },
+      },
+    },
+    ...remainingRequirements,
+  ];
+}
+
+function renderReviewStudio(requirements: ReviewRequirement[]) {
+  return render(
+    <ReviewStudio
+      approvedCount={0}
+      generatedCount={requirements.length}
+      generatedReviewableRequirements={requirements}
+      onGenerateDemoRows={async () => false}
+      onGoToGenerate={vi.fn()}
+      onOpenScript={vi.fn()}
+      onReviewAction={vi.fn()}
+      projectId={phase1UiFixtureProjectMetadata.projectId}
+      reviewRequirements={requirements}
+    />,
+  );
+}
+
 const createProjectActionStub = async () => ({
   message: null,
   status: "idle" as const,
@@ -77,8 +137,8 @@ describe("phase 1 redesigned surfaces", () => {
 
     const html = render(<Phase1Topbar />);
 
-    expect(html).not.toContain("Sign out");
-    expect(html).toContain("MES Demo Advisor");
+    expect(html).not.toContain("Logout");
+    expect(html).toContain("MES Advisor");
   });
 
   it("renders authenticated global navigation when Supabase auth is configured", () => {
@@ -88,12 +148,9 @@ describe("phase 1 redesigned surfaces", () => {
     const html = render(<Phase1Topbar email="owner@example.com" />);
 
     expect(html).toContain('href="/"');
-    expect(html).toContain('href="/settings"');
-    expect(html).toContain('href="/profile"');
     expect(html).toContain("Projects");
-    expect(html).toContain("Settings");
-    expect(html).toContain("Profile");
-    expect(html).toContain("Sign out");
+    expect(html).toContain("Owner");
+    expect(html).toContain('aria-label="Sign out"');
   });
 
   it("renders the command desk empty state with one blunt starting action", () => {
@@ -114,8 +171,8 @@ describe("phase 1 redesigned surfaces", () => {
       />,
     );
 
-    expect(html).toContain("Create the first server-backed project.");
-    expect(html).toContain("Create project");
+    expect(html).toContain("No projects yet");
+    expect(html).toContain("New Project");
   });
 
   it("renders the priority strip and table-first project desk for active work", () => {
@@ -137,10 +194,10 @@ describe("phase 1 redesigned surfaces", () => {
       />,
     );
 
-    expect(html).toContain("Next project");
-    expect(html).toContain("Open project");
-    expect(html).toContain("Project list");
-    expect(html).toContain("Owner");
+    expect(html).toContain("Customer X MES demo");
+    expect(html).toContain("Customer X");
+    expect(html).toContain("Pending Review");
+    expect(html).toContain("Open");
   });
 
   it("renders a no-results state when search filters out server projects", () => {
@@ -161,7 +218,7 @@ describe("phase 1 redesigned surfaces", () => {
       />,
     );
 
-    expect(html).toContain("No project matches this search.");
+    expect(html).toContain("No projects found");
   });
 
   it("renders the compact shell metadata strip for a project workspace", () => {
@@ -189,15 +246,9 @@ describe("phase 1 redesigned surfaces", () => {
       </Phase1ProjectShell>,
     );
 
-    expect(html).toContain("Workbook");
-    expect(html).toContain("Next action");
-    expect(html).toContain("Pending review");
-    expect(html).toContain("Approved");
-    expect(html).toContain("Consultant decisions");
-    expect(html).toContain("Viewer");
     expect(html).toContain("Read-only workspace");
-    expect(html).toContain("Last saved");
-    expect(html).toContain("Copy project link");
+    expect(html).toContain("Requirements");
+    expect(html).toContain("AI Processing");
   });
 
   it("renders blocked phase stages as disabled controls with hover guidance", () => {
@@ -222,9 +273,8 @@ describe("phase 1 redesigned surfaces", () => {
       </Phase1ProjectShell>,
     );
 
-    expect(html).toContain("phase-stage-link-blocked");
-    expect(html).toContain("disabled=\"\"");
-    expect(html).toContain("Complete the previous required step");
+    expect(html).toContain('aria-disabled="true"');
+    expect(html).toContain("Script Output");
   });
 
   it("renders source as a dedicated workbook confirmation surface", () => {
@@ -244,11 +294,11 @@ describe("phase 1 redesigned surfaces", () => {
       />,
     );
 
-    expect(html).toContain("Upload the workbook for this run");
+    expect(html).toContain("Sample workbook active");
     expect(html).toContain("Upload .xlsx workbook");
     expect(html).toContain("Continue to Generate");
     expect(html).toContain("Before you continue");
-    expect(html).toContain("Parsed preview");
+    expect(html).toContain("Parsed Preview");
   });
 
   it("renders generate with the row explorer and recommended draft rail", () => {
@@ -280,12 +330,12 @@ describe("phase 1 redesigned surfaces", () => {
     );
 
     expect(source.sourceKind).toBe("fixture");
-    expect(html).toContain("Run the recommended slice first.");
-    expect(html).toContain("Generate recommended draft");
-    expect(html).toContain("Row explorer and slice selection");
-    expect(html).toContain("Recheck real access");
+    expect(html).toContain("Row explorer — search, filter, and select");
+    expect(html).toContain("Generate Recommended Draft");
+    expect(html).toContain("Generation Mode");
+    expect(html).toContain("Recheck access");
     expect(html).toContain("Open review queue");
-    expect(html).toContain("The last successful run used grounded generation.");
+    expect(html).toContain("Last run used grounded generation. Rail is back to draft mode.");
   });
 
   it("renders the review blocker when generation has not started", () => {
@@ -304,18 +354,20 @@ describe("phase 1 redesigned surfaces", () => {
       />,
     );
 
-    expect(html).toContain("Generate drafts before review");
-    expect(html).toContain("Generate demo rows now");
+    expect(html).toContain("No requirements generated yet");
+    expect(html).toContain("Generate demo rows");
+    expect(html).toContain("Back to generation");
+    expect(html).not.toContain("No requirements match your filters");
   });
 
   it("renders the review queue studio with the current requirement and shortcuts", () => {
     const reviewRequirements = createPhase1UiFixtureReviewRequirements({
       "01.01": "pending",
-      "01.02": "pending",
+      "01.02": "approved",
     });
     const queue = createPhase1UiFixtureReviewQueue({
       "01.01": "pending",
-      "01.02": "pending",
+      "01.02": "approved",
     });
     const html = render(
       <ReviewStudio
@@ -331,12 +383,48 @@ describe("phase 1 redesigned surfaces", () => {
       />,
     );
 
-    expect(html).toContain("Review generated requirements");
+    expect(html).toContain("Requirements Review");
+    expect(html).toContain("Requirement Text");
     expect(html).toContain("Pending requirements");
-    expect(html).toContain("Search and filter generated rows");
+    expect(html).toContain("Showing 2 of 2");
+    expect(html).toContain("Selected requirement");
+    expect(html).toContain("AI comment");
+    expect(html).toContain("MES object");
+    expect(html).toContain("Consultant comment");
+    expect(html).toContain("Review note");
+    expect(html).toContain("Select all visible requirements");
+    expect(html).toContain("Select requirement 01.01");
+    expect(html).toContain("Select requirement 01.02");
+    expect(html).toContain("Select 01.02 for inspection");
+    expect(html).not.toContain(">Export</button>");
+    expect(html).not.toContain("Export selected");
+    expect(html).not.toContain("Approve selected");
+    expect(html).not.toContain("selected rows");
     expect(html).toContain("Approve ready rows");
     expect(html).toContain("Skip remaining rows");
     expect(html).toContain("Approve");
+    expect(html).toContain("Flag");
+    expect(html).not.toContain("No requirements match your filters");
+    expect(html).not.toContain("Clear filters");
+  });
+
+  it("renders only safe selected inspector source reference URLs as links", () => {
+    const safeHtml = renderReviewStudio(
+      createReviewRequirementsWithFirstSourceReference(
+        "https://docs.example.com/source",
+      ),
+    );
+    const unsafeHtml = renderReviewStudio(
+      createReviewRequirementsWithFirstSourceReference("javascript:alert(1)"),
+    );
+
+    expect(safeHtml).toContain(
+      '<a href="https://docs.example.com/source">Safety source reference</a>',
+    );
+    expect(safeHtml).toContain("Reference note stays visible.");
+    expect(unsafeHtml).toContain("<span>Safety source reference</span>");
+    expect(unsafeHtml).toContain("Reference note stays visible.");
+    expect(unsafeHtml).not.toContain('href="javascript:alert(1)"');
   });
 
   it("renders the cleared review queue as a ready state, not a blocked state", () => {
@@ -358,9 +446,11 @@ describe("phase 1 redesigned surfaces", () => {
       />,
     );
 
-    expect(html).toContain("Review queue cleared");
-    expect(html).toContain("Ready state");
-    expect(html).not.toContain("Blocked state");
+    expect(html).toContain("Review decisions complete");
+    expect(html).toContain("Every generated requirement has a review decision");
+    expect(html).toContain("Generate Script");
+    expect(html).not.toContain("No requirements generated yet");
+    expect(html).not.toContain("No requirements match your filters");
   });
 
   it("renders script as blocked while pending review work remains", () => {
@@ -385,7 +475,7 @@ describe("phase 1 redesigned surfaces", () => {
       />,
     );
 
-    expect(html).toContain("Shape the Phase 1 handoff");
+    expect(html).toContain("Keep shaping the handoff");
     expect(html).toContain("Continue to export");
     expect(html).toContain("still need consultant review");
     expect(html).toContain("Back to review");
@@ -416,10 +506,47 @@ describe("phase 1 redesigned surfaces", () => {
     expect(draft.title).toContain(phase1UiFixtureProjectMetadata.projectName);
     expect(html).toContain("Ready to download");
     expect(html).toContain("Download Markdown");
-    expect(html).toContain("Not downloaded yet");
-    expect(html).toContain("Format:");
-    expect(html).toContain("Required pilot demo");
-    expect(html).toContain("Start Phase 2 demo");
-    expect(html).toContain("approved Phase 1 rows");
+    expect(html).toContain("Not downloaded in this session");
+    expect(html).toContain("No output metadata configured");
+    expect(html).toContain("Markdown is the only enabled export format");
+    expect(html).not.toContain("Export PDF");
+    expect(html).not.toContain("Export Excel");
+    expect(html).not.toContain("Share link");
+    expect(html).toContain("Optional Phase 2 continuation");
+    expect(html).toContain("Generate Master Data draft");
+    expect(html).toContain(
+      "Phase 1 is complete once the Markdown handoff is exported.",
+    );
+    expect(html).toContain(
+      "Continue only if you want the optional Master Data package",
+    );
+    expect(html).not.toContain("required pilot demo");
+  });
+
+  it("hides the optional Phase 2 CTA until export is ready", () => {
+    const reviewRequirements = createPhase1UiFixtureReviewRequirements({
+      "01.01": "approved",
+      "01.02": "pending",
+    });
+    const draft = createDefaultDemoScriptDraft(
+      phase1UiFixtureProjectMetadata.projectName,
+    );
+    const assembly = assembleDemoScript(reviewRequirements, draft);
+    const html = render(
+      <ExportStudio
+        approvedCount={1}
+        assembly={assembly}
+        exportReady={false}
+        onGoToReview={vi.fn()}
+        onGoToScript={vi.fn()}
+        onOpenMasterData={vi.fn()}
+        pendingReviewCount={1}
+        projectMetadata={phase1UiFixtureProjectMetadata}
+      />,
+    );
+
+    expect(html).toContain("Export still has review blockers");
+    expect(html).not.toContain("Optional Phase 2 continuation");
+    expect(html).not.toContain("Generate Master Data draft");
   });
 });

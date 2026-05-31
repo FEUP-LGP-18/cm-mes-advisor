@@ -1,19 +1,29 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  FvBadge,
+  FvCallout,
+  FvEmptyState,
+  FvInspectorPanel,
+  FvPageHeader,
+  FvStatCard,
+  FvTable,
+  FvToolbar,
+  type FvBadgeTone,
+} from "@/components/ui/fv";
 import type {
   RequirementReviewAction,
   ReviewRequirement,
 } from "@/lib/requirements/review";
-import { assessRequirementSupport } from "@/lib/requirements/generation";
-import { evaluateRequirementValidation } from "@/lib/requirements/validation";
 import {
-  GuidedReviewCard,
-  ReviewQueueNavigator,
-  ReviewWorkflowStep,
-} from "@/app/requirements-review-workspace";
+  assessRequirementSupport,
+  type RequirementGenerationConfidence,
+} from "@/lib/requirements/generation";
+import { evaluateRequirementValidation } from "@/lib/requirements/validation";
 
 type ExplorerFilter = "all" | "pending" | "review" | "approved" | "skipped";
+type ProcessFilter = "all" | string;
 
 interface ReviewStudioProps {
   approvedCount: number;
@@ -31,6 +41,813 @@ interface ReviewStudioProps {
   reviewRequirements: ReviewRequirement[];
 }
 
+interface ReviewTableRow {
+  aiComment: string;
+  confidence: RequirementGenerationConfidence;
+  confidenceTone: FvBadgeTone;
+  mesObject: string;
+  process: string;
+  requirement: ReviewRequirement;
+  requirementId: string;
+  requirementText: string;
+  rowClassName: string;
+  searchText: string;
+  statusLabel: string;
+  statusTone: FvBadgeTone;
+}
+
+type BulkReviewActionType = Extract<
+  RequirementReviewAction["type"],
+  "approve" | "flag" | "skip"
+>;
+
+const STATUS_LABEL: Record<ReviewRequirement["reviewStatus"], string> = {
+  pending: "Pending",
+  review: "Needs review",
+  approved: "Approved",
+  skipped: "Skipped",
+};
+
+const STATUS_TONE: Record<ReviewRequirement["reviewStatus"], FvBadgeTone> = {
+  pending: "accent",
+  review: "warning",
+  approved: "success",
+  skipped: "neutral",
+};
+
+const STATUS_ROW_CLASS: Record<ReviewRequirement["reviewStatus"], string> = {
+  pending: "fv-review-table-row-pending",
+  review: "fv-review-table-row-review",
+  approved: "fv-review-table-row-approved",
+  skipped: "fv-review-table-row-skipped",
+};
+
+const FILTER_LABEL: Record<ExplorerFilter, string> = {
+  all: "All statuses",
+  pending: "Pending",
+  review: "Needs review",
+  approved: "Approved",
+  skipped: "Skipped",
+};
+
+function isExplorerFilter(value: string | null): value is ExplorerFilter {
+  return (
+    value === "all" ||
+    value === "pending" ||
+    value === "review" ||
+    value === "approved" ||
+    value === "skipped"
+  );
+}
+
+function formatCount(value: number): string {
+  return new Intl.NumberFormat("en").format(value);
+}
+
+function formatPercent(value: number): string {
+  return `${Math.round(value * 100)}%`;
+}
+
+function getCompletionProgress(approvedCount: number, totalCount: number): number {
+  if (totalCount <= 0) return 0;
+  return Math.round((approvedCount / totalCount) * 100);
+}
+
+function getRequirementText(requirement: ReviewRequirement): string {
+  return (
+    requirement.requirementDescription.trim() ||
+    requirement.detailDescriptionAndMotivation.trim() ||
+    requirement.generatedOutput.generatedCommentDraft?.trim() ||
+    "No requirement text provided"
+  );
+}
+
+function getAiComment(requirement: ReviewRequirement): string {
+  if (requirement.generatedOutput.state !== "mock-generated-draft") {
+    return "";
+  }
+  return requirement.generatedOutput.draft.generatedComment.trim();
+}
+
+function getMesObject(requirement: ReviewRequirement): string {
+  if (requirement.generatedOutput.state === "mock-generated-draft") {
+    const firstModule = requirement.generatedOutput.draft.demoSteps[0]
+      ?.mesModuleOrScreen;
+    if (firstModule?.trim()) return firstModule;
+  }
+  return requirement.l3Process || requirement.operation || "—";
+}
+
+function getSafeSourceReferenceHref(url: string | undefined): string | null {
+  const normalizedUrl = url?.trim();
+  if (!normalizedUrl) return null;
+
+  if (normalizedUrl.startsWith("/") && !normalizedUrl.startsWith("//")) {
+    return normalizedUrl;
+  }
+
+  try {
+    const parsed = new URL(normalizedUrl);
+    return parsed.protocol === "http:" || parsed.protocol === "https:"
+      ? parsed.toString()
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function getProcessLabel(requirement: ReviewRequirement): string {
+  const levels = [requirement.l2Process, requirement.l3Process || requirement.operation]
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return levels.length > 0 ? levels.join(" / ") : "Unassigned";
+}
+
+function getConfidence(requirement: ReviewRequirement): RequirementGenerationConfidence {
+  if (requirement.generatedOutput.state === "mock-generated-draft") {
+    return requirement.generatedOutput.draft.confidence;
+  }
+  return assessRequirementSupport(requirement).confidence;
+}
+
+function getConfidenceTone(
+  confidence: RequirementGenerationConfidence,
+): FvBadgeTone {
+  if (confidence.level === "high") return "success";
+  if (confidence.level === "medium") return "warning";
+  return "error";
+}
+
+function buildReviewTableRows(
+  requirements: ReviewRequirement[],
+  activeKey: string | null,
+  selectedRowKey: string | null,
+): ReviewTableRow[] {
+  return requirements.map((requirement) => {
+    const confidence = getConfidence(requirement);
+    const process = getProcessLabel(requirement);
+    const requirementId =
+      requirement.requirementId || `Row ${requirement.sourceRowNumber}`;
+    const requirementText = getRequirementText(requirement);
+    const aiComment = getAiComment(requirement);
+    const mesObject = getMesObject(requirement);
+    const isActive = requirement.requirementKey === activeKey;
+    const isSelected = requirement.requirementKey === selectedRowKey;
+
+    return {
+      aiComment,
+      confidence,
+      confidenceTone: getConfidenceTone(confidence),
+      mesObject,
+      process,
+      requirement,
+      requirementId,
+      requirementText,
+      rowClassName: [
+        "fv-table-row-stripe",
+        STATUS_ROW_CLASS[requirement.reviewStatus],
+        isActive ? "fv-review-table-row-current" : "",
+        isSelected ? "fv-review-table-row-selected" : "",
+      ]
+        .filter(Boolean)
+        .join(" "),
+      searchText: [
+        requirementId,
+        requirementText,
+        aiComment,
+        process,
+        mesObject,
+        STATUS_LABEL[requirement.reviewStatus],
+      ]
+        .join(" ")
+        .toLowerCase(),
+      statusLabel: STATUS_LABEL[requirement.reviewStatus],
+      statusTone: STATUS_TONE[requirement.reviewStatus],
+    };
+  });
+}
+
+function filterReviewTableRows(
+  rows: ReviewTableRow[],
+  explorerFilter: ExplorerFilter,
+  processFilter: ProcessFilter,
+  query: string,
+): ReviewTableRow[] {
+  const normalizedQuery = query.trim().toLowerCase();
+
+  return rows.filter((row) => {
+    const statusMatches =
+      explorerFilter === "all" ||
+      row.requirement.reviewStatus === explorerFilter;
+    const processMatches =
+      processFilter === "all" || row.process === processFilter;
+    const queryMatches =
+      normalizedQuery.length === 0 || row.searchText.includes(normalizedQuery);
+
+    return statusMatches && processMatches && queryMatches;
+  });
+}
+
+function isRequirementReadyForBulkApproval(requirement: ReviewRequirement) {
+  const assessment = assessRequirementSupport(requirement);
+  const validation = evaluateRequirementValidation(requirement, assessment);
+  return validation.isSafeToApprove;
+}
+
+function ReviewEmptyState({
+  approvedCount,
+  generatedCount,
+  onGenerateDemoRows,
+  onGoToGenerate,
+  onOpenScript,
+}: {
+  approvedCount: number;
+  generatedCount: number;
+  onGenerateDemoRows: () => Promise<boolean>;
+  onGoToGenerate: () => void;
+  onOpenScript: () => void;
+}) {
+  const [generating, setGenerating] = useState(false);
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    await onGenerateDemoRows();
+    setGenerating(false);
+  };
+
+  return (
+    <FvEmptyState
+      action={
+        <>
+          {generatedCount === 0 ? (
+            <button
+              className="fv-btn-primary"
+              disabled={generating}
+              onClick={handleGenerate}
+              type="button"
+            >
+              {generating ? "Generating..." : "Generate demo rows"}
+            </button>
+          ) : approvedCount > 0 ? (
+            <button
+              className="fv-btn-primary"
+              onClick={onOpenScript}
+              type="button"
+            >
+              Generate Script
+            </button>
+          ) : null}
+          <button
+            className="fv-btn-secondary"
+            onClick={onGoToGenerate}
+            type="button"
+          >
+            Back to generation
+          </button>
+        </>
+      }
+      body={
+        generatedCount > 0
+          ? "Every generated requirement has a review decision. Proceed to the script step when approved content is ready, or return to generation to add more rows."
+          : "Upload a source workbook and run generation to get requirements ready for review."
+      }
+      className="fv-review-empty-state"
+      title={
+        generatedCount > 0
+          ? "Review decisions complete"
+          : "No requirements generated yet"
+      }
+    />
+  );
+}
+
+function ReviewNoResultsState({
+  onClearFilters,
+}: {
+  onClearFilters: () => void;
+}) {
+  return (
+    <FvEmptyState
+      action={
+        <button
+          className="fv-btn-secondary"
+          onClick={onClearFilters}
+          type="button"
+        >
+          Clear filters
+        </button>
+      }
+      body="Clear the search or filters to return to the generated review queue."
+      className="fv-review-filter-empty fv-review-no-results-state"
+      title="No requirements match your filters"
+    />
+  );
+}
+
+function ReviewRequirementsTable({
+  allVisibleRowsChecked,
+  checkedRowKeys,
+  currentRequirement,
+  onSelectRequirement,
+  onToggleRequirementChecked,
+  onToggleVisibleRows,
+  rows,
+  selectedRequirement,
+  someVisibleRowsChecked,
+}: {
+  allVisibleRowsChecked: boolean;
+  checkedRowKeys: Set<string>;
+  currentRequirement: ReviewRequirement | null;
+  onSelectRequirement: (requirement: ReviewRequirement) => void;
+  onToggleRequirementChecked: (
+    requirement: ReviewRequirement,
+    checked: boolean,
+  ) => void;
+  onToggleVisibleRows: (checked: boolean) => void;
+  rows: ReviewTableRow[];
+  selectedRequirement: ReviewRequirement | null;
+  someVisibleRowsChecked: boolean;
+}) {
+  return (
+    <FvTable
+      aria-label="Generated requirements review table"
+      className="fv-review-table"
+      minWidth="980px"
+    >
+      <thead>
+        <tr>
+          <th className="fv-review-table-check">
+            <input
+              aria-label="Select all visible requirements"
+              checked={allVisibleRowsChecked}
+              className="fv-review-checkbox"
+              disabled={rows.length === 0}
+              onChange={(event) =>
+                onToggleVisibleRows(event.currentTarget.checked)
+              }
+              ref={(input) => {
+                if (input) {
+                  input.indeterminate =
+                    someVisibleRowsChecked && !allVisibleRowsChecked;
+                }
+              }}
+              type="checkbox"
+            />
+          </th>
+          <th>Req ID</th>
+          <th>Requirement Text</th>
+          <th>MES Object</th>
+          <th>Confidence</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => {
+          const isCurrent =
+            currentRequirement?.requirementKey === row.requirement.requirementKey;
+          const isSelected =
+            selectedRequirement?.requirementKey === row.requirement.requirementKey;
+          const isChecked = checkedRowKeys.has(row.requirement.requirementKey);
+
+          return (
+            <tr
+              aria-current={isCurrent ? "true" : undefined}
+              aria-selected={isSelected ? "true" : undefined}
+              className={
+                [
+                  row.rowClassName,
+                  isChecked ? "fv-review-table-row-checked" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")
+              }
+              key={row.requirement.requirementKey}
+              onClick={() => onSelectRequirement(row.requirement)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelectRequirement(row.requirement);
+                }
+              }}
+              tabIndex={0}
+            >
+              <td className="fv-review-table-check">
+                <input
+                  aria-label={`Select requirement ${row.requirementId}`}
+                  checked={isChecked}
+                  className="fv-review-checkbox"
+                  onChange={(event) =>
+                    onToggleRequirementChecked(
+                      row.requirement,
+                      event.currentTarget.checked,
+                    )
+                  }
+                  onClick={(event) => event.stopPropagation()}
+                  onKeyDown={(event) => event.stopPropagation()}
+                  type="checkbox"
+                />
+              </td>
+              <td>
+                <div className="fv-review-table-id">
+                  <span>{row.requirementId}</span>
+                  <span>Row {row.requirement.sourceRowNumber}</span>
+                </div>
+              </td>
+              <td>
+                <div className="fv-review-table-requirement">
+                  <button
+                    aria-label={`Select ${row.requirementId} for inspection`}
+                    className="fv-review-row-button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onSelectRequirement(row.requirement);
+                    }}
+                    type="button"
+                  >
+                    {row.requirementText}
+                  </button>
+                  {row.aiComment ? (
+                    <p className="fv-review-ai-note">AI: {row.aiComment}</p>
+                  ) : (
+                    <p className="fv-review-muted-note">
+                      No generated AI comment available.
+                    </p>
+                  )}
+                  <p className="fv-review-muted-note">{row.process}</p>
+                </div>
+              </td>
+              <td>{row.mesObject}</td>
+              <td>
+                <FvBadge compact tone={row.confidenceTone}>
+                  {row.confidence.level} · {formatPercent(row.confidence.score)}
+                </FvBadge>
+              </td>
+              <td>
+                <FvBadge dot tone={row.statusTone}>
+                  {row.statusLabel}
+                </FvBadge>
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </FvTable>
+  );
+}
+
+function ReviewBulkActionBar({
+  canEdit,
+  onBulkAction,
+  onClearSelection,
+  selectedCount,
+}: {
+  canEdit: boolean;
+  onBulkAction: (actionType: BulkReviewActionType) => void;
+  onClearSelection: () => void;
+  selectedCount: number;
+}) {
+  if (selectedCount === 0) return null;
+
+  return (
+    <section
+      aria-label="Selected requirements"
+      className="fv-bulk-bar fv-review-bulk-bar"
+    >
+      <span className="fv-bulk-count">
+        {selectedCount} {selectedCount === 1 ? "selected" : "selected"}
+      </span>
+      <button
+        className="fv-bulk-action"
+        disabled={!canEdit}
+        onClick={() => onBulkAction("approve")}
+        type="button"
+      >
+        Approve selected
+      </button>
+      <button
+        className="fv-bulk-action"
+        disabled={!canEdit}
+        onClick={() => onBulkAction("flag")}
+        type="button"
+      >
+        Flag selected
+      </button>
+      <button
+        className="fv-bulk-action"
+        disabled={!canEdit}
+        onClick={() => onBulkAction("skip")}
+        type="button"
+      >
+        Skip selected
+      </button>
+      <button
+        className="fv-bulk-clear"
+        onClick={onClearSelection}
+        type="button"
+      >
+        Clear selection
+      </button>
+    </section>
+  );
+}
+
+function ReviewQueueControls({
+  activeQueueIndex,
+  approvedCount,
+  canEdit,
+  currentRequirement,
+  onApproveReadyRows,
+  onOpenScript,
+  onSelectNext,
+  onSelectPrevious,
+  onSkipRemainingRows,
+  readyBulkCount,
+  reviewQueue,
+}: {
+  activeQueueIndex: number;
+  approvedCount: number;
+  canEdit: boolean;
+  currentRequirement: ReviewRequirement | null;
+  onApproveReadyRows: () => void;
+  onOpenScript: () => void;
+  onSelectNext: (requirement: ReviewRequirement | null) => void;
+  onSelectPrevious: (requirement: ReviewRequirement | null) => void;
+  onSkipRemainingRows: () => void;
+  readyBulkCount: number;
+  reviewQueue: ReviewRequirement[];
+}) {
+  return (
+    <section className="fv-card fv-review-queue-card">
+      <div>
+        <p className="fv-review-kicker">Review queue</p>
+        <h2 className="fv-review-card-title">Pending requirements</h2>
+      </div>
+      <div className="fv-review-queue-metrics">
+        <span>{reviewQueue.length} pending</span>
+        <span>{approvedCount} approved</span>
+        <span>
+          {activeQueueIndex >= 0
+            ? `${activeQueueIndex + 1}/${reviewQueue.length}`
+            : "0/0"}
+        </span>
+      </div>
+      <div className="fv-review-queue-actions">
+        <button
+          className="fv-btn-secondary"
+          disabled={reviewQueue.length === 0 || activeQueueIndex <= 0}
+          onClick={() => onSelectPrevious(currentRequirement)}
+          type="button"
+        >
+          Previous
+        </button>
+        <button
+          className="fv-btn-secondary"
+          disabled={
+            reviewQueue.length === 0 ||
+            activeQueueIndex >= reviewQueue.length - 1
+          }
+          onClick={() => onSelectNext(currentRequirement)}
+          type="button"
+        >
+          Next
+        </button>
+      </div>
+      {canEdit ? (
+        <div className="fv-review-queue-actions">
+          <button
+            className="fv-btn-secondary"
+            disabled={readyBulkCount === 0}
+            onClick={onApproveReadyRows}
+            type="button"
+          >
+            Approve ready rows
+          </button>
+          <button
+            className="fv-btn-secondary"
+            disabled={reviewQueue.length === 0}
+            onClick={onSkipRemainingRows}
+            type="button"
+          >
+            Skip remaining rows
+          </button>
+        </div>
+      ) : null}
+      <button
+        className="fv-btn-primary"
+        disabled={approvedCount === 0}
+        onClick={onOpenScript}
+        type="button"
+      >
+        Generate Script
+      </button>
+    </section>
+  );
+}
+
+function ReviewSelectedInspector({
+  canEdit,
+  onReviewAction,
+  requirement,
+}: {
+  canEdit: boolean;
+  onReviewAction: (
+    requirement: ReviewRequirement,
+    action: RequirementReviewAction,
+  ) => void;
+  requirement: ReviewRequirement;
+}) {
+  const assessment = assessRequirementSupport(requirement);
+  const confidence = getConfidence(requirement);
+  const draft =
+    requirement.generatedOutput.state === "mock-generated-draft"
+      ? requirement.generatedOutput.draft
+      : null;
+  const sourceReference = draft?.sourceReferences[0] ?? null;
+  const safeSourceReferenceHref = getSafeSourceReferenceHref(
+    sourceReference?.url,
+  );
+  const warnings = draft?.warnings.filter(Boolean) ?? [];
+  const assumptions = draft?.assumptions.filter(Boolean) ?? [];
+
+  return (
+    <FvInspectorPanel
+      actions={
+        <FvBadge tone={STATUS_TONE[requirement.reviewStatus]}>
+          {STATUS_LABEL[requirement.reviewStatus]}
+        </FvBadge>
+      }
+      className="fv-review-inspector"
+      footer={
+        <>
+          <button
+            className="fv-btn-primary"
+            disabled={!canEdit}
+            onClick={() => onReviewAction(requirement, { type: "approve" })}
+            type="button"
+          >
+            Approve
+          </button>
+          <button
+            className="fv-btn-secondary"
+            disabled={!canEdit}
+            onClick={() => onReviewAction(requirement, { type: "flag" })}
+            type="button"
+          >
+            Flag
+          </button>
+          <button
+            className="fv-btn-secondary"
+            disabled={!canEdit}
+            onClick={() => onReviewAction(requirement, { type: "skip" })}
+            type="button"
+          >
+            Skip
+          </button>
+          <button
+            className="fv-btn-secondary"
+            disabled={!canEdit}
+            onClick={() => onReviewAction(requirement, { type: "resetToDraft" })}
+            type="button"
+          >
+            Reset draft
+          </button>
+        </>
+      }
+      metadata={`Req. ${requirement.requirementId || "No ID"} · Row ${requirement.sourceRowNumber}`}
+      sticky
+      title="Selected requirement"
+    >
+      <div className="fv-review-inspector-heading">
+        <p className="fv-review-inspector-id">
+          {requirement.requirementId || `Row ${requirement.sourceRowNumber}`}
+        </p>
+        <h3>{getRequirementText(requirement)}</h3>
+      </div>
+
+      <div className="fv-review-inspector-badges">
+        <FvBadge compact tone={getConfidenceTone(confidence)}>
+          {confidence.level} confidence · {formatPercent(confidence.score)}
+        </FvBadge>
+        <FvBadge compact tone={assessment.supportType === "standard" ? "success" : "warning"}>
+          {assessment.supportType}
+        </FvBadge>
+      </div>
+
+      <FvCallout tone="info" title="AI comment">
+        {draft?.generatedComment || "No generated consultant comment is available for this row."}
+      </FvCallout>
+
+      <div className="fv-review-inspector-section">
+        <p className="fv-review-kicker">MES object</p>
+        <div className="fv-review-inspector-object">{getMesObject(requirement)}</div>
+      </div>
+
+      <dl className="fv-review-inspector-details">
+        <div>
+          <dt>Process</dt>
+          <dd>{requirement.l2Process || "—"}</dd>
+        </div>
+        <div>
+          <dt>L3 / operation</dt>
+          <dd>{requirement.l3Process || requirement.operation || "—"}</dd>
+        </div>
+        <div>
+          <dt>Demo flagged</dt>
+          <dd>{requirement.demo ? "Yes" : "No"}</dd>
+        </div>
+        <div>
+          <dt>MVP</dt>
+          <dd>{requirement.mvp ? "Yes" : "No"}</dd>
+        </div>
+      </dl>
+
+      {sourceReference ? (
+        <div className="fv-review-inspector-section">
+          <p className="fv-review-kicker">Source reference</p>
+          {safeSourceReferenceHref ? (
+            <a href={safeSourceReferenceHref}>{sourceReference.label}</a>
+          ) : (
+            <span>{sourceReference.label}</span>
+          )}
+          <small>{sourceReference.note}</small>
+        </div>
+      ) : (
+        <div className="fv-review-inspector-section">
+          <p className="fv-review-kicker">Source reference</p>
+          <span>Source row {requirement.sourceRowNumber}</span>
+        </div>
+      )}
+
+      {warnings.length > 0 || assumptions.length > 0 ? (
+        <div className="fv-review-inspector-section">
+          <p className="fv-review-kicker">Warnings and assumptions</p>
+          <ul className="fv-review-inspector-list">
+            {[...warnings, ...assumptions].slice(0, 4).map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      <label className="fv-review-field">
+        <span>Consultant comment</span>
+        <textarea
+          className="fv-input"
+          disabled={!canEdit}
+          onChange={(event) =>
+            onReviewAction(requirement, {
+              consultantComment: event.currentTarget.value,
+              type: "edit",
+            })
+          }
+          placeholder="Edit the customer-facing wording before approval."
+          rows={4}
+          value={requirement.consultantComment}
+        />
+      </label>
+      <label className="fv-review-field">
+        <span>Review note</span>
+        <textarea
+          className="fv-input"
+          disabled={!canEdit}
+          onChange={(event) =>
+            onReviewAction(requirement, {
+              reviewNote: event.currentTarget.value,
+              type: "edit",
+            })
+          }
+          placeholder="Why approve, flag, or skip this row?"
+          rows={3}
+          value={requirement.reviewNote}
+        />
+      </label>
+    </FvInspectorPanel>
+  );
+}
+
+function ReviewInspectorEmptyState() {
+  return (
+    <FvInspectorPanel
+      className="fv-review-inspector"
+      metadata="Click any visible table row to inspect details."
+      sticky
+      title="Selected requirement"
+    >
+      <FvEmptyState
+        body="Select a generated requirement to inspect its AI comment, MES object, source context, and review notes."
+        className="fv-review-inspector-empty"
+        title="No row selected"
+      />
+    </FvInspectorPanel>
+  );
+}
+
+function getProcessFilterOptions(rows: ReviewTableRow[]): string[] {
+  return Array.from(new Set(rows.map((row) => row.process))).sort((a, b) =>
+    a.localeCompare(b),
+  );
+}
+
 export default function ReviewStudio({
   approvedCount,
   canEditPhase1 = true,
@@ -43,15 +860,11 @@ export default function ReviewStudio({
   projectId,
   reviewRequirements,
 }: ReviewStudioProps) {
-  // UI-only review explorer preferences stay local; project workflow state is persisted through the Phase 1 project provider.
-  const selectionStorageKey = `cm-mes-advisor:review-selection:${projectId}`;
-  const explorerFilterStorageKey = `cm-mes-advisor:review-explorer-filter:${projectId}`;
-  const explorerQueryStorageKey = `cm-mes-advisor:review-explorer-query:${projectId}`;
+  const selectionKey = `cm-mes-advisor:review-selection:${projectId}`;
+  const filterKey = `cm-mes-advisor:review-explorer-filter:${projectId}`;
+  const queryKey = `cm-mes-advisor:review-explorer-query:${projectId}`;
+
   const reviewQueue = generatedReviewableRequirements;
-  const readyBulkReviewRequirements = useMemo(
-    () => reviewQueue.filter(isRequirementReadyForBulkApproval),
-    [reviewQueue],
-  );
   const generatedInventory = useMemo(
     () =>
       reviewRequirements.filter(
@@ -60,57 +873,54 @@ export default function ReviewStudio({
       ),
     [reviewRequirements],
   );
-  const [selectedRequirementKey, setSelectedRequirementKey] = useState<
-    string | null
-  >(generatedReviewableRequirements[0]?.requirementKey ?? null);
-  const [explorerFilter, setExplorerFilter] = useState<ExplorerFilter>("pending");
+  const readyBulkRequirements = useMemo(
+    () => reviewQueue.filter(isRequirementReadyForBulkApproval),
+    [reviewQueue],
+  );
+
+  const [selectedKey, setSelectedKey] = useState<string | null>(
+    generatedReviewableRequirements[0]?.requirementKey ?? null,
+  );
+  const [selectedRowKey, setSelectedRowKey] = useState<string | null>(
+    generatedReviewableRequirements[0]?.requirementKey ?? null,
+  );
+  const [checkedRowKeys, setCheckedRowKeys] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [explorerFilter, setExplorerFilter] =
+    useState<ExplorerFilter>("all");
   const [explorerQuery, setExplorerQuery] = useState("");
+  const [processFilter, setProcessFilter] = useState<ProcessFilter>("all");
 
   useEffect(() => {
     let frame = 0;
-
     try {
-      const persistedSelection = window.localStorage.getItem(selectionStorageKey);
-      const persistedFilter = window.localStorage.getItem(
-        explorerFilterStorageKey,
-      );
-      const persistedQuery = window.localStorage.getItem(explorerQueryStorageKey);
-
+      const selection = window.localStorage.getItem(selectionKey);
+      const filter = window.localStorage.getItem(filterKey);
+      const query = window.localStorage.getItem(queryKey);
       frame = window.requestAnimationFrame(() => {
-        if (persistedSelection) {
-          setSelectedRequirementKey(persistedSelection);
+        if (selection) {
+          setSelectedKey(selection);
+          setSelectedRowKey(selection);
         }
-
-        if (isExplorerFilter(persistedFilter)) {
-          setExplorerFilter(persistedFilter);
-        }
-
-        if (persistedQuery) {
-          setExplorerQuery(persistedQuery);
-        }
+        if (isExplorerFilter(filter)) setExplorerFilter(filter);
+        if (query) setExplorerQuery(query);
       });
     } catch {
-      // Ignore local persistence failures.
+      /* localStorage is optional */
     }
-
     return () => {
-      if (frame) {
-        window.cancelAnimationFrame(frame);
-      }
+      if (frame) window.cancelAnimationFrame(frame);
     };
-  }, [explorerFilterStorageKey, explorerQueryStorageKey, selectionStorageKey]);
+  }, [filterKey, queryKey, selectionKey]);
 
-  const activeRequirementKey =
-    selectedRequirementKey &&
-    reviewQueue.some(
-      (requirement) => requirement.requirementKey === selectedRequirementKey,
-    )
-      ? selectedRequirementKey
+  const activeKey =
+    selectedKey && reviewQueue.some((requirement) => requirement.requirementKey === selectedKey)
+      ? selectedKey
       : (reviewQueue[0]?.requirementKey ?? null);
+
   const currentRequirement =
-    reviewQueue.find(
-      (requirement) => requirement.requirementKey === activeRequirementKey,
-    ) ??
+    reviewQueue.find((requirement) => requirement.requirementKey === activeKey) ??
     reviewQueue[0] ??
     null;
   const activeQueueIndex = currentRequirement
@@ -119,522 +929,554 @@ export default function ReviewStudio({
           requirement.requirementKey === currentRequirement.requirementKey,
       )
     : -1;
-  const explorerRows = useMemo(
+
+  const tableRows = useMemo(
     () =>
-      searchExplorerRequirements(
-        filterExplorerRequirements(generatedInventory, explorerFilter),
+      buildReviewTableRows(
+        generatedInventory,
+        activeKey,
+        selectedRowKey,
+      ),
+    [activeKey, generatedInventory, selectedRowKey],
+  );
+  const processOptions = useMemo(
+    () => getProcessFilterOptions(tableRows),
+    [tableRows],
+  );
+  const visibleRows = useMemo(
+    () =>
+      filterReviewTableRows(
+        tableRows,
+        explorerFilter,
+        processFilter,
         explorerQuery,
       ),
-    [explorerFilter, explorerQuery, generatedInventory],
+    [explorerFilter, explorerQuery, processFilter, tableRows],
   );
-  const queuedRequirementKeys = useMemo(
-    () => new Set(reviewQueue.map((requirement) => requirement.requirementKey)),
-    [reviewQueue],
+  const generatedInventoryKeys = useMemo(
+    () =>
+      new Set(
+        generatedInventory.map((requirement) => requirement.requirementKey),
+      ),
+    [generatedInventory],
+  );
+  const effectiveCheckedRowKeys = useMemo(
+    () =>
+      new Set(
+        Array.from(checkedRowKeys).filter((key) =>
+          generatedInventoryKeys.has(key),
+        ),
+      ),
+    [checkedRowKeys, generatedInventoryKeys],
+  );
+  const checkedRequirements = useMemo(
+    () =>
+      generatedInventory.filter((requirement) =>
+        effectiveCheckedRowKeys.has(requirement.requirementKey),
+      ),
+    [effectiveCheckedRowKeys, generatedInventory],
+  );
+  const checkedVisibleRowCount = visibleRows.filter((row) =>
+    effectiveCheckedRowKeys.has(row.requirement.requirementKey),
+  ).length;
+  const allVisibleRowsChecked =
+    visibleRows.length > 0 && checkedVisibleRowCount === visibleRows.length;
+  const someVisibleRowsChecked = checkedVisibleRowCount > 0;
+  const selectedRequirement =
+    visibleRows.find((row) => row.requirement.requirementKey === selectedRowKey)
+      ?.requirement ?? null;
+
+  const flaggedCount = reviewRequirements.filter(
+    (requirement) => requirement.reviewStatus === "review",
+  ).length;
+  const totalGeneratedCount = generatedInventory.length || generatedCount;
+  const completionProgress = getCompletionProgress(
+    approvedCount,
+    totalGeneratedCount,
   );
 
-  const handleSelectNextReviewRequirement = useCallback(
+  const selectNext = useCallback(
     (requirement: ReviewRequirement | null) => {
       if (!requirement) {
-        setSelectedRequirementKey(reviewQueue[0]?.requirementKey ?? null);
+        const nextKey = reviewQueue[0]?.requirementKey ?? null;
+        setSelectedKey(nextKey);
+        setSelectedRowKey(nextKey);
         return;
       }
-
-      const remainingQueue = reviewQueue.filter(
-        (entry) => entry.requirementKey !== requirement.requirementKey,
+      const remaining = reviewQueue.filter(
+        (row) => row.requirementKey !== requirement.requirementKey,
       );
-      const nextRequirement =
-        remainingQueue.find(
-          (entry) => entry.sourceRowNumber > requirement.sourceRowNumber,
+      const next =
+        remaining.find(
+          (row) => row.sourceRowNumber > requirement.sourceRowNumber,
         ) ??
-        remainingQueue[0] ??
+        remaining[0] ??
         null;
-
-      setSelectedRequirementKey(nextRequirement?.requirementKey ?? null);
+      setSelectedKey(next?.requirementKey ?? null);
+      setSelectedRowKey(next?.requirementKey ?? null);
     },
     [reviewQueue],
   );
 
-  const handleSelectPreviousReviewRequirement = useCallback(
+  const selectPrevious = useCallback(
     (requirement: ReviewRequirement | null) => {
       if (reviewQueue.length === 0) {
-        setSelectedRequirementKey(null);
+        setSelectedKey(null);
+        setSelectedRowKey(null);
         return;
       }
-
       if (!requirement) {
-        setSelectedRequirementKey(reviewQueue[0]?.requirementKey ?? null);
+        const nextKey = reviewQueue[0]?.requirementKey ?? null;
+        setSelectedKey(nextKey);
+        setSelectedRowKey(nextKey);
         return;
       }
-
-      const currentIndex = reviewQueue.findIndex(
-        (entry) => entry.requirementKey === requirement.requirementKey,
+      const index = reviewQueue.findIndex(
+        (row) => row.requirementKey === requirement.requirementKey,
       );
-
-      if (currentIndex <= 0) {
-        setSelectedRequirementKey(reviewQueue[0]?.requirementKey ?? null);
-        return;
-      }
-
-      setSelectedRequirementKey(
-        reviewQueue[currentIndex - 1]?.requirementKey ?? null,
-      );
+      const previousKey =
+        index <= 0
+          ? (reviewQueue[0]?.requirementKey ?? null)
+          : (reviewQueue[index - 1]?.requirementKey ?? null);
+      setSelectedKey(previousKey);
+      setSelectedRowKey(previousKey);
     },
     [reviewQueue],
   );
 
-  const handleGuidedReviewAction = useCallback(
+  const handleReviewAction = useCallback(
     (requirement: ReviewRequirement, action: RequirementReviewAction) => {
-      if (!canEditPhase1) {
-        return;
-      }
-
+      if (!canEditPhase1) return;
       onReviewAction(requirement, action);
-
       if (
         action.type === "approve" ||
         action.type === "flag" ||
         action.type === "skip"
       ) {
-        handleSelectNextReviewRequirement(requirement);
+        selectNext(requirement);
       }
     },
-    [canEditPhase1, handleSelectNextReviewRequirement, onReviewAction],
+    [canEditPhase1, onReviewAction, selectNext],
+  );
+
+  const handleFilterChange = useCallback((nextFilter: ExplorerFilter) => {
+    setExplorerFilter(nextFilter);
+    setCheckedRowKeys(new Set());
+  }, []);
+
+  const handleProcessFilterChange = useCallback((nextFilter: ProcessFilter) => {
+    setProcessFilter(nextFilter);
+    setCheckedRowKeys(new Set());
+  }, []);
+
+  const handleQueryChange = useCallback((nextQuery: string) => {
+    setExplorerQuery(nextQuery);
+    setCheckedRowKeys(new Set());
+  }, []);
+
+  const handleClearFilters = useCallback(() => {
+    setExplorerFilter("all");
+    setProcessFilter("all");
+    setExplorerQuery("");
+    setCheckedRowKeys(new Set());
+  }, []);
+
+  const handleToggleRequirementChecked = useCallback(
+    (requirement: ReviewRequirement, checked: boolean) => {
+      setCheckedRowKeys((previous) => {
+        const next = new Set(previous);
+        if (checked) {
+          next.add(requirement.requirementKey);
+        } else {
+          next.delete(requirement.requirementKey);
+        }
+        return next;
+      });
+    },
+    [],
+  );
+
+  const handleToggleVisibleRows = useCallback(
+    (checked: boolean) => {
+      setCheckedRowKeys((previous) => {
+        const next = new Set(previous);
+        visibleRows.forEach((row) => {
+          if (checked) {
+            next.add(row.requirement.requirementKey);
+          } else {
+            next.delete(row.requirement.requirementKey);
+          }
+        });
+        return next;
+      });
+    },
+    [visibleRows],
+  );
+
+  const clearCheckedRows = useCallback(() => {
+    setCheckedRowKeys(new Set());
+  }, []);
+
+  const clearActedCheckedRows = useCallback(
+    (requirements: ReviewRequirement[]) => {
+      if (requirements.length === 0) return;
+      const actedKeys = new Set(
+        requirements.map((requirement) => requirement.requirementKey),
+      );
+      setCheckedRowKeys((previous) => {
+        const next = new Set(previous);
+        actedKeys.forEach((key) => next.delete(key));
+        return next;
+      });
+    },
+    [],
+  );
+
+  const handleBulkReviewAction = useCallback(
+    (actionType: BulkReviewActionType) => {
+      if (!canEditPhase1 || checkedRequirements.length === 0) return;
+
+      const actionableRequirements =
+        actionType === "approve"
+          ? checkedRequirements.filter(isRequirementReadyForBulkApproval)
+          : checkedRequirements;
+
+      actionableRequirements.forEach((requirement) =>
+        onReviewAction(requirement, { type: actionType }),
+      );
+      clearActedCheckedRows(actionableRequirements);
+    },
+    [
+      canEditPhase1,
+      checkedRequirements,
+      clearActedCheckedRows,
+      onReviewAction,
+    ],
+  );
+
+  const handleSelectedReviewAction = useCallback(
+    (requirement: ReviewRequirement, action: RequirementReviewAction) => {
+      if (!canEditPhase1) return;
+      onReviewAction(requirement, action);
+      if (
+        currentRequirement?.requirementKey === requirement.requirementKey &&
+        (action.type === "approve" ||
+          action.type === "flag" ||
+          action.type === "skip")
+      ) {
+        selectNext(requirement);
+      }
+    },
+    [canEditPhase1, currentRequirement, onReviewAction, selectNext],
   );
 
   const handleApproveReadyRows = useCallback(() => {
-    if (!canEditPhase1 || readyBulkReviewRequirements.length === 0) {
-      return;
-    }
-
-    const approvedRequirementKeys = new Set(
-      readyBulkReviewRequirements.map(
-        (requirement) => requirement.requirementKey,
-      ),
+    if (!canEditPhase1 || readyBulkRequirements.length === 0) return;
+    const approvedKeys = new Set(
+      readyBulkRequirements.map((requirement) => requirement.requirementKey),
     );
-
-    readyBulkReviewRequirements.forEach((requirement) => {
-      onReviewAction(requirement, { type: "approve" });
-    });
-
-    const nextRequirement =
+    readyBulkRequirements.forEach((requirement) =>
+      onReviewAction(requirement, { type: "approve" }),
+    );
+    const next =
       reviewQueue.find(
-        (requirement) =>
-          !approvedRequirementKeys.has(requirement.requirementKey),
+        (requirement) => !approvedKeys.has(requirement.requirementKey),
       ) ?? null;
-    setSelectedRequirementKey(nextRequirement?.requirementKey ?? null);
+    clearActedCheckedRows(readyBulkRequirements);
+    setSelectedKey(next?.requirementKey ?? null);
+    setSelectedRowKey(next?.requirementKey ?? null);
   }, [
     canEditPhase1,
+    clearActedCheckedRows,
     onReviewAction,
-    readyBulkReviewRequirements,
+    readyBulkRequirements,
     reviewQueue,
   ]);
 
   const handleSkipRemainingRows = useCallback(() => {
-    if (!canEditPhase1 || reviewQueue.length === 0) {
-      return;
-    }
-
-    reviewQueue.forEach((requirement) => {
-      onReviewAction(requirement, { type: "skip" });
-    });
-    setSelectedRequirementKey(null);
-  }, [canEditPhase1, onReviewAction, reviewQueue]);
+    if (!canEditPhase1 || reviewQueue.length === 0) return;
+    reviewQueue.forEach((requirement) =>
+      onReviewAction(requirement, { type: "skip" }),
+    );
+    clearActedCheckedRows(reviewQueue);
+    setSelectedKey(null);
+    setSelectedRowKey(null);
+  }, [canEditPhase1, clearActedCheckedRows, onReviewAction, reviewQueue]);
 
   useEffect(() => {
-    if (!activeRequirementKey) {
-      return;
-    }
-
+    if (!activeKey) return;
     try {
-      window.localStorage.setItem(selectionStorageKey, activeRequirementKey);
+      window.localStorage.setItem(selectionKey, activeKey);
     } catch {
-      // Ignore local persistence failures.
+      /* localStorage is optional */
     }
-  }, [activeRequirementKey, selectionStorageKey]);
+  }, [activeKey, selectionKey]);
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(explorerFilterStorageKey, explorerFilter);
-      window.localStorage.setItem(explorerQueryStorageKey, explorerQuery);
+      window.localStorage.setItem(filterKey, explorerFilter);
+      window.localStorage.setItem(queryKey, explorerQuery);
     } catch {
-      // Ignore local persistence failures.
+      /* localStorage is optional */
     }
-  }, [
-    explorerFilter,
-    explorerFilterStorageKey,
-    explorerQuery,
-    explorerQueryStorageKey,
-  ]);
+  }, [explorerFilter, explorerQuery, filterKey, queryKey]);
 
   useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
+    function onKeyDown(event: KeyboardEvent) {
       const target = event.target as HTMLElement | null;
-      const isTypingTarget =
+      const typing =
         target?.tagName === "INPUT" ||
         target?.tagName === "TEXTAREA" ||
         target?.getAttribute("contenteditable") === "true";
-
-      if (isTypingTarget || !currentRequirement) {
-        return;
-      }
-
+      if (typing || !currentRequirement) return;
       if (event.key === "[") {
         event.preventDefault();
-        handleSelectPreviousReviewRequirement(currentRequirement);
+        selectPrevious(currentRequirement);
       }
-
       if (event.key === "]") {
         event.preventDefault();
-        handleSelectNextReviewRequirement(currentRequirement);
+        selectNext(currentRequirement);
       }
-
-      if (!canEditPhase1) {
-        return;
-      }
-
+      if (!canEditPhase1) return;
       if (event.key.toLowerCase() === "a") {
         event.preventDefault();
-        handleGuidedReviewAction(currentRequirement, { type: "approve" });
+        handleReviewAction(currentRequirement, { type: "approve" });
       }
-
       if (event.key.toLowerCase() === "f") {
         event.preventDefault();
-        handleGuidedReviewAction(currentRequirement, { type: "flag" });
+        handleReviewAction(currentRequirement, { type: "flag" });
       }
-
       if (event.key.toLowerCase() === "s") {
         event.preventDefault();
-        handleGuidedReviewAction(currentRequirement, { type: "skip" });
+        handleReviewAction(currentRequirement, { type: "skip" });
       }
-
       if (event.key.toLowerCase() === "r") {
         event.preventDefault();
-        handleGuidedReviewAction(currentRequirement, { type: "resetToDraft" });
+        handleReviewAction(currentRequirement, { type: "resetToDraft" });
       }
     }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, [
-    currentRequirement,
     canEditPhase1,
-    handleGuidedReviewAction,
-    handleSelectNextReviewRequirement,
-    handleSelectPreviousReviewRequirement,
+    currentRequirement,
+    handleReviewAction,
+    selectNext,
+    selectPrevious,
   ]);
 
   const reviewWorkspaceReady = generatedCount > 0 && currentRequirement !== null;
+  const hasNoFilterResults = tableRows.length > 0 && visibleRows.length === 0;
+
+  if (!reviewWorkspaceReady) {
+    return (
+      <ReviewEmptyState
+        approvedCount={approvedCount}
+        generatedCount={generatedCount}
+        onGenerateDemoRows={onGenerateDemoRows}
+        onGoToGenerate={onGoToGenerate}
+        onOpenScript={onOpenScript}
+      />
+    );
+  }
 
   return (
-    <section className="grid gap-6">
-      <section className="phase-section-card">
-        <div className="phase-section-copy">
-          <p className="phase-overline">Review</p>
-          <h2 className="phase-section-title">Review generated requirements</h2>
-          <p className="phase-section-body">
-            Decide one requirement at a time, keep the draft and evidence in
-            view, and use the left rail only when you need to move or filter
-            the queue.
-          </p>
-        </div>
-      </section>
-
-      {reviewWorkspaceReady ? (
-        <section className="phase-review-workspace">
-          <aside className="phase-review-sidebar">
-            <div className="phase-review-sidebar-scroll">
-              <div className="grid gap-4">
-                <ReviewQueueNavigator
-                  activeQueueIndex={activeQueueIndex}
-                  approvedCount={approvedCount}
-                  canEdit={canEditPhase1}
-                  currentRequirement={currentRequirement}
-                  onApproveReadyRows={handleApproveReadyRows}
-                  onOpenScript={onOpenScript}
-                  onSelectNext={handleSelectNextReviewRequirement}
-                  onSelectPrevious={handleSelectPreviousReviewRequirement}
-                  onSelectQueueRequirement={(requirement) =>
-                    setSelectedRequirementKey(requirement.requirementKey)
-                  }
-                  onSkipRemainingRows={handleSkipRemainingRows}
-                  readyBulkCount={readyBulkReviewRequirements.length}
-                  reviewQueue={reviewQueue}
-                  stickyOnDesktop={false}
-                />
-
-                <section className="phase-sidebar-panel phase-desktop-only">
-                  <ReviewInventoryContent
-                    explorerFilter={explorerFilter}
-                    explorerQuery={explorerQuery}
-                    explorerRows={explorerRows}
-                    onExplorerFilterChange={setExplorerFilter}
-                    onExplorerQueryChange={setExplorerQuery}
-                    onOpenRequirement={(requirement) =>
-                      setSelectedRequirementKey(requirement.requirementKey)
-                    }
-                    queuedRequirementKeys={queuedRequirementKeys}
-                  />
-                </section>
-              </div>
-            </div>
-
-            <details className="phase-sidebar-panel phase-mobile-only">
-              <summary className="theme-shell-title cursor-pointer text-sm font-bold">
-                Filters and full inventory
-              </summary>
-              <div className="mt-4">
-                <ReviewInventoryContent
-                  explorerFilter={explorerFilter}
-                  explorerQuery={explorerQuery}
-                  explorerRows={explorerRows}
-                  onExplorerFilterChange={setExplorerFilter}
-                  onExplorerQueryChange={setExplorerQuery}
-                  onOpenRequirement={(requirement) =>
-                    setSelectedRequirementKey(requirement.requirementKey)
-                  }
-                  queuedRequirementKeys={queuedRequirementKeys}
-                />
-              </div>
-            </details>
-          </aside>
-
-          <div className="phase-review-main grid gap-6">
-            <GuidedReviewCard
-              canEdit={canEditPhase1}
-              onReviewAction={handleGuidedReviewAction}
-              onSelectNext={handleSelectNextReviewRequirement}
-              requirement={currentRequirement}
-            />
-          </div>
-        </section>
-      ) : (
-        <ReviewWorkflowStep
-          activeQueueIndex={activeQueueIndex}
-          approvedCount={approvedCount}
-          canEdit={canEditPhase1}
-          currentRequirement={currentRequirement}
-          generatedCount={generatedCount}
-          onGenerateDemoRows={async () => {
-            const generated = await onGenerateDemoRows();
-
-            if (generated) {
-              setSelectedRequirementKey(reviewQueue[0]?.requirementKey ?? null);
-            }
-          }}
-          onGoToGenerate={onGoToGenerate}
-          onOpenScript={onOpenScript}
-          onReviewAction={handleGuidedReviewAction}
-          onSelectPrevious={handleSelectPreviousReviewRequirement}
-          onSelectQueueRequirement={(requirement) =>
-            setSelectedRequirementKey(requirement.requirementKey)
-          }
-          onSelectNext={handleSelectNextReviewRequirement}
-          reviewQueue={reviewQueue}
-          showFrame={false}
-        />
-      )}
-
-      {currentRequirement ? (
-        <div className="phase-mobile-review-bar grid xl:hidden">
+    <div className="fv-review-workspace">
+      <FvPageHeader
+        actions={
           <button
+            className="fv-btn-primary"
+            disabled={approvedCount === 0}
+            onClick={onOpenScript}
             type="button"
-            disabled={!canEditPhase1}
-            onClick={() =>
-              handleGuidedReviewAction(currentRequirement, { type: "approve" })
-            }
-            className="focus-premium theme-button-primary rounded-xl px-3 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-45"
           >
-            Approve
+            Generate Script
           </button>
-          <button
-            type="button"
-            disabled={!canEditPhase1}
-            onClick={() =>
-              handleGuidedReviewAction(currentRequirement, { type: "flag" })
-            }
-            className="focus-premium theme-shell-button-secondary rounded-xl px-3 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            Flag
-          </button>
-          <button
-            type="button"
-            disabled={!canEditPhase1}
-            onClick={() =>
-              handleGuidedReviewAction(currentRequirement, { type: "skip" })
-            }
-            className="focus-premium theme-shell-button-secondary rounded-xl px-3 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            Skip
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSelectNextReviewRequirement(currentRequirement)}
-            className="focus-premium theme-shell-button-secondary rounded-xl px-3 py-3 text-sm font-semibold transition"
-          >
-            Next
-          </button>
-        </div>
-      ) : null}
-    </section>
-  );
-}
-
-function isRequirementReadyForBulkApproval(requirement: ReviewRequirement) {
-  const assessment = assessRequirementSupport(requirement);
-  const validation = evaluateRequirementValidation(requirement, assessment);
-
-  return validation.isSafeToApprove;
-}
-
-function ReviewInventoryContent({
-  explorerFilter,
-  explorerQuery,
-  explorerRows,
-  onExplorerFilterChange,
-  onExplorerQueryChange,
-  onOpenRequirement,
-  queuedRequirementKeys,
-}: {
-  explorerFilter: ExplorerFilter;
-  explorerQuery: string;
-  explorerRows: ReviewRequirement[];
-  onExplorerFilterChange: (filter: ExplorerFilter) => void;
-  onExplorerQueryChange: (query: string) => void;
-  onOpenRequirement: (requirement: ReviewRequirement) => void;
-  queuedRequirementKeys: Set<string>;
-}) {
-  return (
-    <>
-      <div className="phase-sidebar-copy">
-        <p className="phase-overline">Inventory</p>
-        <h3 className="phase-rail-title">Search and filter generated rows</h3>
-        <p className="phase-inline-note">
-          Keep filters visible, then open a pending row directly from the list.
-        </p>
-      </div>
-
-      <div className="phase-sidebar-filter-grid">
-        {(["pending", "review", "approved", "skipped", "all"] as const).map(
-          (filter) => (
-            <button
-              key={filter}
-              type="button"
-              onClick={() => onExplorerFilterChange(filter)}
-              className={`focus-premium phase-filter-chip ${
-                explorerFilter === filter ? "phase-filter-chip-active" : ""
-              }`}
-            >
-              {capitalize(filter)}
-            </button>
-          ),
-        )}
-      </div>
-
-      <input
-        value={explorerQuery}
-        onChange={(event) => onExplorerQueryChange(event.currentTarget.value)}
-        placeholder="Search ID, process, or draft text..."
-        className="focus-premium theme-shell-input w-full rounded-xl px-4 py-3 text-sm"
+        }
+        description="Review generated MES requirements, resolve flagged rows, and approve the set before script generation."
+        eyebrow="Phase 1 / Requirements"
+        title="Requirements Review"
       />
 
-      <div className="phase-sidebar-list">
-        {explorerRows.length > 0 ? (
-          explorerRows.map((requirement) => {
-            const isPendingQueueRow = queuedRequirementKeys.has(
-              requirement.requirementKey,
-            );
+      {!canEditPhase1 ? (
+        <FvCallout tone="status" title="Read-only review">
+          Review decisions are disabled for your role. You can still inspect
+          generated requirements and review notes.
+        </FvCallout>
+      ) : null}
 
-            return (
-              <div key={requirement.requirementKey} className="phase-inventory-item">
-                <div className="min-w-0">
-                  <p className="phase-overlay-row-title">
-                    {requirement.requirementId || `Row ${requirement.sourceRowNumber}`}
-                  </p>
-                  <p className="phase-overlay-row-body">
-                    {requirement.requirementDescription ||
-                      "No requirement description."}
-                  </p>
-                </div>
+      <div className="fv-stats-row fv-review-stats">
+        <FvStatCard
+          helper="Generated requirements"
+          label="Total"
+          tone="info"
+          value={formatCount(totalGeneratedCount)}
+        />
+        <FvStatCard
+          helper={`${completionProgress}% complete`}
+          label="Approved"
+          progress={completionProgress}
+          tone="success"
+          value={formatCount(approvedCount)}
+        />
+        <FvStatCard
+          helper="Flagged for consultant review"
+          label="Flagged"
+          tone="warning"
+          value={formatCount(flaggedCount)}
+        />
+        <FvStatCard
+          helper="Rows still in the review queue"
+          label="Pending"
+          tone="accent"
+          value={formatCount(reviewQueue.length)}
+        />
+      </div>
 
-                <div className="phase-overlay-row-meta">
-                  <span>{requirement.reviewStatus}</span>
-                  <span>Row {requirement.sourceRowNumber}</span>
-                </div>
+      <FvToolbar
+        className="fv-review-toolbar"
+        left={
+          <>
+            <input
+              className="fv-search-input fv-review-search"
+              onChange={(event) => handleQueryChange(event.target.value)}
+              placeholder="Search requirements..."
+              type="search"
+              value={explorerQuery}
+            />
+            <select
+              className="fv-select fv-review-filter"
+              onChange={(event) =>
+                handleFilterChange(event.currentTarget.value as ExplorerFilter)
+              }
+              value={explorerFilter}
+            >
+              {(Object.keys(FILTER_LABEL) as ExplorerFilter[]).map((filter) => (
+                <option key={filter} value={filter}>
+                  {FILTER_LABEL[filter]}
+                </option>
+              ))}
+            </select>
+            <select
+              className="fv-select fv-review-filter"
+              onChange={(event) =>
+                handleProcessFilterChange(event.currentTarget.value)
+              }
+              value={processFilter}
+            >
+              <option value="all">All processes</option>
+              {processOptions.map((process) => (
+                <option key={process} value={process}>
+                  {process}
+                </option>
+              ))}
+            </select>
+          </>
+        }
+        right={
+          <span className="fv-review-showing">
+            Showing {visibleRows.length} of {tableRows.length}
+          </span>
+        }
+      />
 
-                <button
-                  type="button"
-                  disabled={!isPendingQueueRow}
-                  onClick={() => {
-                    if (!isPendingQueueRow) {
-                      return;
-                    }
+      <ReviewBulkActionBar
+        canEdit={canEditPhase1}
+        onBulkAction={handleBulkReviewAction}
+        onClearSelection={clearCheckedRows}
+        selectedCount={checkedRequirements.length}
+      />
 
-                    onOpenRequirement(requirement);
-                  }}
-                  className="focus-premium theme-shell-button-secondary rounded-xl px-3 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {isPendingQueueRow ? "Open row" : "Reviewed"}
-                </button>
-              </div>
-            );
-          })
+      <div className="fv-review-table-detail-grid">
+        {hasNoFilterResults ? (
+          <ReviewNoResultsState onClearFilters={handleClearFilters} />
         ) : (
-          <div className="phase-feedback">
-            No generated rows match the current filters.
-          </div>
+          <>
+            <ReviewRequirementsTable
+              allVisibleRowsChecked={allVisibleRowsChecked}
+              checkedRowKeys={effectiveCheckedRowKeys}
+              currentRequirement={currentRequirement}
+              onSelectRequirement={(requirement) =>
+                setSelectedRowKey(requirement.requirementKey)
+              }
+              onToggleRequirementChecked={handleToggleRequirementChecked}
+              onToggleVisibleRows={handleToggleVisibleRows}
+              rows={visibleRows}
+              selectedRequirement={selectedRequirement}
+              someVisibleRowsChecked={someVisibleRowsChecked}
+            />
+            {selectedRequirement ? (
+              <ReviewSelectedInspector
+                canEdit={canEditPhase1}
+                onReviewAction={handleSelectedReviewAction}
+                requirement={selectedRequirement}
+              />
+            ) : (
+              <ReviewInspectorEmptyState />
+            )}
+          </>
         )}
       </div>
-    </>
+
+      {!hasNoFilterResults ? (
+        <>
+          <div className="fv-review-queue-strip">
+            <ReviewQueueControls
+              activeQueueIndex={activeQueueIndex}
+              approvedCount={approvedCount}
+              canEdit={canEditPhase1}
+              currentRequirement={currentRequirement}
+              onApproveReadyRows={handleApproveReadyRows}
+              onOpenScript={onOpenScript}
+              onSelectNext={selectNext}
+              onSelectPrevious={selectPrevious}
+              onSkipRemainingRows={handleSkipRemainingRows}
+              readyBulkCount={readyBulkRequirements.length}
+              reviewQueue={reviewQueue}
+            />
+          </div>
+
+          <div className="fv-mobile-action-bar">
+            <button
+              className="fv-btn-primary"
+              disabled={!canEditPhase1}
+              onClick={() =>
+                handleReviewAction(currentRequirement, { type: "approve" })
+              }
+              type="button"
+            >
+              Approve
+            </button>
+            <button
+              className="fv-btn-secondary"
+              disabled={!canEditPhase1}
+              onClick={() =>
+                handleReviewAction(currentRequirement, { type: "flag" })
+              }
+              type="button"
+            >
+              Flag
+            </button>
+            <button
+              className="fv-btn-secondary"
+              disabled={!canEditPhase1}
+              onClick={() =>
+                handleReviewAction(currentRequirement, { type: "skip" })
+              }
+              type="button"
+            >
+              Skip
+            </button>
+            <button
+              className="fv-btn-secondary"
+              onClick={() => selectNext(currentRequirement)}
+              type="button"
+            >
+              Next
+            </button>
+          </div>
+        </>
+      ) : null}
+    </div>
   );
-}
-
-function filterExplorerRequirements(
-  requirements: ReviewRequirement[],
-  filter: ExplorerFilter,
-) {
-  if (filter === "all") {
-    return requirements;
-  }
-
-  return requirements.filter((requirement) => requirement.reviewStatus === filter);
-}
-
-function searchExplorerRequirements(
-  requirements: ReviewRequirement[],
-  searchQuery: string,
-) {
-  const normalizedQuery = searchQuery.trim().toLowerCase();
-
-  if (!normalizedQuery) {
-    return requirements;
-  }
-
-  return requirements.filter((requirement) =>
-    [
-      requirement.requirementId,
-      requirement.requirementDescription,
-      requirement.l2Process,
-      requirement.l3Process,
-      requirement.operation,
-      requirement.reviewStatus,
-      requirement.sourceComment,
-    ]
-      .join(" ")
-      .toLowerCase()
-      .includes(normalizedQuery),
-  );
-}
-
-function isExplorerFilter(value: string | null): value is ExplorerFilter {
-  return (
-    value === "all" ||
-    value === "pending" ||
-    value === "review" ||
-    value === "approved" ||
-    value === "skipped"
-  );
-}
-
-function capitalize(value: string) {
-  return `${value.slice(0, 1).toUpperCase()}${value.slice(1)}`;
 }

@@ -12,6 +12,14 @@ export function shouldAutoStartMasterDataGeneration(
   return status === "idle";
 }
 
+const STAGE_LABELS: Record<string, string> = {
+  analysis: "Parse requirement text",
+  mapping: "Map to MES object schema",
+  defaults: "Populate required fields",
+  relationships: "Validate cross-references",
+  packaging: "Package Master Data files",
+};
+
 export default function MasterDataProcessStudio({
   onGenerate,
   onOpenReview,
@@ -34,145 +42,222 @@ export default function MasterDataProcessStudio({
     ) {
       return;
     }
-
     hasTriggeredRef.current = true;
     void onGenerate();
   }, [onGenerate, phase2.generationStatus]);
 
+  const isReady = phase2.generationStatus === "ready";
+  const isError = phase2.generationStatus === "error";
+
+  const total = phase2.selectedRequirementKeys.length;
+  const objectCount = Object.values(phase2.generatedObjects).reduce(
+    (sum, arr) => sum + arr.length,
+    0,
+  );
+  const pct = total > 0 ? Math.round((objectCount / Math.max(total, 1)) * 100) : 0;
+
+  // Group logs by stage for the steps display
+  const stageOrder = ["analysis", "mapping", "defaults", "relationships", "packaging"];
+  const stageMap = new Map<string, { status: string; message: string }>();
+  for (const log of phase2.generationLogs) {
+    stageMap.set(log.stage, { status: log.status, message: log.message });
+  }
+
+  // Build by-type breakdown
+  const typeBreakdown = Object.entries(phase2.generatedObjects)
+    .filter(([, arr]) => arr.length > 0 || phase2.selectedObjectTypes.includes(arr as unknown as string as never))
+    .map(([type, arr]) => ({ type, count: arr.length }));
+
+  const highConf = Object.values(phase2.generatedObjects).flat().filter((o) => o.confidence.level === "high").length;
+  const medConf = Object.values(phase2.generatedObjects).flat().filter((o) => o.confidence.level === "medium").length;
+  const warnings = Object.values(phase2.generatedObjects).flat().filter((o) => o.warnings.length > 0).length;
+
   return (
-    <section className="grid gap-6">
-      <section className="phase-section-card">
-        <div className="phase-section-copy">
-          <p className="phase-overline">Processing</p>
-          <h2 className="phase-section-title">
-            Build the package before we ask for object-by-object approval.
-          </h2>
-          <p className="phase-section-body">
-            This pass maps the reviewed requirement slice into the selected
-            object schema, applies import-safe defaults, resolves references,
-            and prepares the review package.
-          </p>
-        </div>
+    <div>
+      {/* Page header */}
+      <div style={{ marginBottom: "1.25rem" }}>
+        <h1 className="fv-page-title">
+          {isReady ? "Master Data Generated" : isError ? "Generation Error" : "Generating Master Data…"}
+        </h1>
+        <p className="fv-page-subtitle">
+          {isReady
+            ? `${objectCount} objects created from ${total} selected requirements. Ready for review.`
+            : isError
+              ? "Generation completed with errors. Review and resolve before proceeding to export."
+              : `AI is processing ${total} selected requirements and creating MES object definitions.`}
+        </p>
+      </div>
 
-        <div className="phase-inline-metrics">
-          <span>
-            <strong>{phase2.selectedRequirementKeys.length}</strong> selected rows
-          </span>
-          <span>
-            <strong>{phase2.selectedObjectTypes.length}</strong> object types
-          </span>
-          <span>
-            <strong>{phase2.mode === "real" ? "Real" : "Draft"}</strong> mode
-          </span>
+      {/* Error banner */}
+      {isError ? (
+        <div className="fv-callout fv-callout-error" style={{ marginBottom: "1rem" }}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ flexShrink: 0 }} aria-hidden="true">
+            <circle cx="8" cy="8" r="6" /><line x1="6" y1="6" x2="10" y2="10" /><line x1="10" y1="6" x2="6" y2="10" />
+          </svg>
+          {phase2.generationFeedback ?? "Generation completed with errors — review below and resolve or skip before proceeding to export."}
         </div>
-      </section>
+      ) : null}
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)]">
-        <section className="phase-section-card">
-          <div className="phase-toolbar">
-            <div className="phase-toolbar-copy">
-              <p className="phase-overline">Generation log</p>
-              <h3 className="phase-section-title">Live process view</h3>
-              <p className="phase-section-body">
-                The process log keeps the current mapping/defaulting/validation
-                steps visible so the handoff into review feels explainable.
-              </p>
+      <div className="fv-two-col">
+        {/* Left: progress + steps + terminal */}
+        <div style={{ display: "grid", gap: "1.25rem" }}>
+          {/* Progress bar */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+              <span style={{ fontSize: "0.875rem", color: "var(--foreground)", fontWeight: 500 }}>
+                Overall Progress — {objectCount} of {total} objects
+              </span>
+              <span style={{ fontSize: "0.875rem", fontWeight: 700, color: isReady ? "var(--status-approved)" : "var(--brand-primary)" }}>
+                {isReady ? "100%" : `${pct}%`}
+              </span>
+            </div>
+            <div className="fv-progress-track">
+              <div
+                className={`fv-progress-fill${isReady ? " fv-progress-fill-green" : ""}`}
+                style={{ width: `${isReady ? 100 : pct}%` }}
+              />
             </div>
           </div>
 
-          <div className="grid gap-3">
-            {phase2.generationLogs.map((entry) => (
-              <div
-                key={entry.id}
-                className={`rounded-2xl border px-4 py-3 text-sm ${
-                  entry.status === "warning"
-                    ? "tone-warning"
-                    : entry.status === "complete"
-                      ? "tone-positive"
-                      : "tone-neutral"
-                }`}
-              >
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <strong className="capitalize">{entry.stage}</strong>
-                  <span className="mono-label text-[11px]">{entry.status}</span>
+          {/* Generation steps */}
+          <div>
+            <div style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted-fg)", marginBottom: "0.625rem" }}>
+              Generation Steps
+            </div>
+
+            {stageOrder.map((stage, idx) => {
+              const info = stageMap.get(stage);
+              const isDone = info?.status === "complete";
+              const isActive = info?.status === "running";
+              const isWarn = info?.status === "warning";
+
+              return (
+                <div
+                  key={stage}
+                  className={`fv-gen-step${isDone || isWarn ? " fv-gen-step-done" : isActive ? " fv-gen-step-active" : ""}`}
+                  style={isWarn ? { borderColor: "var(--status-flagged-border)", background: "var(--status-flagged-bg)" } : undefined}
+                >
+                  <div className={`fv-gen-circle${isDone || isWarn ? " fv-gen-circle-done" : isActive ? " fv-gen-circle-active" : " fv-gen-circle-future"}`}
+                    style={isWarn ? { background: "var(--status-flagged)" } : undefined}
+                  >
+                    {isDone || isWarn ? (
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+                        <polyline points="1.5 5 4 7.5 8.5 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    ) : (
+                      idx + 1
+                    )}
+                  </div>
+                  <div>
+                    <div className="fv-gen-step-title">{STAGE_LABELS[stage] ?? stage}</div>
+                    {info?.message ? (
+                      <div className="fv-gen-step-sub">{info.message}</div>
+                    ) : !info ? (
+                      <div className="fv-gen-step-sub">Waiting…</div>
+                    ) : null}
+                  </div>
                 </div>
-                <p className="mt-2">{entry.message}</p>
+              );
+            })}
+          </div>
+
+          {/* Terminal log */}
+          {phase2.generationLogs.length > 0 ? (
+            <div className="fv-terminal">
+              {phase2.generationLogs.map((log) => {
+                const cls =
+                  log.status === "complete" ? "fv-terminal-ok"
+                    : log.status === "warning" ? "fv-terminal-warn"
+                    : log.status === "running" ? "fv-terminal-run"
+                    : "fv-terminal-info";
+                const prefix = log.status === "complete" ? "[OK]" : log.status === "warning" ? "[WARN]" : log.status === "running" ? "[RUN]" : "[INFO]";
+                return (
+                  <div key={log.id}>
+                    <span className={cls}>{prefix} </span>
+                    <span className="fv-terminal-info">{log.message}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="fv-terminal">
+              <span className="fv-terminal-info">Waiting for generation to start…</span>
+            </div>
+          )}
+        </div>
+
+        {/* Right: stats cards + actions */}
+        <div style={{ display: "grid", gap: "1rem", alignContent: "start" }}>
+          {/* Objects generated card */}
+          <div className="fv-card">
+            <div className="fv-card-title">Objects Generated</div>
+            <div style={{ fontSize: "2rem", fontWeight: 700, color: "var(--brand-primary)", letterSpacing: "-0.04em", lineHeight: 1 }}>
+              {objectCount}
+            </div>
+            <div style={{ fontSize: "0.75rem", color: "var(--muted-fg)", marginTop: "0.25rem" }}>
+              of {total} total · {pct}%
+            </div>
+            <div className="fv-progress-track" style={{ marginTop: "0.625rem" }}>
+              <div className="fv-progress-fill" style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+
+          {/* By object type */}
+          {typeBreakdown.length > 0 ? (
+            <div className="fv-card">
+              <div className="fv-card-title">By Object Type</div>
+              {typeBreakdown.map(({ type, count }) => (
+                <div key={type} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", padding: "0.25rem 0", borderBottom: "1px solid var(--surface-border)" }}>
+                  <span style={{ color: "var(--muted-fg)", textTransform: "capitalize" }}>{type}</span>
+                  <span style={{ fontWeight: 700, color: "var(--foreground)" }}>{count}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {/* Confidence breakdown */}
+          <div className="fv-card">
+            <div className="fv-card-title">Confidence Breakdown</div>
+            {[
+              { label: "High", value: highConf, color: "var(--status-approved)" },
+              { label: "Medium", value: medConf, color: "var(--status-flagged)" },
+              { label: "Warnings", value: warnings, color: "var(--status-flagged)" },
+            ].map((row) => (
+              <div key={row.label} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", padding: "0.25rem 0", borderBottom: "1px solid var(--surface-border)" }}>
+                <span style={{ color: "var(--muted-fg)" }}>{row.label}</span>
+                <span style={{ fontWeight: 700, color: row.value > 0 ? row.color : "var(--muted-fg)" }}>{row.value}</span>
               </div>
             ))}
-
-            {phase2.generationLogs.length === 0 ? (
-              <div className="rounded-2xl border px-4 py-3 text-sm tone-neutral">
-                The process log will appear here once generation starts.
-              </div>
-            ) : null}
           </div>
-        </section>
 
-        <aside className="phase-rail">
-          <section className="phase-rail-card grid gap-4">
-            <div>
-              <p className="phase-overline">Status</p>
-              <h3 className="phase-rail-title">
-                {phase2.generationStatus === "ready"
-                  ? "Review package ready"
-                  : phase2.generationStatus === "error"
-                    ? "Generation needs attention"
-                    : "Generating drafts"}
-              </h3>
-            </div>
-
-            <div
-              className={`rounded-2xl border px-4 py-3 text-sm ${
-                phase2.generationStatus === "error"
-                  ? "tone-danger"
-                  : phase2.generationStatus === "ready"
-                    ? "tone-positive"
-                    : "tone-neutral"
-              }`}
-            >
-              {phase2.generationFeedback ??
-                "The processing step is preparing the Master Data package."}
-            </div>
-
-            <div className="grid gap-3">
-              {phase2.generationStatus === "error" &&
-              phase2.mode === "real" ? (
-                <button
-                  type="button"
-                  onClick={onUsePrototypeDrafts}
-                  className="focus-premium theme-button-primary rounded-2xl px-5 py-3 text-sm font-semibold transition"
-                >
-                  Switch to prototype drafts
-                </button>
-              ) : null}
-              {phase2.generationStatus === "error" ? (
-                <button
-                  type="button"
-                  onClick={() => void onGenerate()}
-                  className="focus-premium theme-shell-button-secondary rounded-2xl px-5 py-3 text-sm font-semibold transition"
-                >
-                  Retry generation
-                </button>
-              ) : null}
-              <button
-                type="button"
-                onClick={onOpenReview}
-                disabled={phase2.generationStatus !== "ready"}
-                className="focus-premium theme-button-primary rounded-2xl px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Open review
+          {/* Actions */}
+          <div style={{ display: "grid", gap: "0.5rem" }}>
+            {isReady ? (
+              <button type="button" onClick={onOpenReview} className="fv-btn-primary" style={{ justifyContent: "center" }}>
+                Review Results →
               </button>
-              <button
-                type="button"
-                onClick={onReturnToSetup}
-                className="focus-premium theme-shell-button-secondary rounded-2xl px-5 py-3 text-sm font-semibold transition"
-              >
-                Back to setup
-              </button>
-            </div>
-          </section>
-        </aside>
-      </section>
-    </section>
+            ) : null}
+            {isError ? (
+              <>
+                {phase2.mode === "real" ? (
+                  <button type="button" onClick={onUsePrototypeDrafts} className="fv-btn-primary" style={{ justifyContent: "center" }}>
+                    Switch to prototype drafts
+                  </button>
+                ) : null}
+                <button type="button" onClick={() => void onGenerate()} className="fv-btn-secondary" style={{ justifyContent: "center" }}>
+                  ⟳ Retry Generation
+                </button>
+                <button type="button" onClick={onOpenReview} className="fv-btn-secondary" style={{ justifyContent: "center" }}>
+                  Review Partial Results
+                </button>
+              </>
+            ) : null}
+            <button type="button" onClick={onReturnToSetup} className="fv-btn-secondary" style={{ justifyContent: "center" }}>
+              ← Back to Setup
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

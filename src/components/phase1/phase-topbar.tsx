@@ -1,11 +1,30 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import ThemeToggle from "@/app/theme-toggle";
+import MesLogo from "@/components/brand/mes-logo";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
-export default function Phase1Topbar({ email }: { email?: string | null }) {
+function getInitials(email?: string | null): string {
+  if (!email) return "U";
+  const parts = email.split("@")[0].split(/[._-]/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return email.slice(0, 2).toUpperCase();
+}
+
+function getDisplayName(email?: string | null): string {
+  if (!email) return "User";
+  return email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export default function Phase1Topbar({
+  email,
+  projectId,
+}: {
+  email?: string | null;
+  projectId?: string | null;
+}) {
   const supabaseConfigured = isSupabaseConfigured();
 
   async function handleSignOut() {
@@ -21,101 +40,37 @@ export default function Phase1Topbar({ email }: { email?: string | null }) {
   }
 
   return (
-    <nav aria-label="Product" className="top-shell animate-enter">
-      <div className="top-shell-brand">
-        <div className="brand-lockup">
-          <Link href="/" aria-label="Projects">
-            <Image
-              alt="Critical Manufacturing"
-              className="theme-logo theme-logo-light h-7 w-auto sm:h-8"
-              height={44}
-              priority
-              src="/brand/critical-manufacturing.svg"
-              width={178}
-            />
-            <Image
-              alt="Critical Manufacturing"
-              className="theme-logo theme-logo-dark h-7 w-auto sm:h-8"
-              height={44}
-              priority
-              src="/brand/critical-manufacturing-white.svg"
-              width={178}
-            />
-          </Link>
-        </div>
+    <nav aria-label="Product" className="fv-topbar">
+      <Link href="/" aria-label="Projects" className="fv-topbar-brand">
+        <MesLogo className="fv-topbar-logo-full" tone="white" />
+        <span className="fv-topbar-sub">Critical Manufacturing</span>
+      </Link>
 
-        <div className="top-shell-copy">
-          <p className="mono-label top-shell-product-label">
-            Critical Manufacturing
-          </p>
-          <p className="top-shell-product-title">MES Demo Advisor</p>
-        </div>
-      </div>
-
-      <div className="top-shell-partner">
-        {supabaseConfigured ? (
-          <div className="hidden items-center gap-2 lg:flex">
-            <Link
-              href="/"
-              className="focus-premium theme-shell-button-secondary rounded-xl px-3 py-2 text-xs font-semibold transition"
-            >
-              Projects
-            </Link>
-            <Link
-              href="/settings"
-              className="focus-premium theme-shell-button-secondary rounded-xl px-3 py-2 text-xs font-semibold transition"
-            >
-              Settings
-            </Link>
-            <Link
-              href="/profile"
-              className="focus-premium theme-shell-button-secondary rounded-xl px-3 py-2 text-xs font-semibold transition"
-            >
-              Profile
-            </Link>
-          </div>
+      <div className="fv-topbar-right">
+        {projectId ? (
+          <span className="fv-topbar-project-pill">{projectId}</span>
         ) : null}
-        <span className="mono-label top-shell-partner-label">
-          In collaboration with
-        </span>
-        <div className="uporto-lockup" aria-label="University of Porto">
-          <Image
-            alt="University of Porto"
-            className="theme-logo theme-logo-light uporto-logo"
-            height={118}
-            src="/brand/uporto-header-light.png"
-            width={533}
-          />
-          <Image
-            alt="University of Porto"
-            className="theme-logo theme-logo-dark uporto-logo"
-            height={118}
-            src="/brand/uporto-header-dark.png"
-            width={533}
-          />
-        </div>
-      </div>
 
-      <div
-        className="top-shell-toggle"
-        style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
-      >
+        <Link href="/" className="fv-topbar-link">Projects</Link>
+
         {email ? (
-          <span className="mono-label top-shell-partner-label hidden sm:inline">
-            {email}
-          </span>
+          <span className="fv-topbar-username">{getDisplayName(email)}</span>
         ) : null}
+
+        <div className="fv-topbar-avatar" aria-hidden="true">
+          {getInitials(email)}
+        </div>
+
         {supabaseConfigured ? (
           <button
             type="button"
             onClick={handleSignOut}
-            className="focus-premium theme-shell-button-secondary rounded-xl px-3 py-2 text-xs font-semibold transition"
+            className="fv-topbar-logout"
             aria-label="Sign out"
           >
-            Sign out
+            Logout
           </button>
         ) : null}
-        <ThemeToggle />
       </div>
     </nav>
   );

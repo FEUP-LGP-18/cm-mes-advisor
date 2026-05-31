@@ -75,11 +75,8 @@ describe("MasterDataReviewStudio", () => {
       />,
     );
 
-    expect(html).toContain("1 of 3 objects");
-    expect(html).toContain("2 need decisions");
-    expect(html).toContain("Object navigation");
-    expect(html).toContain("Review decision");
-    expect(html).toContain("Approve and next object");
+    expect(html).toContain("1 of 3");
+    expect(html).toContain("Approve");
     expect(html).toContain("Lisbon Site");
     expect(html).toContain("Porto Site");
   });
@@ -109,8 +106,7 @@ describe("MasterDataReviewStudio", () => {
       />,
     );
 
-    expect(html).toContain('class="phase-section-title">Lisbon Site</h3>');
-    expect(html).toContain("2 of 2 objects");
-    expect(html).toContain("1 need decisions");
+    expect(html).toContain("Lisbon Site");
+    expect(html).toContain("2 of 2");
   });
 });

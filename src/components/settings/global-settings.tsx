@@ -14,44 +14,25 @@ export function GlobalSettingsView({
   supabaseMissing: string[];
 }) {
   return (
-    <section className="mx-auto grid w-full max-w-[1120px] gap-6 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
-      <header className="phase-shell-header">
-        <div className="phase-shell-header-top w-full">
-          <div className="phase-shell-breadcrumbs">
-            <Link href="/" className="phase-product-link">
-              Projects
-            </Link>
-            <span className="phase-shell-divider">/</span>
-            <span>Settings</span>
-          </div>
-          <div className="phase-shell-pill-row ml-auto">
-            <span className="phase-shell-pill">Workspace</span>
-            <span className="phase-shell-pill phase-shell-pill-muted">
-              Safe status
-            </span>
-          </div>
-        </div>
-        <div className="phase-shell-header-main">
-          <div className="phase-shell-title-block">
-            <h1 className="phase-shell-title">Workspace settings</h1>
-            <p className="phase-shell-helper">
-              Confirm auth, generation, and release readiness without exposing
-              environment variable values.
-            </p>
-          </div>
-        </div>
-      </header>
+    <div className="fv-settings-stack">
+      <div>
+        <nav className="fv-breadcrumb" aria-label="Breadcrumb">
+          <Link href="/" className="fv-breadcrumb-link">Projects</Link>
+          <span className="fv-breadcrumb-sep">/</span>
+          <span>Settings</span>
+        </nav>
+        <h1 className="fv-page-title" style={{ marginTop: "0.5rem" }}>Workspace settings</h1>
+        <p className="fv-page-subtitle">
+          Confirm auth, generation, and release readiness without exposing environment variable values.
+        </p>
+      </div>
 
-      <section className="phase-section-card">
-        <div className="phase-section-copy">
-          <h2 className="phase-section-title">Environment status</h2>
-          <p className="phase-section-body">
-            These indicators show whether required capabilities are configured.
-            Secret values are intentionally hidden.
-          </p>
-        </div>
-
-        <div className="grid gap-3 md:grid-cols-2">
+      <div className="fv-card">
+        <div className="fv-card-title">Environment status</div>
+        <p style={{ fontSize: "0.8rem", color: "var(--muted-fg)", marginBottom: "1rem", marginTop: "-0.25rem" }}>
+          These indicators show whether required capabilities are configured. Secret values are intentionally hidden.
+        </p>
+        <div className="fv-settings-status-grid">
           <StatusTile
             label="Supabase auth"
             value={supabaseConfigured ? "Configured" : "Not configured"}
@@ -93,27 +74,25 @@ export function GlobalSettingsView({
             }
           />
         </div>
-      </section>
+      </div>
 
-      <section className="phase-section-card">
-        <div className="phase-toolbar">
-          <div className="phase-toolbar-copy">
-            <p className="phase-overline">Release readiness</p>
-            <h2 className="phase-section-title">Pilot checklist</h2>
-            <p className="phase-section-body">
-              Use the checklist before calling a build complete. Phase 2 is a
-              required demo flow, but MES import validation remains external.
+      <div className="fv-card">
+        <div style={{ display: "flex", alignItems: "start", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted-fg)", marginBottom: "0.25rem" }}>
+              Release readiness
+            </div>
+            <div className="fv-card-title" style={{ marginBottom: "0.25rem" }}>Pilot checklist</div>
+            <p style={{ fontSize: "0.8rem", color: "var(--muted-fg)", margin: 0 }}>
+              Use the checklist before calling a build complete. Phase 1 is complete on its own; Phase 2 is an optional continuation for Master Data validation.
             </p>
           </div>
-          <Link
-            href="/docs/release-checklist"
-            className="focus-premium theme-shell-button-secondary rounded-2xl px-5 py-3 text-sm font-semibold transition"
-          >
+          <Link href="/docs/release-checklist" className="fv-btn-secondary" style={{ flexShrink: 0 }}>
             Open checklist
           </Link>
         </div>
-      </section>
-    </section>
+      </div>
+    </div>
   );
 }
 
@@ -128,18 +107,15 @@ function StatusTile({
   tone: "default" | "positive" | "warning";
   value: string;
 }) {
-  const toneClass =
-    tone === "positive"
-      ? "tone-positive"
-      : tone === "warning"
-        ? "tone-warning"
-        : "tone-neutral";
-
   return (
-    <div className={`theme-shell-card rounded-2xl px-4 py-4 ${toneClass}`}>
-      <p className="phase-overline">{label}</p>
-      <strong className="mt-2 block text-lg">{value}</strong>
-      <p className="mt-2 text-sm leading-6 text-[color:var(--shell-muted)]">
+    <div className={`fv-status-tile fv-status-tile-${tone}`}>
+      <div className="fv-status-tile-label">
+        {label}
+      </div>
+      <div className="fv-status-tile-value">
+        {value}
+      </div>
+      <p className="fv-status-tile-detail">
         {detail}
       </p>
     </div>

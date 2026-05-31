@@ -1,4 +1,5 @@
 import type { GeneratedRequirementDraft } from "./generation";
+import type { SettingsBehaviorSnapshot } from "../settings";
 import type { ParsedRequirement } from "./types";
 
 export type RequirementGenerationRouteMode = "mock" | "real";
@@ -14,6 +15,7 @@ export interface RequirementGenerationRequestBody {
   projectId: string;
   requirements: ParsedRequirement[];
   mode?: RequirementGenerationRouteMode;
+  settings?: SettingsBehaviorSnapshot;
 }
 
 export interface RequirementGenerationRouteError {

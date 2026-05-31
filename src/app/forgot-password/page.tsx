@@ -9,6 +9,7 @@ import {
 } from "@/lib/supabase/auth-messages";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import AuthShell from "@/components/auth/auth-shell";
+import MesLogo from "@/components/brand/mes-logo";
 
 export default function ForgotPasswordPage() {
   const supabaseConfigured = isSupabaseConfigured();
@@ -49,26 +50,20 @@ export default function ForgotPasswordPage() {
   if (sent) {
     return (
       <AuthShell>
-        <div className="w-full max-w-sm animate-enter">
-          <div className="premium-panel rounded-3xl p-8 grid gap-6">
-            <div className="grid gap-2">
-              <h1 className="text-2xl font-semibold tracking-tight text-[color:var(--shell-ink)]">
-                Reset link sent
-              </h1>
-              <p className="text-sm text-[color:var(--shell-muted)] leading-relaxed">
-                If{" "}
-                <strong className="text-[color:var(--shell-ink)]">{email}</strong>{" "}
-                has an account, a reset link is on its way. Check your inbox and
-                follow the link to set a new password.
-              </p>
-            </div>
-            <Link
-              href="/login"
-              className="focus-premium theme-shell-button-secondary w-full rounded-2xl px-5 py-3 text-sm font-semibold text-center transition"
-            >
-              Back to sign in
-            </Link>
+        <div className="fv-auth-card fv-auth-card-compact fv-auth-stack">
+          <div className="fv-auth-logo-wrap">
+            <MesLogo className="fv-auth-logo-full" tone="color" />
           </div>
+          <div>
+            <h1 className="fv-auth-heading">Reset link sent</h1>
+            <p className="fv-auth-sub" style={{ marginBottom: 0 }}>
+              If <strong>{email}</strong> has an account, a reset link is on its
+              way. Check your inbox and follow the link to set a new password.
+            </p>
+          </div>
+          <Link href="/login" className="fv-btn-secondary" style={{ justifyContent: "center" }}>
+            Back to sign in
+          </Link>
         </div>
       </AuthShell>
     );
@@ -76,24 +71,20 @@ export default function ForgotPasswordPage() {
 
   return (
     <AuthShell>
-      <div className="w-full max-w-sm animate-enter">
-        <div className="premium-panel rounded-3xl p-8 grid gap-6">
-          <div className="grid gap-1">
-            <h1 className="text-2xl font-semibold tracking-tight text-[color:var(--shell-ink)]">
-              Reset your password
-            </h1>
-            <p className="text-sm text-[color:var(--shell-muted)]">
-              Enter your email and we&apos;ll send a reset link.
-            </p>
-          </div>
+      <div className="fv-auth-card fv-auth-card-compact">
+        <div className="fv-auth-logo-wrap">
+          <MesLogo className="fv-auth-logo-full" tone="color" />
+        </div>
+        <h1 className="fv-auth-heading">Reset your password</h1>
+        <p className="fv-auth-sub">Enter your email and we&apos;ll send a reset link.</p>
 
-          <form onSubmit={handleSubmit} className="grid gap-4" noValidate>
-            <div className="grid gap-1.5">
+          <form onSubmit={handleSubmit} className="fv-auth-form" noValidate>
+            <div className="fv-auth-field">
               <label
                 htmlFor="email"
-                className="mono-label text-[0.68rem] text-[color:var(--shell-subtle)]"
+                className="fv-auth-field-label"
               >
-                Email
+                Email address
               </label>
               <input
                 id="email"
@@ -102,25 +93,19 @@ export default function ForgotPasswordPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.currentTarget.value)}
-                placeholder="you@example.com"
-                className="focus-premium theme-shell-input w-full rounded-2xl px-4 py-3 text-sm"
+                placeholder="consultant@criticalmanufacturing.com"
+                className="fv-auth-input"
               />
             </div>
 
             {!supabaseConfigured ? (
-              <div
-                role="alert"
-                className="phase-feedback phase-feedback-error rounded-2xl text-sm"
-              >
+              <div role="alert" className="fv-auth-alert">
                 {AUTH_NOT_CONFIGURED_MESSAGE}
               </div>
             ) : null}
 
             {error ? (
-              <div
-                role="alert"
-                className="phase-feedback phase-feedback-error rounded-2xl text-sm"
-              >
+              <div role="alert" className="fv-auth-alert">
                 {error}
               </div>
             ) : null}
@@ -128,7 +113,7 @@ export default function ForgotPasswordPage() {
             <button
               type="submit"
               disabled={loading || !supabaseConfigured}
-              className="focus-premium theme-button-primary w-full rounded-2xl px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+              className="fv-auth-submit"
             >
               {loading ? "Sending…" : "Send reset link"}
             </button>
@@ -137,21 +122,21 @@ export default function ForgotPasswordPage() {
           {!supabaseConfigured ? (
             <Link
               href="/"
-              className="focus-premium theme-shell-button-secondary w-full rounded-2xl px-5 py-3 text-sm font-semibold text-center transition"
+              className="fv-auth-submit"
+              style={{ display: "flex", marginTop: "1rem", textDecoration: "none" }}
             >
               Continue in mock mode
             </Link>
           ) : null}
 
-          <p className="text-center text-sm text-[color:var(--shell-muted)]">
+          <p className="fv-auth-footer" style={{ marginTop: "1rem" }}>
             <Link
               href="/login"
-              className="font-semibold text-[color:var(--shell-ink)] hover:text-[color:var(--brand-accent-soft)] transition-colors"
+              className="fv-auth-link"
             >
               ← Back to sign in
             </Link>
           </p>
-        </div>
       </div>
     </AuthShell>
   );

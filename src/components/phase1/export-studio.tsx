@@ -25,20 +25,10 @@ export default function ExportStudio({
   pendingReviewCount,
   projectMetadata,
 }: ExportStudioProps) {
-  return (
-    <section className="grid gap-6">
-      <section className="phase-section-card">
-        <div className="phase-section-copy">
-          <p className="phase-overline">Export</p>
-          <h2 className="phase-section-title">Download the Phase 1 handoff</h2>
-          <p className="phase-section-body">
-            Confirm the included coverage, keep the final download action close
-            to the readiness summary, and export the reviewed Markdown handoff
-            when it is ready.
-          </p>
-        </div>
-      </section>
+  const canContinueToMasterData = exportReady && approvedCount > 0;
 
+  return (
+    <div style={{ display: "grid", gap: "1.25rem" }}>
       <DemoScriptExportPanel
         assembly={assembly}
         exportReady={exportReady}
@@ -48,30 +38,67 @@ export default function ExportStudio({
         projectMetadata={projectMetadata}
       />
 
-      <section className="phase-section-card">
-        <div className="phase-toolbar">
-          <div className="phase-toolbar-copy">
-            <p className="phase-overline">Required pilot demo</p>
-            <h3 className="phase-section-title">
-              Start Phase 2 from approved Phase 1 rows.
-            </h3>
-            <p className="phase-section-body">
-              The pilot demo requires the Master Data path after the Phase 1
-              handoff: approved rows, setup, generation, review, export, and
-              traceability. The app still does not claim MES import validation.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={onOpenMasterData}
-            disabled={!exportReady || approvedCount === 0}
-            className="focus-premium theme-shell-button-secondary rounded-2xl px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
+      {canContinueToMasterData ? (
+        <section
+          className="fv-card"
+          style={{ borderLeft: "3px solid var(--brand-primary)" }}
+        >
+          <div
+            style={{
+              alignItems: "flex-start",
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "1rem",
+              justifyContent: "space-between",
+            }}
           >
-            Start Phase 2 demo
-          </button>
-        </div>
-      </section>
-    </section>
+            <div>
+              <div
+                style={{
+                  color: "var(--muted-fg)",
+                  fontSize: "0.65rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.1em",
+                  marginBottom: "0.25rem",
+                  textTransform: "uppercase",
+                }}
+              >
+                Optional Phase 2 continuation
+              </div>
+              <h3
+                style={{
+                  color: "var(--foreground)",
+                  fontSize: "0.95rem",
+                  fontWeight: 700,
+                  margin: "0 0 0.375rem",
+                }}
+              >
+                Generate Master Data draft
+              </h3>
+              <p
+                style={{
+                  color: "var(--muted-fg)",
+                  fontSize: "0.8rem",
+                  lineHeight: 1.6,
+                  margin: 0,
+                  maxWidth: "520px",
+                }}
+              >
+                Phase 1 is complete once the Markdown handoff is exported.
+                Continue only if you want the optional Master Data package for
+                Phase 2.
+              </p>
+            </div>
+            <button
+              className="fv-btn-primary"
+              onClick={onOpenMasterData}
+              type="button"
+            >
+              Generate Master Data draft
+            </button>
+          </div>
+        </section>
+      ) : null}
+    </div>
   );
 }
