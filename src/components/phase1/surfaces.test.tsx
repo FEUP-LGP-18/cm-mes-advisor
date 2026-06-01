@@ -316,10 +316,11 @@ describe("phase 1 redesigned surfaces", () => {
       />,
     );
 
-    expect(html).toContain("fv-template-layout-selected");
-    expect(html).toContain("fv-template-grid");
-    expect(html).toContain("fv-template-details");
-    expect(html).toContain("Apply to project");
+    expect(html).toContain("fv-settings-section");
+    expect(html).toContain("fv-template-grid-target");
+    expect(html).toContain("fv-settings-template-card-active");
+    expect(html).toContain("Template details - Automotive");
+    expect(html).toContain("Save Template");
     expect(html).toContain("Back to source");
     expect(html).toContain("Clear");
   });

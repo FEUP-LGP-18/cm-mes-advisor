@@ -8,10 +8,24 @@ import { usePhase1Project } from "./project-provider";
 import CopyProjectLinkButton from "./copy-project-link-button";
 import type { Project, ProjectActivityEvent } from "@/lib/projects/types";
 import {
+  aiVerbosityLevels,
+  defaultGeneralOutputPreferences,
+  defaultSafeAiPreferences,
+  defaultSettingsBehaviorSnapshot,
   industryTemplateDefinitions,
   loadSettingsBehaviorSnapshot,
+  mesVersionOptions,
+  outputLanguageOptions,
+  safeAiModelAliases,
   saveSettingsBehaviorSnapshot,
+  type GeneralOutputPreferences,
   type IndustryTemplateId,
+  type MesVersion,
+  type OutputLanguage,
+  type SafeAiModelAlias,
+  type SafeAiPreferences,
+  type SafeAiVerbosity,
+  type SettingsBehaviorSnapshot,
 } from "@/lib/settings";
 
 // ── Types ──────────────────────────────────────────────────────
@@ -336,11 +350,8 @@ export function TemplatesTab({
   ) => void;
   projectId: string;
 }) {
-  const [selectedId, setSelectedId] = useState<IndustryTemplateId | null>(() =>
-    currentIndustryTemplateId ??
-    (typeof window === "undefined"
-      ? null
-      : loadSettingsBehaviorSnapshot(window.localStorage).industryTemplateId),
+  const [selectedId, setSelectedId] = useState<IndustryTemplateId | null>(
+    currentIndustryTemplateId ?? null,
   );
   const [saved, setSaved] = useState(false);
   const selected =
@@ -371,21 +382,34 @@ export function TemplatesTab({
   }
 
   return (
-    <div style={{ display: "grid", gap: "1.5rem" }}>
-      <div>
-        <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--foreground)", margin: "0 0 0.25rem" }}>
-          Industry Templates
-        </h2>
-        <p style={{ fontSize: "0.85rem", color: "var(--muted-fg)", margin: 0 }}>
-          Select a template to preset requirement categories and generation hints for your industry vertical.
-        </p>
-      </div>
-
-      <div
-        className={`fv-template-layout${selected ? " fv-template-layout-selected" : ""}`}
-      >
-        {/* Template grid */}
-        <div className="fv-template-grid">
+    <SettingsSection
+      actions={
+        <button
+          type="button"
+          onClick={handleApplyTemplate}
+          className="fv-btn-primary"
+          disabled={!canEditProjectState || !selected}
+        >
+          Save Template
+        </button>
+      }
+      feedback={
+        saved
+          ? "Template saved for this project and future project setup."
+          : !canEditProjectState
+            ? "Viewers can inspect templates, but cannot change this project."
+            : null
+      }
+      subtitle="Select the industry profile that best matches this customer. Templates preload safe categories and generation hints."
+      title="Industry Templates"
+    >
+      <section className="fv-card fv-settings-panel" aria-labelledby="template-grid-heading">
+        <PanelHeader
+          id="template-grid-heading"
+          title="Industry Template"
+          subtitle="Choose one supported template or clear the selection to keep the default setup."
+        />
+        <div className="fv-template-grid fv-template-grid-target">
           {industryTemplateDefinitions.map((template) => {
             const isActive = selectedId === template.id;
             return (
@@ -396,75 +420,69 @@ export function TemplatesTab({
                   setSelectedId(isActive ? null : template.id);
                   setSaved(false);
                 }}
-                style={{
-                  display: "grid",
-                  gap: "0.5rem",
-                  padding: "1rem",
-                  border: `2px solid ${isActive ? "var(--brand-primary)" : "var(--surface-border)"}`,
-                  borderRadius: "8px",
-                  background: isActive ? "color-mix(in srgb, var(--brand-primary) 6%, #ffffff)" : "#ffffff",
-                  textAlign: "left",
-                  cursor: "pointer",
-                  transition: "border-color 0.15s, background 0.15s",
-                }}
+                className={`fv-settings-template-card${isActive ? " fv-settings-template-card-active" : ""}`}
                 aria-pressed={isActive}
               >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
-                  <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--foreground)" }}>
-                    {template.label}
+                <div className="fv-settings-template-card-header">
+                  <span className="fv-settings-template-icon" aria-hidden="true">
+                    {template.label.slice(0, 1)}
                   </span>
-                  {isActive && (
-                    <svg viewBox="0 0 16 16" fill="none" style={{ width: 14, height: 14, flexShrink: 0, color: "var(--brand-primary)" }}>
-                      <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
-                      <path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  )}
+                  {isActive ? (
+                    <span className="fv-settings-check" aria-hidden="true">✓</span>
+                  ) : null}
                 </div>
-                <p style={{ fontSize: "0.75rem", color: "var(--muted-fg)", margin: 0, lineHeight: 1.4 }}>
-                  {template.description}
-                </p>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem", marginTop: "0.25rem" }}>
-                  <span style={{ fontSize: "0.65rem", fontWeight: 700, padding: "0.1rem 0.4rem", background: "var(--surface-muted)", borderRadius: "3px", color: "var(--muted-fg)" }}>
-                    {template.defaults.requirementFocus.length} focus areas
-                  </span>
+                <strong>{template.label}</strong>
+                <p>{template.description}</p>
+                <div className="fv-settings-chip-list">
+                  {template.defaults.requirementFocus.slice(0, 3).map((tag) => (
+                    <span className="fv-settings-chip" key={tag}>
+                      {tag}
+                    </span>
+                  ))}
                 </div>
               </button>
             );
           })}
         </div>
+      </section>
 
-        {/* Template details */}
-        {selected && (
-          <div className="fv-card fv-template-details">
-            <div className="fv-card-title" style={{ marginBottom: "0.5rem" }}>{selected.label}</div>
-            <p style={{ fontSize: "0.8rem", color: "var(--muted-fg)", margin: "0 0 1rem", lineHeight: 1.5 }}>
-              {selected.description}
-            </p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem", marginBottom: "1.25rem" }}>
-              {[...selected.defaults.processGuidance, ...selected.defaults.requirementFocus].map((tag) => (
-                <span
-                  key={tag}
-                  style={{ fontSize: "0.7rem", fontWeight: 600, padding: "0.2rem 0.5rem", background: "color-mix(in srgb, var(--brand-primary) 10%, transparent)", color: "var(--brand-primary)", borderRadius: "4px" }}
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-            <div style={{ display: "grid", gap: "0.75rem" }}>
-              <button
-                type="button"
-                onClick={handleApplyTemplate}
-                className="fv-btn-primary"
-                disabled={!canEditProjectState}
-                style={{ flex: 1, justifyContent: "center" }}
-              >
-                Apply to project
-              </button>
+      {selected ? (
+        <section className="fv-card fv-settings-panel" aria-labelledby="template-details-heading">
+          <PanelHeader
+            id="template-details-heading"
+            title={`Template details - ${selected.label}`}
+            subtitle="Preloaded categories and hints included in this template."
+          />
+          <SettingsRow
+            control={
+              <div className="fv-settings-chip-list">
+                {selected.defaults.processGuidance.map((tag) => (
+                  <span className="fv-settings-chip fv-settings-chip-blue" key={tag}>
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            }
+            description="Hints the AI will prioritise when mapping requirements."
+            label="MES object categories"
+          />
+          <SettingsRow
+            control={
+              <div className="fv-settings-chip-list">
+                {selected.defaults.requirementFocus.map((tag) => (
+                  <span className="fv-settings-chip fv-settings-chip-green" key={tag}>
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            }
+            description="Expected requirement areas for this industry."
+            label="Requirement categories"
+          />
+          <SettingsRow
+            control={
               <div className="fv-template-actions-row">
-                <Link
-                  href={`/projects/${projectId}/source`}
-                  className="fv-btn-secondary"
-                >
+                <Link href={`/projects/${projectId}/source`} className="fv-btn-secondary">
                   Back to source
                 </Link>
                 <button
@@ -476,21 +494,21 @@ export function TemplatesTab({
                   Clear
                 </button>
               </div>
-              {saved ? (
-                <p role="status" className="fv-help-text" style={{ margin: 0 }}>
-                  Template applied to this project and saved for the next project you create.
-                </p>
-              ) : null}
-              {!canEditProjectState ? (
-                <p role="status" className="fv-help-text" style={{ margin: 0 }}>
-                  Viewers can inspect templates, but cannot change this project.
-                </p>
-              ) : null}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+            }
+            description="Clearing the template keeps uploaded workbook rows and Phase 1 progress unchanged."
+            label="Selection controls"
+          />
+        </section>
+      ) : (
+        <section className="fv-card fv-settings-panel" aria-labelledby="template-empty-heading">
+          <PanelHeader
+            id="template-empty-heading"
+            title="No template selected"
+            subtitle="Projects without a template keep the default Phase 1 setup and existing workbook behavior."
+          />
+        </section>
+      )}
+    </SettingsSection>
   );
 }
 
@@ -542,408 +560,513 @@ function Toggle({
   );
 }
 
-// ── AIConfigTab ────────────────────────────────────────────────
-
-const AI_PREFS_KEY = "mes-advisor-ai-prefs";
-
-interface AIPrefs {
-  confidenceThreshold: number;
-  verbosity: "low" | "medium" | "high";
-  autoReview: boolean;
-  includeExplanations: boolean;
+function SettingsSection({
+  actions,
+  children,
+  feedback,
+  subtitle,
+  title,
+}: {
+  actions?: React.ReactNode;
+  children: React.ReactNode;
+  feedback?: string | null;
+  subtitle: string;
+  title: string;
+}) {
+  return (
+    <div className="fv-settings-section">
+      <div className="fv-settings-section-header">
+        <div>
+          <h2>{title}</h2>
+          <p>{subtitle}</p>
+        </div>
+        {actions ? <div className="fv-settings-actions">{actions}</div> : null}
+      </div>
+      {feedback ? (
+        <p className="fv-settings-feedback" role="status">
+          {feedback}
+        </p>
+      ) : null}
+      <div className="fv-settings-section-stack">{children}</div>
+    </div>
+  );
 }
 
-const AI_DEFAULTS: AIPrefs = {
-  confidenceThreshold: 75,
-  verbosity: "medium",
-  autoReview: true,
-  includeExplanations: true,
+function PanelHeader({
+  id,
+  subtitle,
+  title,
+}: {
+  id: string;
+  subtitle: string;
+  title: string;
+}) {
+  return (
+    <div className="fv-settings-panel-header">
+      <div>
+        <h3 id={id}>{title}</h3>
+        <p>{subtitle}</p>
+      </div>
+    </div>
+  );
+}
+
+function SettingsRow({
+  control,
+  description,
+  htmlFor,
+  label,
+}: {
+  control: React.ReactNode;
+  description: string;
+  htmlFor?: string;
+  label: string;
+}) {
+  return (
+    <div className="fv-settings-row">
+      <div className="fv-settings-row-copy">
+        {htmlFor ? (
+          <label htmlFor={htmlFor}>{label}</label>
+        ) : (
+          <span className="fv-settings-row-label">{label}</span>
+        )}
+        <p>{description}</p>
+      </div>
+      <div className="fv-settings-row-control">{control}</div>
+    </div>
+  );
+}
+
+// ── AIConfigTab ────────────────────────────────────────────────
+
+const aiModelLabels: Record<SafeAiModelAlias, string> = {
+  default: "Default reviewer",
+  "grounded-draft": "Grounded draft",
+  "review-focused": "Review-focused",
 };
 
-function AIConfigTab() {
-  const [prefs, setPrefs] = useState<AIPrefs>(() => {
-    if (typeof window === "undefined") return AI_DEFAULTS;
-    try {
-      const stored = localStorage.getItem(AI_PREFS_KEY);
-      return stored ? { ...AI_DEFAULTS, ...JSON.parse(stored) } : AI_DEFAULTS;
-    } catch { return AI_DEFAULTS; }
-  });
-  const [saved, setSaved] = useState(false);
+const aiVerbosityLabels: Record<SafeAiVerbosity, string> = {
+  low: "Brief",
+  medium: "Standard",
+  high: "Detailed",
+};
 
-  const update = <K extends keyof AIPrefs>(key: K, value: AIPrefs[K]) => {
-    setPrefs((p) => ({ ...p, [key]: value }));
-    setSaved(false);
-  };
-
-  const handleSave = () => {
-    try {
-      localStorage.setItem(AI_PREFS_KEY, JSON.stringify(prefs));
-    } catch {}
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
-  };
-
-  const handleReset = () => {
-    setPrefs(AI_DEFAULTS);
-    setSaved(false);
-    try {
-      localStorage.removeItem(AI_PREFS_KEY);
-    } catch {}
+function AIConfigTab({
+  feedback,
+  onChange,
+  onReset,
+  onSave,
+  preferences,
+}: {
+  feedback: string | null;
+  onChange: (preferences: SafeAiPreferences) => void;
+  onReset: () => void;
+  onSave: () => void;
+  preferences: SafeAiPreferences;
+}) {
+  const update = <K extends keyof SafeAiPreferences>(
+    key: K,
+    value: SafeAiPreferences[K],
+  ) => {
+    onChange({ ...preferences, [key]: value });
   };
 
   return (
-    <div style={{ display: "grid", gap: "1.5rem" }}>
-      <div>
-        <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--foreground)", margin: "0 0 0.25rem" }}>
-          AI Configuration
-        </h2>
-        <p style={{ fontSize: "0.85rem", color: "var(--muted-fg)", margin: 0 }}>
-          Adjust how the AI advisor generates, scores, and presents requirements.
-        </p>
-      </div>
-
-      <section className="fv-card" aria-labelledby="ai-params-heading">
-        <div className="fv-card-title" id="ai-params-heading" style={{ marginBottom: "1.25rem" }}>
-          AI Parameters
-        </div>
-
-        <div style={{ display: "grid", gap: "1.5rem", maxWidth: "480px" }}>
-          {/* Confidence threshold */}
-          <div style={{ display: "grid", gap: "0.5rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <label style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--foreground)" }} htmlFor="ai-confidence">
-                Confidence threshold
-              </label>
-              <span style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--brand-primary)", minWidth: "3rem", textAlign: "right" }}>
-                {prefs.confidenceThreshold}%
-              </span>
+    <SettingsSection
+      actions={
+        <>
+          <button type="button" onClick={onReset} className="fv-btn-secondary">
+            Reset to defaults
+          </button>
+          <button type="button" onClick={onSave} className="fv-btn-primary">
+            Save changes
+          </button>
+        </>
+      }
+      feedback={feedback}
+      subtitle="Tune only the safe AI behaviours supported by the settings contract."
+      title="AI Configuration"
+    >
+      <section className="fv-card fv-settings-panel" aria-labelledby="ai-params-heading">
+        <PanelHeader
+          id="ai-params-heading"
+          title="AI Parameters"
+          subtitle="These preferences guide future generation and review output. They do not reprocess existing rows."
+        />
+        <SettingsRow
+          control={
+            <div className="fv-settings-range-control">
+              <input
+                id="ai-confidence"
+                type="range"
+                min={50}
+                max={95}
+                step={5}
+                value={preferences.confidenceThreshold}
+                onChange={(e) =>
+                  update("confidenceThreshold", Number(e.target.value))
+                }
+              />
+              <span>{preferences.confidenceThreshold}%</span>
             </div>
-            <input
-              id="ai-confidence"
-              type="range"
-              min={50}
-              max={95}
-              step={5}
-              value={prefs.confidenceThreshold}
-              onChange={(e) => update("confidenceThreshold", Number(e.target.value))}
-              style={{ width: "100%", accentColor: "var(--brand-primary)" }}
-            />
-            <p style={{ fontSize: "0.75rem", color: "var(--muted-fg)", margin: 0 }}>
-              Requirements below this score are flagged for manual review.
-            </p>
-          </div>
-
-          {/* Verbosity */}
-          <div style={{ display: "grid", gap: "0.5rem" }}>
-            <label style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--foreground)" }} htmlFor="ai-verbosity">
-              Response verbosity
-            </label>
-            <div style={{ display: "flex", gap: "0.5rem" }}>
-              {(["low", "medium", "high"] as const).map((level) => (
-                <button
-                  key={level}
-                  type="button"
-                  onClick={() => update("verbosity", level)}
-                  style={{
-                    flex: 1,
-                    padding: "0.5rem",
-                    border: `2px solid ${prefs.verbosity === level ? "var(--brand-primary)" : "var(--surface-border)"}`,
-                    borderRadius: "6px",
-                    background: prefs.verbosity === level ? "color-mix(in srgb, var(--brand-primary) 8%, #ffffff)" : "#ffffff",
-                    fontSize: "0.8rem",
-                    fontWeight: 600,
-                    color: prefs.verbosity === level ? "var(--brand-primary)" : "var(--muted-fg)",
-                    cursor: "pointer",
-                    textTransform: "capitalize",
-                    transition: "all 0.15s",
-                  }}
-                >
-                  {level}
-                </button>
+          }
+          description="Rows below this value stay visibly review-first instead of being treated as ready."
+          htmlFor="ai-confidence"
+          label="Confidence threshold"
+        />
+        <SettingsRow
+          control={
+            <select
+              id="ai-model-alias"
+              value={preferences.modelAlias}
+              onChange={(event) =>
+                update("modelAlias", event.currentTarget.value as SafeAiModelAlias)
+              }
+              className="fv-input fv-settings-control"
+            >
+              {safeAiModelAliases.map((alias) => (
+                <option key={alias} value={alias}>
+                  {aiModelLabels[alias]}
+                </option>
               ))}
-            </div>
-            <p style={{ fontSize: "0.75rem", color: "var(--muted-fg)", margin: 0 }}>
-              Controls the level of detail in generated requirement descriptions.
-            </p>
-          </div>
-
-          {/* Toggles */}
-          <div style={{ display: "grid", gap: "0.875rem" }}>
-            {[
-              { key: "autoReview" as const, label: "Auto-review", desc: "Automatically move completed generations to the review stage." },
-              { key: "includeExplanations" as const, label: "Include explanations", desc: "Append rationale and mapping notes to each generated requirement." },
-            ].map(({ key, label, desc }) => (
-              <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
-                <div>
-                  <div style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--foreground)" }}>{label}</div>
-                  <div style={{ fontSize: "0.75rem", color: "var(--muted-fg)" }}>{desc}</div>
-                </div>
-                <Toggle
-                  id={`ai-toggle-${key}`}
-                  checked={prefs[key] as boolean}
-                  onChange={(val) => update(key, val)}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
+            </select>
+          }
+          description="Uses a curated internal generation profile, not an arbitrary model or prompt editor."
+          htmlFor="ai-model-alias"
+          label="Generation profile"
+        />
+        <SettingsRow
+          control={
+            <select
+              id="ai-verbosity"
+              value={preferences.verbosity}
+              onChange={(event) =>
+                update("verbosity", event.currentTarget.value as SafeAiVerbosity)
+              }
+              className="fv-input fv-settings-control"
+            >
+              {aiVerbosityLevels.map((level) => (
+                <option key={level} value={level}>
+                  {aiVerbosityLabels[level]}
+                </option>
+              ))}
+            </select>
+          }
+          description="Controls the level of detail in future AI comments and review notes."
+          htmlFor="ai-verbosity"
+          label="Comment verbosity"
+        />
+        <SettingsRow
+          control={
+            <Toggle
+              id="ai-include-explanations"
+              checked={preferences.includeExplanations}
+              onChange={(value) => update("includeExplanations", value)}
+            />
+          }
+          description="Adds rationale and mapping notes where generation output is available."
+          htmlFor="ai-include-explanations"
+          label="Include explanations"
+        />
+        <SettingsRow
+          control={
+            <span className="fv-settings-pill fv-settings-pill-locked">
+              Always on
+            </span>
+          }
+          description="The app keeps generated MES mappings grounded in approved server-side sources; this cannot be weakened from the client."
+          label="Hallucination guard"
+        />
       </section>
-
-      <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-        <button type="button" onClick={handleSave} className="fv-btn-primary">
-          Save changes
-        </button>
-        <button type="button" onClick={handleReset} className="fv-btn-secondary">
-          Reset to defaults
-        </button>
-        {saved && (
-          <span style={{ fontSize: "0.8rem", color: "var(--status-approved)" }}>
-            Saved
-          </span>
-        )}
-      </div>
-    </div>
+    </SettingsSection>
   );
 }
 
 // ── AboutTab ───────────────────────────────────────────────────
 
-function AboutTab() {
+function AboutTab({
+  approvedCount,
+  generatedCount,
+  isServerBacked,
+  projectName,
+  sourceRowCount,
+}: {
+  approvedCount: number | null;
+  generatedCount: number | null;
+  isServerBacked: boolean;
+  projectName: string;
+  sourceRowCount: number | null;
+}) {
   return (
-    <div style={{ display: "grid", gap: "1.5rem" }}>
-      <div>
-        <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--foreground)", margin: "0 0 0.25rem" }}>
-          About
-        </h2>
-        <p style={{ fontSize: "0.85rem", color: "var(--muted-fg)", margin: 0 }}>
-          Version information, resources, and data management.
-        </p>
-      </div>
-
-      {/* Version */}
-      <section className="fv-card" aria-labelledby="about-version-heading">
-        <div className="fv-card-title" id="about-version-heading" style={{ marginBottom: "0.75rem" }}>
-          Version
+    <SettingsSection
+      subtitle="Version, resources, and real project-local statistics."
+      title="About"
+    >
+      <section className="fv-card fv-settings-about-hero" aria-labelledby="about-version-heading">
+        <div className="fv-settings-app-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M12 3 4 7l8 4 8-4-8-4Z" />
+            <path d="m4 12 8 4 8-4" />
+            <path d="m4 17 8 4 8-4" />
+          </svg>
         </div>
-        <div style={{ display: "grid", gap: "0.375rem" }}>
-          <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-            <span style={{ fontSize: "1.25rem", fontWeight: 800, color: "var(--foreground)" }}>v0.9.1-beta</span>
-            <span style={{ fontSize: "0.75rem", fontWeight: 600, padding: "0.2rem 0.5rem", background: "color-mix(in srgb, var(--brand-primary) 12%, transparent)", color: "var(--brand-primary)", borderRadius: "4px" }}>
-              Pilot
+        <div>
+          <h3 id="about-version-heading">MES Advisor</h3>
+          <p>v0.9.1-beta · LGP 2026 · FEUP × Critical Manufacturing</p>
+          <div className="fv-settings-pill-row">
+            <span className="fv-settings-pill fv-settings-pill-active">Beta</span>
+            <span className="fv-settings-pill">
+              {isServerBacked ? "Server-backed project" : "Local mock project"}
             </span>
           </div>
-          <p style={{ fontSize: "0.8rem", color: "var(--muted-fg)", margin: 0 }}>
-            LGP 2026 · FEUP × Critical Manufacturing
-          </p>
+        </div>
+        <div className="fv-settings-about-stats">
+          <MetricTile
+            label="Source rows"
+            value={formatMetricValue(sourceRowCount)}
+          />
+          <MetricTile
+            label="Generated drafts"
+            value={formatMetricValue(generatedCount)}
+          />
+          <MetricTile
+            label="Approved rows"
+            value={formatMetricValue(approvedCount)}
+          />
         </div>
       </section>
 
-      {/* Stats */}
-      <section className="fv-card" aria-labelledby="about-stats-heading">
-        <div className="fv-card-title" id="about-stats-heading" style={{ marginBottom: "0.875rem" }}>
-          Session statistics
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "0.75rem" }}>
-          {[
-            { label: "Requirements generated", value: "—" },
-            { label: "Phases completed", value: "—" },
-            { label: "Templates applied", value: "—" },
-            { label: "Last export", value: "—" },
-          ].map(({ label, value }) => (
-            <div key={label} style={{ padding: "0.75rem", background: "var(--surface-muted)", borderRadius: "6px" }}>
-              <div style={{ fontSize: "1.2rem", fontWeight: 800, color: "var(--foreground)", marginBottom: "0.25rem" }}>{value}</div>
-              <div style={{ fontSize: "0.72rem", color: "var(--muted-fg)", lineHeight: 1.3 }}>{label}</div>
-            </div>
-          ))}
-        </div>
-        <p style={{ fontSize: "0.75rem", color: "var(--muted-fg)", margin: "0.75rem 0 0" }}>
-          Per-project statistics are available after completing Phase 1 and exporting results.
-        </p>
+      <section className="fv-card fv-settings-panel" aria-labelledby="about-resources-heading">
+        <PanelHeader
+          id="about-resources-heading"
+          title="Resources"
+          subtitle="Documentation and support links for the current pilot workspace."
+        />
+        <ResourceLink
+          href="/docs/architecture"
+          label="Architecture notes"
+          subtitle="Current app boundaries and implementation context"
+        />
+        <ResourceLink
+          href="/docs/deployment-ci"
+          label="Deployment and CI"
+          subtitle="Build, verification, and release expectations"
+        />
+        <ResourceLink
+          href="https://github.com/FEUP-LGP-18/cm-mes-advisor/issues"
+          label="Report an issue"
+          subtitle={`Submit bugs or feature requests for ${projectName}`}
+        />
       </section>
 
-      {/* Resources */}
-      <section className="fv-card" aria-labelledby="about-resources-heading">
-        <div className="fv-card-title" id="about-resources-heading" style={{ marginBottom: "0.875rem" }}>
-          Resources
-        </div>
-        <div style={{ display: "grid", gap: "0.5rem" }}>
-          {[
-            { label: "Getting started guide", href: "/docs/getting-started" },
-            { label: "Requirement generation reference", href: "/docs/generation" },
-            { label: "Release checklist", href: "/docs/release-checklist" },
-            { label: "Partner integration notes", href: "/docs/partner" },
-          ].map(({ label, href }) => (
-            <Link
-              key={href}
-              href={href}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "0.625rem 0.75rem",
-                border: "1px solid var(--surface-border)",
-                borderRadius: "6px",
-                fontSize: "0.85rem",
-                color: "var(--foreground)",
-                textDecoration: "none",
-                transition: "background 0.15s",
-              }}
-            >
-              {label}
-              <svg viewBox="0 0 16 16" fill="none" style={{ width: 14, height: 14, color: "var(--muted-fg)" }}>
-                <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </Link>
-          ))}
-        </div>
+      <section className="fv-card fv-settings-panel" aria-labelledby="about-privacy-heading">
+        <PanelHeader
+          id="about-privacy-heading"
+          title="Data & privacy"
+          subtitle="Project data remains scoped to this workspace. Destructive actions stay in General where owner permissions are enforced."
+        />
+        <SettingsRow
+          control={<span className="fv-settings-pill">Not tracked</span>}
+          description="The app does not currently maintain durable export counts, hours-saved estimates, or AI accuracy metrics."
+          label="Unsupported metrics"
+        />
       </section>
+    </SettingsSection>
+  );
+}
+
+function MetricTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="fv-settings-metric">
+      <strong>{value}</strong>
+      <span>{label}</span>
     </div>
   );
 }
 
-// ── GeneralPrefsSection (inside General tab) ───────────────────
-
-const GENERAL_PREFS_KEY = "mes-advisor-general-prefs";
-
-interface GeneralPrefs {
-  consultantName: string;
-  mesVersion: string;
-  outputLanguage: string;
-  autoSave: boolean;
-  emailNotifications: boolean;
-  phaseAlerts: boolean;
-  collaborationUpdates: boolean;
+function ResourceLink({
+  href,
+  label,
+  subtitle,
+}: {
+  href: string;
+  label: string;
+  subtitle: string;
+}) {
+  return (
+    <Link href={href} className="fv-settings-resource">
+      <span>
+        <strong>{label}</strong>
+        <small>{subtitle}</small>
+      </span>
+      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M6 4l4 4-4 4" />
+      </svg>
+    </Link>
+  );
 }
 
-const GENERAL_PREFS_DEFAULTS: GeneralPrefs = {
-  consultantName: "",
-  mesVersion: "CM V10",
-  outputLanguage: "English",
-  autoSave: true,
-  emailNotifications: false,
-  phaseAlerts: true,
-  collaborationUpdates: true,
-};
+function formatMetricValue(value: number | null) {
+  return value === null ? "Not loaded" : String(value);
+}
 
-function GeneralPrefsSection() {
-  const [prefs, setPrefs] = useState<GeneralPrefs>(() => {
-    if (typeof window === "undefined") return GENERAL_PREFS_DEFAULTS;
-    try {
-      const stored = localStorage.getItem(GENERAL_PREFS_KEY);
-      return stored ? { ...GENERAL_PREFS_DEFAULTS, ...JSON.parse(stored) } : GENERAL_PREFS_DEFAULTS;
-    } catch { return GENERAL_PREFS_DEFAULTS; }
-  });
-  const [saved, setSaved] = useState(false);
+// ── GeneralPrefsSection (inside General tab) ───────────────────
 
-  const update = <K extends keyof GeneralPrefs>(key: K, value: GeneralPrefs[K]) => {
-    setPrefs((p) => ({ ...p, [key]: value }));
-    setSaved(false);
-  };
-
-  const handleSave = () => {
-    try {
-      localStorage.setItem(GENERAL_PREFS_KEY, JSON.stringify(prefs));
-    } catch {}
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+function GeneralPrefsSection({
+  feedback,
+  onChange,
+  onReset,
+  onSave,
+  preferences,
+}: {
+  feedback: string | null;
+  onChange: (preferences: GeneralOutputPreferences) => void;
+  onReset: () => void;
+  onSave: () => void;
+  preferences: GeneralOutputPreferences;
+}) {
+  const update = <K extends keyof GeneralOutputPreferences>(
+    key: K,
+    value: GeneralOutputPreferences[K],
+  ) => {
+    onChange({ ...preferences, [key]: value });
   };
 
   return (
-    <>
-      <section className="fv-card" aria-labelledby="prefs-defaults-heading">
-        <div className="fv-card-title" id="prefs-defaults-heading" style={{ marginBottom: "1rem" }}>
-          Project defaults
-        </div>
-        <div style={{ display: "grid", gap: "1rem", maxWidth: "480px" }}>
-          <div style={{ display: "grid", gap: "0.3rem" }}>
-            <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--muted-fg)", letterSpacing: "0.04em" }} htmlFor="prefs-consultant-name">
-              Consultant name
-            </label>
+    <SettingsSection
+      actions={
+        <>
+          <button type="button" onClick={onReset} className="fv-btn-secondary">
+            Reset to defaults
+          </button>
+          <button type="button" onClick={onSave} className="fv-btn-primary">
+            Save changes
+          </button>
+        </>
+      }
+      feedback={feedback}
+      subtitle="Set defaults used by future generated scripts, comments, and exports."
+      title="General"
+    >
+      <section className="fv-card fv-settings-panel" aria-labelledby="prefs-defaults-heading">
+        <PanelHeader
+          id="prefs-defaults-heading"
+          title="Project defaults"
+          subtitle="Default values applied when generating new Phase 1 output. Existing generated rows are not rewritten."
+        />
+        <SettingsRow
+          control={
             <input
               id="prefs-consultant-name"
               type="text"
-              placeholder="Your name"
-              value={prefs.consultantName}
-              onChange={(e) => update("consultantName", e.target.value)}
-              className="fv-input"
+              placeholder="S. Faria"
+              value={preferences.consultantName ?? ""}
+              onChange={(event) =>
+                update(
+                  "consultantName",
+                  event.currentTarget.value.trim().length > 0
+                    ? event.currentTarget.value
+                    : null,
+                )
+              }
+              className="fv-input fv-settings-control"
             />
-          </div>
-          <div style={{ display: "grid", gap: "0.3rem" }}>
-            <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--muted-fg)", letterSpacing: "0.04em" }} htmlFor="prefs-mes-version">
-              MES version
-            </label>
+          }
+          description="Appears in generated script output and export metadata."
+          htmlFor="prefs-consultant-name"
+          label="Default consultant name"
+        />
+        <SettingsRow
+          control={
             <select
               id="prefs-mes-version"
-              value={prefs.mesVersion}
-              onChange={(e) => update("mesVersion", e.target.value)}
-              className="fv-input"
-              style={{ cursor: "pointer" }}
+              value={preferences.mesVersion ?? ""}
+              onChange={(event) =>
+                update(
+                  "mesVersion",
+                  event.currentTarget.value
+                    ? (event.currentTarget.value as MesVersion)
+                    : null,
+                )
+              }
+              className="fv-input fv-settings-control"
             >
-              <option>CM V8</option>
-              <option>CM V9</option>
-              <option>CM V10</option>
+              <option value="">Use project default</option>
+              {mesVersionOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
             </select>
-          </div>
-          <div style={{ display: "grid", gap: "0.3rem" }}>
-            <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--muted-fg)", letterSpacing: "0.04em" }} htmlFor="prefs-output-language">
-              Output language
-            </label>
+          }
+          description="Used when referencing MES documentation in generated output."
+          htmlFor="prefs-mes-version"
+          label="Default MES version"
+        />
+        <SettingsRow
+          control={
             <select
               id="prefs-output-language"
-              value={prefs.outputLanguage}
-              onChange={(e) => update("outputLanguage", e.target.value)}
-              className="fv-input"
-              style={{ cursor: "pointer" }}
+              value={preferences.outputLanguage ?? ""}
+              onChange={(event) =>
+                update(
+                  "outputLanguage",
+                  event.currentTarget.value
+                    ? (event.currentTarget.value as OutputLanguage)
+                    : null,
+                )
+              }
+              className="fv-input fv-settings-control"
             >
-              <option>English</option>
-              <option>Portuguese</option>
-              <option>Spanish</option>
+              <option value="">Use workbook language</option>
+              {outputLanguageOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
             </select>
-          </div>
-          <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-            <button type="button" onClick={handleSave} className="fv-btn-primary">
-              Save changes
-            </button>
-            {saved && (
-              <span style={{ fontSize: "0.8rem", color: "var(--status-approved)" }}>Saved</span>
-            )}
-          </div>
-        </div>
+          }
+          description="Saved for future outputs; existing generated comments are not translated."
+          htmlFor="prefs-output-language"
+          label="Output language"
+        />
       </section>
 
-      <section className="fv-card" aria-labelledby="prefs-notifications-heading">
-        <div className="fv-card-title" id="prefs-notifications-heading" style={{ marginBottom: "1rem" }}>
-          Notifications &amp; behaviour
-        </div>
-        <div style={{ display: "grid", gap: "0.875rem" }}>
-          {[
-            { key: "autoSave" as const, label: "Auto-save requirements", desc: "Persist review changes automatically as you work." },
-            { key: "emailNotifications" as const, label: "Email notifications", desc: "Receive emails when collaborators make changes." },
-            { key: "phaseAlerts" as const, label: "Phase completion alerts", desc: "Show an in-app alert when a phase is completed." },
-            { key: "collaborationUpdates" as const, label: "Collaboration updates", desc: "Notify when team members join or update this project." },
-          ].map(({ key, label, desc }) => (
-            <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
-              <div>
-                <label htmlFor={`notif-${key}`} style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--foreground)", display: "block", marginBottom: "0.125rem", cursor: "pointer" }}>
-                  {label}
-                </label>
-                <span style={{ fontSize: "0.75rem", color: "var(--muted-fg)" }}>{desc}</span>
-              </div>
-              <Toggle
-                id={`notif-${key}`}
-                checked={prefs[key] as boolean}
-                onChange={(val) => {
-                  update(key, val);
-                  try {
-                    localStorage.setItem(GENERAL_PREFS_KEY, JSON.stringify({ ...prefs, [key]: val }));
-                  } catch {}
-                }}
-              />
-            </div>
-          ))}
-        </div>
+      <section className="fv-card fv-settings-panel" aria-labelledby="prefs-behaviour-heading">
+        <PanelHeader
+          id="prefs-behaviour-heading"
+          title="Notifications & behaviour"
+          subtitle="Only supported settings are editable. Unsupported product ideas are shown as locked instead of pretending to work."
+        />
+        <SettingsRow
+          control={
+            <span className="fv-settings-pill fv-settings-pill-active">
+              Enabled
+            </span>
+          }
+          description="Review changes are persisted through the existing Phase 1 project state flow."
+          label="Auto-save requirements"
+        />
+        <SettingsRow
+          control={
+            <span className="fv-settings-pill fv-settings-pill-locked">
+              Not available
+            </span>
+          }
+          description="Email notification delivery is not part of the current settings behavior contract."
+          label="Email notifications"
+        />
+        <SettingsRow
+          control={
+            <span className="fv-settings-pill fv-settings-pill-locked">
+              Not available
+            </span>
+          }
+          description="Phase completion alerts are not persisted today; workflow progress remains visible in the project shell."
+          label="Phase completion alerts"
+        />
       </section>
-    </>
+    </SettingsSection>
   );
 }
 
@@ -993,7 +1116,22 @@ export default function GeneralSettings({
   const [actionFeedback, setActionFeedback] = useState<ActionFeedback | null>(null);
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [activeTab, setActiveTab] = useState<SettingsTab>("general");
+  const [activeTab, setActiveTab] = useState<SettingsTab>("templates");
+  const [settingsDraft, setSettingsDraft] = useState<SettingsBehaviorSnapshot>(
+    defaultSettingsBehaviorSnapshot,
+  );
+  const [settingsFeedback, setSettingsFeedback] = useState<{
+    message: string;
+    tab: SettingsTab;
+  } | null>(null);
+
+  useEffect(() => {
+    const tabFromUrl = parseSettingsTab(
+      new URLSearchParams(window.location.search).get("tab"),
+    );
+    if (tabFromUrl) setActiveTab(tabFromUrl);
+    setSettingsDraft(loadSettingsBehaviorSnapshot(window.localStorage));
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -1093,12 +1231,63 @@ export default function GeneralSettings({
     }
   }, [projectId, projectName, router, showFeedback]);
 
-  const TABS: { id: SettingsTab; label: string }[] = [
-    { id: "templates", label: "Industry Templates" },
-    { id: "general", label: "General" },
-    { id: "ai", label: "AI Configuration" },
-    { id: "about", label: "About" },
+  const saveSettingsDraft = useCallback(
+    (tab: SettingsTab, snapshot: SettingsBehaviorSnapshot, message: string) => {
+      saveSettingsBehaviorSnapshot(window.localStorage, snapshot);
+      setSettingsDraft(snapshot);
+      setSettingsFeedback({ message, tab });
+    },
+    [],
+  );
+
+  const saveCurrentSettingsDraft = useCallback(
+    (tab: SettingsTab, message: string) => {
+      saveSettingsDraft(tab, settingsDraft, message);
+    },
+    [saveSettingsDraft, settingsDraft],
+  );
+
+  const resetGeneralSettings = useCallback(() => {
+    const nextSnapshot = {
+      ...settingsDraft,
+      generalOutputPreferences: { ...defaultGeneralOutputPreferences },
+    };
+    saveSettingsDraft(
+      "general",
+      nextSnapshot,
+      "General defaults reset to the safe Phase 1 baseline.",
+    );
+  }, [saveSettingsDraft, settingsDraft]);
+
+  const resetAiSettings = useCallback(() => {
+    const nextSnapshot = {
+      ...settingsDraft,
+      aiPreferences: { ...defaultSafeAiPreferences },
+    };
+    saveSettingsDraft(
+      "ai",
+      nextSnapshot,
+      "AI preferences reset to the safe review-first baseline.",
+    );
+  }, [saveSettingsDraft, settingsDraft]);
+
+  const TABS: { description: string; id: SettingsTab; label: string }[] = [
+    {
+      description: "Template preloads",
+      id: "templates",
+      label: "Industry Templates",
+    },
+    { description: "Defaults and behaviour", id: "general", label: "General" },
+    {
+      description: "Safe generation preferences",
+      id: "ai",
+      label: "AI Configuration",
+    },
+    { description: "Version and resources", id: "about", label: "About" },
   ];
+  const aboutSourceRowCount = localProject?.snapshot.sourceRowCount ?? null;
+  const aboutGeneratedCount = localProject?.snapshot.generatedCount ?? null;
+  const aboutApprovedCount = localProject?.snapshot.approvedCount ?? null;
 
   return (
     <div className="fv-shell">
@@ -1160,94 +1349,131 @@ export default function GeneralSettings({
               <span>Settings</span>
             </nav>
 
-            {/* Tab nav */}
-            <nav
-              aria-label="Settings sections"
-              className="fv-settings-tabs"
-              style={{
-                display: "flex",
-                gap: "0",
-                borderBottom: "1px solid var(--surface-border)",
-                marginBottom: "1.5rem",
-              }}
-            >
-              {TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={activeTab === tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  style={{
-                    padding: "0.625rem 1.125rem",
-                    fontSize: "0.85rem",
-                    fontWeight: activeTab === tab.id ? 700 : 500,
-                    color: activeTab === tab.id ? "var(--brand-primary)" : "var(--muted-fg)",
-                    border: "none",
-                    borderBottom: activeTab === tab.id ? "2px solid var(--brand-primary)" : "2px solid transparent",
-                    marginBottom: "-1px",
-                    background: "none",
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    transition: "color 0.15s",
-                  }}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </nav>
+            <div className="fv-settings-heading">
+              <h1>Settings</h1>
+              <p>Configure MES Advisor behaviour, templates, and AI preferences.</p>
+            </div>
 
-            {/* Tab content */}
-            {activeTab === "templates" && (
-              <TemplatesTab
-                canEditProjectState={canEditPhase1}
-                currentIndustryTemplateId={currentSourceMetadata.industryTemplateId}
-                onApplyProjectIndustryTemplate={updateProjectIndustryTemplate}
-                projectId={projectId}
-              />
-            )}
+            <div className="fv-settings-workspace">
+              <nav className="fv-settings-section-nav" aria-label="Settings sections">
+                {TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    aria-label={tab.label}
+                    aria-current={activeTab === tab.id ? "page" : undefined}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={activeTab === tab.id ? "is-active" : undefined}
+                  >
+                    <span>{tab.label}</span>
+                    <small>{tab.description}</small>
+                  </button>
+                ))}
+              </nav>
 
-            {activeTab === "general" && (
-              <div style={{ display: "grid", gap: "1.25rem" }}>
-                <GeneralSettingsView
-                  actionFeedback={actionFeedback}
-                  archiveConfirmOpen={archiveConfirmOpen}
-                  deleteConfirmInput={deleteConfirmInput}
-                  deleteConfirmOpen={deleteConfirmOpen}
-                  formCustomerName={formCustomerName}
-                  formDescription={formDescription}
-                  formName={formName}
-                  formNameError={formNameError}
-                  isArchiving={isArchiving}
-                  isDeleting={isDeleting}
-                  isOwner={isOwner}
-                  isServerBacked={isServerBacked}
-                  isSaving={isSaving}
-                  project={project}
-                  projectId={projectId}
-                  projectName={projectName}
-                  recentActivityEvents={recentActivityEvents}
-                  onArchiveCancel={() => setArchiveConfirmOpen(false)}
-                  onArchiveConfirm={handleArchiveConfirm}
-                  onArchiveRequest={() => setArchiveConfirmOpen(true)}
-                  onDeleteCancel={() => { setDeleteConfirmOpen(false); setDeleteConfirmInput(""); }}
-                  onDeleteConfirm={handleDeleteConfirm}
-                  onDeleteConfirmInputChange={setDeleteConfirmInput}
-                  onDeleteRequest={() => setDeleteConfirmOpen(true)}
-                  onFormCustomerNameChange={setFormCustomerName}
-                  onFormDescriptionChange={setFormDescription}
-                  onFormNameChange={setFormName}
-                  onFormSubmit={handleFormSubmit}
-                  onRemoveLocalProject={handleRemoveLocalProject}
-                  onResetLocalProject={handleResetLocalProject}
-                  onUnarchiveRequest={handleUnarchiveRequest}
-                />
-                <GeneralPrefsSection />
+              <div className="fv-settings-content">
+                {activeTab === "templates" && (
+                  <TemplatesTab
+                    canEditProjectState={canEditPhase1}
+                    currentIndustryTemplateId={currentSourceMetadata.industryTemplateId}
+                    onApplyProjectIndustryTemplate={updateProjectIndustryTemplate}
+                    projectId={projectId}
+                  />
+                )}
+
+                {activeTab === "general" && (
+                  <>
+                    <GeneralPrefsSection
+                      feedback={
+                        settingsFeedback?.tab === "general"
+                          ? settingsFeedback.message
+                          : null
+                      }
+                      onChange={(generalOutputPreferences) =>
+                        setSettingsDraft((current) => ({
+                          ...current,
+                          generalOutputPreferences,
+                        }))
+                      }
+                      onReset={resetGeneralSettings}
+                      onSave={() =>
+                        saveCurrentSettingsDraft(
+                          "general",
+                          "General defaults saved for future Phase 1 output.",
+                        )
+                      }
+                      preferences={settingsDraft.generalOutputPreferences}
+                    />
+                    <GeneralSettingsView
+                      actionFeedback={actionFeedback}
+                      archiveConfirmOpen={archiveConfirmOpen}
+                      deleteConfirmInput={deleteConfirmInput}
+                      deleteConfirmOpen={deleteConfirmOpen}
+                      formCustomerName={formCustomerName}
+                      formDescription={formDescription}
+                      formName={formName}
+                      formNameError={formNameError}
+                      isArchiving={isArchiving}
+                      isDeleting={isDeleting}
+                      isOwner={isOwner}
+                      isServerBacked={isServerBacked}
+                      isSaving={isSaving}
+                      project={project}
+                      projectId={projectId}
+                      projectName={projectName}
+                      recentActivityEvents={recentActivityEvents}
+                      onArchiveCancel={() => setArchiveConfirmOpen(false)}
+                      onArchiveConfirm={handleArchiveConfirm}
+                      onArchiveRequest={() => setArchiveConfirmOpen(true)}
+                      onDeleteCancel={() => { setDeleteConfirmOpen(false); setDeleteConfirmInput(""); }}
+                      onDeleteConfirm={handleDeleteConfirm}
+                      onDeleteConfirmInputChange={setDeleteConfirmInput}
+                      onDeleteRequest={() => setDeleteConfirmOpen(true)}
+                      onFormCustomerNameChange={setFormCustomerName}
+                      onFormDescriptionChange={setFormDescription}
+                      onFormNameChange={setFormName}
+                      onFormSubmit={handleFormSubmit}
+                      onRemoveLocalProject={handleRemoveLocalProject}
+                      onResetLocalProject={handleResetLocalProject}
+                      onUnarchiveRequest={handleUnarchiveRequest}
+                    />
+                  </>
+                )}
+
+                {activeTab === "ai" && (
+                  <AIConfigTab
+                    feedback={
+                      settingsFeedback?.tab === "ai"
+                        ? settingsFeedback.message
+                        : null
+                    }
+                    onChange={(aiPreferences) =>
+                      setSettingsDraft((current) => ({
+                        ...current,
+                        aiPreferences,
+                      }))
+                    }
+                    onReset={resetAiSettings}
+                    onSave={() =>
+                      saveCurrentSettingsDraft(
+                        "ai",
+                        "AI preferences saved for future generation.",
+                      )
+                    }
+                    preferences={settingsDraft.aiPreferences}
+                  />
+                )}
+                {activeTab === "about" && (
+                  <AboutTab
+                    approvedCount={aboutApprovedCount}
+                    generatedCount={aboutGeneratedCount}
+                    isServerBacked={isServerBacked}
+                    projectName={projectName}
+                    sourceRowCount={aboutSourceRowCount}
+                  />
+                )}
               </div>
-            )}
-
-            {activeTab === "ai" && <AIConfigTab />}
-            {activeTab === "about" && <AboutTab />}
+            </div>
           </div>
         </main>
       </div>
@@ -1256,6 +1482,15 @@ export default function GeneralSettings({
 }
 
 // ── Formatters ─────────────────────────────────────────────────
+
+function parseSettingsTab(value: string | null): SettingsTab | null {
+  return value === "templates" ||
+    value === "general" ||
+    value === "ai" ||
+    value === "about"
+    ? value
+    : null;
+}
 
 function formatActivityEvent(event: ProjectActivityEvent) {
   switch (event.eventType) {
