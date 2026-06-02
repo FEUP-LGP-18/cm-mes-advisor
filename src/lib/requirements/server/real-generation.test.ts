@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   BedrockRequestError,
   BedrockResponseFormatError,
@@ -186,6 +186,61 @@ describe("real requirement generation orchestration", () => {
     expect(drafts).toHaveLength(2);
     expect(drafts[1]?.confidence.level).toBe("low");
     expect(drafts[1]?.warnings.join(" ")).toContain("expected draft format");
+  });
+
+  it("uses Bedrock with review warnings when the documentation client cannot initialize", async () => {
+    const generateDraft = vi.fn(async () => ({
+      generatedComment:
+        "CM MES may support this flow, but the consultant should validate the exact review path before presenting it.",
+      confidenceLevel: "low" as const,
+      confidenceRationale:
+        "The draft was created without live MCP documentation evidence.",
+      assumptions: ["The workbook availability signal is accurate."],
+      warnings: ["Documentation lookup was not available."],
+      demoSteps: [
+        {
+          title: "Validate batch review flow",
+          mesModuleOrScreen: "Batch Review",
+          reviewStatus: "consultant-review" as const,
+          instructions: [
+            "Open the candidate batch review workspace.",
+            "Confirm the exception evidence before presenting.",
+          ],
+        },
+      ],
+    }));
+
+    const drafts = await generateRealRequirementDrafts(
+      [standardRequirement],
+      config,
+      {
+        async createDocumentationClient() {
+          throw new Error("MCP not reachable");
+        },
+        createModelClient() {
+          return {
+            async checkAvailability() {},
+            generateDraft,
+          };
+        },
+      },
+    );
+
+    expect(generateDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        documentation: [],
+      }),
+    );
+    expect(drafts[0]).toMatchObject({
+      demoSteps: [
+        {
+          reviewStatus: "consultant-review",
+        },
+      ],
+      generator: "bedrock-mcp",
+      sourceReferences: [],
+    });
+    expect(drafts[0]?.warnings.join(" ")).toContain("documentation lookup");
   });
 
   it("fails the whole run when Bedrock infrastructure is unavailable", async () => {

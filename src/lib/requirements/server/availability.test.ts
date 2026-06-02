@@ -94,6 +94,23 @@ describe("requirement generation availability", () => {
     });
   });
 
+  it("returns available with a degraded message when MCP fails but Bedrock passes", async () => {
+    const availability = await getRequirementGenerationAvailabilitySnapshot({
+      checkBedrockAvailability: vi.fn().mockResolvedValue(undefined),
+      createDocumentationClient: async () => {
+        throw new Error("MCP not reachable from this runtime");
+      },
+      readConfig: () => completeRealConfig,
+    });
+
+    expect(availability.modes.real).toMatchObject({
+      available: true,
+      status: "available",
+    });
+    expect(availability.modes.real.message).toContain("MCP");
+    expect(availability.modes.real.message).toContain("consultant review");
+  });
+
   it("reuses the cached preflight result inside the TTL window", async () => {
     const checkBedrockAvailability = vi.fn().mockResolvedValue(undefined);
     const createDocumentationClient = vi.fn(async () => ({

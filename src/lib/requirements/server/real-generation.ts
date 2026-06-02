@@ -93,18 +93,16 @@ export async function generateRealRequirementDrafts(
         bedrockModelId: resolvedConfig.bedrockModelId!,
       }));
   const now = dependencies.now ?? (() => new Date());
-  const documentationClient = await createDocumentationClient(config).catch(
-    (error) => {
-      throw new RequirementGenerationInfrastructureError(
-        "The MCP documentation client could not be initialized.",
-        {
-          cause: error,
-          reason: "check-failed",
-        },
-      );
-    },
-  );
   const modelClient = createModelClient(config);
+  let documentationClient: RequirementDocumentationClient | null = null;
+  let documentationClientWarning: string | null = null;
+
+  try {
+    documentationClient = await createDocumentationClient(config);
+  } catch {
+    documentationClientWarning =
+      "The MES documentation lookup client could not be initialized for this runtime, so this row uses real AI with consultant review and no documentation citations.";
+  }
 
   try {
     const drafts = await mapWithConcurrency(
@@ -115,6 +113,7 @@ export async function generateRealRequirementDrafts(
           requirement,
           config,
           documentationClient,
+          documentationClientWarning,
           modelClient,
           now,
         }),
@@ -122,7 +121,7 @@ export async function generateRealRequirementDrafts(
 
     return drafts;
   } finally {
-    await documentationClient.close();
+    await documentationClient?.close();
   }
 }
 
@@ -130,12 +129,14 @@ async function generateDraftForRequirement({
   requirement,
   config,
   documentationClient,
+  documentationClientWarning,
   modelClient,
   now,
 }: {
   requirement: ParsedRequirement;
   config: RequirementGenerationServerConfig;
-  documentationClient: RequirementDocumentationClient;
+  documentationClient: RequirementDocumentationClient | null;
+  documentationClientWarning: string | null;
   modelClient: BedrockRequirementGenerationClient;
   now: () => Date;
 }): Promise<GeneratedRequirementDraft> {
@@ -143,30 +144,24 @@ async function generateDraftForRequirement({
   const generatedAt = now().toISOString();
 
   let documentation: McpDocumentationChunk[] = [];
-  let lookupWarning: string | null = null;
+  let lookupWarning: string | null = documentationClientWarning;
 
-  try {
-    const lookupResult =
-      await documentationClient.lookupRequirementDocumentation(requirement);
-    documentation = lookupResult.allChunks;
-  } catch {
-    lookupWarning =
-      "The MES documentation lookup could not be completed for this row, so the output stays in consultant review.";
+  if (documentationClient !== null) {
+    try {
+      const lookupResult =
+        await documentationClient.lookupRequirementDocumentation(requirement);
+      documentation = lookupResult.allChunks;
+    } catch {
+      lookupWarning =
+        "The MES documentation lookup could not be completed for this row, so the output stays in consultant review.";
+    }
   }
 
   const sourceReferences = createDocumentationSourceReferences(documentation);
-
-  if (documentation.length === 0) {
-    return createSafeFallbackDraft({
-      requirement,
-      assessment,
-      generatedAt,
-      sourceReferences,
-      reason:
-        lookupWarning ??
-        "No relevant MES documentation chunks were retrieved for this row.",
-    });
-  }
+  lookupWarning ??=
+    documentation.length === 0
+      ? "No relevant MES documentation chunks were retrieved for this row, so the output stays in consultant review."
+      : null;
 
   try {
     const modelDraft = await modelClient.generateDraft({
@@ -235,7 +230,11 @@ function normalizeRealDraft({
   >;
 }): GeneratedRequirementDraft {
   const reviewStatus =
-    assessment.supportType === "standard" ? undefined : "consultant-review";
+    assessment.supportType === "standard" &&
+    sourceReferences.length > 0 &&
+    lookupWarning === null
+      ? undefined
+      : "consultant-review";
   const warnings = dedupeStrings([
     ...modelDraft.warnings,
     ...assessment.warnings,

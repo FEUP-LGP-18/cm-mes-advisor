@@ -117,14 +117,13 @@ async function resolveRealCapability(
         bedrockModelId: resolvedConfig.bedrockModelId!,
       }).checkAvailability());
 
+  let documentationWarning: string | null = null;
   try {
     const docsClient = await createDocumentationClient(config);
     await docsClient.close();
   } catch {
-    return createUnavailableCapability(
-      "check-failed",
-      "Grounded generation could not confirm MCP access right now. You can continue with draft mode and recheck later.",
-    );
+    documentationWarning =
+      "Real AI generation is available, but MCP documentation lookup could not be confirmed from this runtime. Generated drafts will stay in consultant review when documentation evidence is unavailable.";
   }
 
   try {
@@ -132,7 +131,7 @@ async function resolveRealCapability(
 
     return createAvailableCapability(
       "real",
-      "Grounded generation is available.",
+      documentationWarning ?? "Grounded generation is available.",
     );
   } catch (error) {
     const reason = classifyAvailabilityReason(error);
