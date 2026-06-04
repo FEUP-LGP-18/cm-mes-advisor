@@ -1116,7 +1116,7 @@ export default function GeneralSettings({
   const [actionFeedback, setActionFeedback] = useState<ActionFeedback | null>(null);
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [activeTab, setActiveTab] = useState<SettingsTab>("templates");
+  const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [settingsDraft, setSettingsDraft] = useState<SettingsBehaviorSnapshot>(
     defaultSettingsBehaviorSnapshot,
   );
