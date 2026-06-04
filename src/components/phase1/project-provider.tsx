@@ -19,6 +19,10 @@ import {
   mockGenerationStageLabels,
   type MockGenerationStage,
 } from "@/lib/requirements/generation";
+import {
+  createRequirementGenerationRequestPayload,
+  toGenerationRequestRequirement,
+} from "@/lib/requirements/generation-request";
 import type {
   RequirementGenerationRouteBody,
   RequirementGenerationRouteError,
@@ -31,7 +35,6 @@ import type {
   MasterDataGenerateRouteBody,
   MasterDataRequirementInput,
 } from "@/lib/master-data/api";
-import type { ParsedRequirement } from "@/lib/requirements/types";
 import {
   applyProjectIndustryTemplate,
   applyProjectIdentity,
@@ -98,7 +101,11 @@ import type {
   ProjectCapability,
   ProjectRole,
 } from "@/lib/projects/types";
-import type { IndustryTemplateId, SettingsBehaviorSnapshot } from "@/lib/settings";
+import {
+  loadSettingsBehaviorSnapshot,
+  type IndustryTemplateId,
+  type SettingsBehaviorSnapshot,
+} from "@/lib/settings";
 
 type MockGenerationStageStatus = "waiting" | "running" | "complete";
 
@@ -1027,13 +1034,14 @@ export function Phase1ProjectProvider({
           headers: {
             "content-type": "application/json",
           },
-          body: JSON.stringify({
-            mode,
-            projectId: project.projectId,
-            requirements: targetRequirements.map(
-              toGenerationRequestRequirement,
-            ),
-          }),
+          body: JSON.stringify(
+            createRequirementGenerationRequestPayload({
+              mode,
+              projectId: project.projectId,
+              requirements: targetRequirements,
+              settings: loadSettingsBehaviorSnapshot(window.localStorage),
+            }),
+          ),
         });
 
         const responseBody = (await response
@@ -1779,30 +1787,5 @@ function createEmptyWorkflowSnapshot(): Phase1WorkflowSnapshot {
     selectedCount: 0,
     scriptVisited: false,
     exportReady: false,
-  };
-}
-
-function toGenerationRequestRequirement(
-  requirement: ParsedRequirement,
-): ParsedRequirement {
-  return {
-    sourceRowNumber: requirement.sourceRowNumber,
-    requirementId: requirement.requirementId,
-    requirementDescription: requirement.requirementDescription,
-    l2Process: requirement.l2Process,
-    l3Process: requirement.l3Process,
-    operation: requirement.operation,
-    demo: requirement.demo,
-    demoRaw: requirement.demoRaw,
-    detailDescriptionAndMotivation: requirement.detailDescriptionAndMotivation,
-    prioEms: requirement.prioEms,
-    prioCws: requirement.prioCws,
-    mvp: requirement.mvp,
-    mvpRaw: requirement.mvpRaw,
-    availability: requirement.availability,
-    availabilityCm: requirement.availabilityCm,
-    descriptionAvailability: requirement.descriptionAvailability,
-    supportedPercent: requirement.supportedPercent,
-    sourceComment: requirement.sourceComment,
   };
 }
