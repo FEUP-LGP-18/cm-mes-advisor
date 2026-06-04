@@ -12,6 +12,7 @@ import {
   mockGenerationStageLabels,
   type MockGenerationStage,
 } from "@/lib/requirements/generation";
+import { createRequirementGenerationRequestPayload } from "@/lib/requirements/generation-request";
 import {
   assembleDemoScript,
   type DemoScriptDraftAction,
@@ -53,6 +54,7 @@ import type {
   RequirementGenerationRouteBody,
   RequirementGenerationRouteMode,
 } from "@/lib/requirements/generation-api";
+import { loadSettingsBehaviorSnapshot } from "@/lib/settings";
 import DemoScriptEditingPanel, {
   DemoScriptExportPanel,
 } from "./demo-script-panel";
@@ -493,10 +495,13 @@ export default function RequirementsReviewWorkspace({
         headers: {
           "content-type": "application/json",
         },
-        body: JSON.stringify({
-          projectId: projectMetadata.projectId,
-          requirements: targetRequirements.map(toGenerationRequestRequirement),
-        }),
+        body: JSON.stringify(
+          createRequirementGenerationRequestPayload({
+            projectId: projectMetadata.projectId,
+            requirements: targetRequirements,
+            settings: loadSettingsBehaviorSnapshot(window.localStorage),
+          }),
+        ),
       });
 
       const responseBody = (await response
@@ -2897,30 +2902,5 @@ function createIdleGenerationRun(): MockGenerationRunState {
       label,
       status: "waiting",
     })),
-  };
-}
-
-function toGenerationRequestRequirement(
-  requirement: ParsedRequirement,
-): ParsedRequirement {
-  return {
-    sourceRowNumber: requirement.sourceRowNumber,
-    requirementId: requirement.requirementId,
-    requirementDescription: requirement.requirementDescription,
-    l2Process: requirement.l2Process,
-    l3Process: requirement.l3Process,
-    operation: requirement.operation,
-    demo: requirement.demo,
-    demoRaw: requirement.demoRaw,
-    detailDescriptionAndMotivation: requirement.detailDescriptionAndMotivation,
-    prioEms: requirement.prioEms,
-    prioCws: requirement.prioCws,
-    mvp: requirement.mvp,
-    mvpRaw: requirement.mvpRaw,
-    availability: requirement.availability,
-    availabilityCm: requirement.availabilityCm,
-    descriptionAvailability: requirement.descriptionAvailability,
-    supportedPercent: requirement.supportedPercent,
-    sourceComment: requirement.sourceComment,
   };
 }
