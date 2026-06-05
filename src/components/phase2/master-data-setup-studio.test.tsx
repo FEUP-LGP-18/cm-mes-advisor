@@ -56,6 +56,10 @@ describe("MasterDataSetupStudio", () => {
     expect(html).not.toContain("Object scope");
     expect(html).not.toContain("Grounded real generation");
     expect(html).not.toContain("Prototype drafts");
+    expect(html).not.toContain("Browse files");
+    expect(html).not.toContain("Drag &amp; drop");
+    expect(html).not.toContain("Industry Template");
+    expect(html).not.toContain("MES Version");
     expect(html).not.toContain("Generate Master Data");
   });
 
@@ -105,9 +109,13 @@ describe("MasterDataSetupStudio", () => {
     );
 
     expect(html).toContain("Analyze Requirements");
+    expect(html).toContain("Configure Master Data Scope");
+    expect(html).toContain("No second requirements upload is needed");
     expect(html).not.toContain(
       "Approve at least one Phase 1 row before starting Phase 2",
     );
+    expect(html).not.toContain("Browse files");
+    expect(html).not.toContain("Drag &amp; drop");
   });
 
   it("renders the approved-slice table once applicable rows exist", () => {
