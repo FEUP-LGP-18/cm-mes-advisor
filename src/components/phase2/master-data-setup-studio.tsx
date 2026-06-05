@@ -14,7 +14,7 @@ export default function MasterDataSetupStudio({
   applicableRequirements,
   approvedCount,
   feedback,
-  hasAnalysisRun: _hasAnalysisRun,
+  hasAnalysisRun,
   hasGeneratedPhase1Drafts,
   mode,
   onAnalyze,
@@ -46,9 +46,7 @@ export default function MasterDataSetupStudio({
   const hasAnalysis = applicableRequirements.length > 0;
   const isPhase2Locked = approvedCount === 0;
   const visibleFeedback =
-    !isPhase2Locked && feedback === MASTER_DATA_APPROVAL_REQUIRED_FEEDBACK
-      ? null
-      : feedback;
+    feedback === MASTER_DATA_APPROVAL_REQUIRED_FEEDBACK ? null : feedback;
 
   const [analyzing, setAnalyzing] = useState(false);
   const [query, setQuery] = useState("");
@@ -56,8 +54,11 @@ export default function MasterDataSetupStudio({
 
   async function handleAnalyze() {
     setAnalyzing(true);
-    await onAnalyze();
-    setAnalyzing(false);
+    try {
+      await onAnalyze();
+    } finally {
+      setAnalyzing(false);
+    }
   }
 
   const canProceed = selectedRequirementKeys.length > 0 && !isPhase2Locked;
@@ -67,10 +68,11 @@ export default function MasterDataSetupStudio({
     r.requirementId.toLowerCase().includes(query.toLowerCase()),
   );
 
-  // Screen 1: Upload & Configure (no analysis yet)
+  // Screen 1: configure approved Phase 1 scope before analysis.
   if (!hasAnalysis) {
     return <UploadConfigureScreen
       approvedCount={approvedCount}
+      hasAnalysisRun={hasAnalysisRun}
       isPhase2Locked={isPhase2Locked}
       hasGeneratedPhase1Drafts={hasGeneratedPhase1Drafts}
       mode={mode}
@@ -157,98 +159,107 @@ export default function MasterDataSetupStudio({
           </div>
         </div>
 
-        {/* Table header label */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.625rem 0.875rem", borderBottom: "1px solid var(--surface-border)", background: "var(--surface-muted)" }}>
-          <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--foreground)" }}>
-            Requirements → MES Object Mapping
-          </span>
-          <span style={{ fontSize: "0.72rem", color: "var(--muted-fg)" }}>
-            AI auto-selected {selectedCount} of {applicableCount} applicable rows · {approvedCount} total
-          </span>
-        </div>
+        <div
+          aria-label="Requirements to MES object mapping table"
+          className="fv-table-wrap-scroll"
+          role="region"
+          tabIndex={0}
+        >
+          <div style={{ minWidth: "760px" }}>
+            {/* Table header label */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.625rem 0.875rem", borderBottom: "1px solid var(--surface-border)", background: "var(--surface-muted)" }}>
+              <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--foreground)" }}>
+                Requirements → MES Object Mapping
+              </span>
+              <span style={{ fontSize: "0.72rem", color: "var(--muted-fg)" }}>
+                AI auto-selected {selectedCount} of {applicableCount} applicable rows · {approvedCount} total
+              </span>
+            </div>
 
-        <table className="fv-table">
-          <thead>
-            <tr>
-              <th style={{ width: 36 }}>
-                <input
-                  type="checkbox"
-                  checked={allSelected && filteredReqs.length > 0}
-                  onChange={allSelected ? handleDeselectAll : handleSelectAll}
-                  aria-label="Select all"
-                />
-              </th>
-              <th>Req. ID</th>
-              <th>Requirement Text</th>
-              <th>MES Object</th>
-              <th>Confidence</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredReqs.map((req) => {
-              const isSelected = selectedRequirementKeys.includes(req.requirementKey);
-              const conf = req.confidence.level;
-              const primaryType = req.suggestedObjectTypes[0];
-              const typeLabel = primaryType ? masterDataObjectTypeLabels[primaryType] : "—";
-
-              return (
-                <tr
-                  key={req.requirementKey}
-                  className={`fv-table-row-stripe ${isSelected ? "fv-table-row-stripe-ai" : "fv-table-row-stripe-pending"}`}
-                  style={isSelected ? { background: "#f0f6ff" } : undefined}
-                >
-                  <td>
+            <table className="fv-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 36 }}>
                     <input
                       type="checkbox"
-                      checked={isSelected}
-                      onChange={() => onToggleRequirement(req.requirementKey)}
-                      aria-label={`Select ${req.requirementId}`}
+                      checked={allSelected && filteredReqs.length > 0}
+                      onChange={allSelected ? handleDeselectAll : handleSelectAll}
+                      aria-label="Select all"
                     />
-                  </td>
-                  <td>
-                    <span style={{ fontFamily: "var(--font-mono), monospace", fontSize: "0.78rem", color: "var(--muted-fg)" }}>
-                      {req.requirementId || `R-${req.sourceRowNumber}`}
-                    </span>
-                  </td>
-                  <td>
-                    <span style={{ fontWeight: isSelected ? 500 : 400, color: isSelected ? "var(--brand-primary)" : "var(--foreground)" }}>
-                      {req.requirementDescription}
-                    </span>
-                  </td>
-                  <td className="fv-table-muted">{typeLabel}</td>
-                  <td>
-                    {conf === "high" ? <span className="fv-conf-high">High</span>
-                      : conf === "medium" ? <span className="fv-conf-medium">Medium</span>
-                      : <span className="fv-conf-low">Low</span>}
-                  </td>
-                  <td>
-                    {req.preselected ? (
-                      <span className="fv-badge fv-badge-approved">
-                        <span className="fv-badge-dot" />Approved
-                      </span>
-                    ) : isSelected ? (
-                      <span className="fv-badge fv-badge-ai">
-                        <span className="fv-badge-dot" />AI Generated
-                      </span>
-                    ) : (
-                      <span className="fv-badge fv-badge-pending">
-                        <span className="fv-badge-dot" />Pending
-                      </span>
-                    )}
-                  </td>
+                  </th>
+                  <th>Req. ID</th>
+                  <th>Requirement Text</th>
+                  <th>MES Object</th>
+                  <th>Confidence</th>
+                  <th>Status</th>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                {filteredReqs.map((req) => {
+                  const isSelected = selectedRequirementKeys.includes(req.requirementKey);
+                  const conf = req.confidence.level;
+                  const primaryType = req.suggestedObjectTypes[0];
+                  const typeLabel = primaryType ? masterDataObjectTypeLabels[primaryType] : "—";
 
-          {filteredReqs.length === 0 && (
-          <div className="fv-empty">
-            <div className="fv-empty-title">No requirements found</div>
-            <div className="fv-empty-body">Try adjusting your search or filters.</div>
+                  return (
+                    <tr
+                      key={req.requirementKey}
+                      className={`fv-table-row-stripe ${isSelected ? "fv-table-row-stripe-ai" : "fv-table-row-stripe-pending"}`}
+                      style={isSelected ? { background: "#f0f6ff" } : undefined}
+                    >
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => onToggleRequirement(req.requirementKey)}
+                          aria-label={`Select ${req.requirementId}`}
+                        />
+                      </td>
+                      <td>
+                        <span style={{ fontFamily: "var(--font-mono), monospace", fontSize: "0.78rem", color: "var(--muted-fg)" }}>
+                          {req.requirementId || `R-${req.sourceRowNumber}`}
+                        </span>
+                      </td>
+                      <td>
+                        <span style={{ fontWeight: isSelected ? 500 : 400, color: isSelected ? "var(--brand-primary)" : "var(--foreground)" }}>
+                          {req.requirementDescription}
+                        </span>
+                      </td>
+                      <td className="fv-table-muted">{typeLabel}</td>
+                      <td>
+                        {conf === "high" ? <span className="fv-conf-high">High</span>
+                          : conf === "medium" ? <span className="fv-conf-medium">Medium</span>
+                          : <span className="fv-conf-low">Low</span>}
+                      </td>
+                      <td>
+                        {req.preselected ? (
+                          <span className="fv-badge fv-badge-approved">
+                            <span className="fv-badge-dot" />Approved
+                          </span>
+                        ) : isSelected ? (
+                          <span className="fv-badge fv-badge-ai">
+                            <span className="fv-badge-dot" />AI Generated
+                          </span>
+                        ) : (
+                          <span className="fv-badge fv-badge-pending">
+                            <span className="fv-badge-dot" />Pending
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            {filteredReqs.length === 0 && (
+              <div className="fv-empty">
+                <div className="fv-empty-title">No requirements found</div>
+                <div className="fv-empty-body">Try adjusting your search or filters.</div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Generate CTA */}
@@ -268,6 +279,7 @@ export default function MasterDataSetupStudio({
 
 function UploadConfigureScreen({
   approvedCount,
+  hasAnalysisRun,
   isPhase2Locked,
   hasGeneratedPhase1Drafts,
   mode,
@@ -283,6 +295,7 @@ function UploadConfigureScreen({
   onOpenPhase1Review,
 }: {
   approvedCount: number;
+  hasAnalysisRun: boolean;
   isPhase2Locked: boolean;
   hasGeneratedPhase1Drafts: boolean;
   mode: MasterDataGenerationMode;
@@ -297,12 +310,17 @@ function UploadConfigureScreen({
   onOpenPhase1Generate: () => void;
   onOpenPhase1Review: () => void;
 }) {
+  const selectedObjectTypeLabels = selectedObjectTypes.map(
+    (type) => masterDataObjectTypeLabels[type],
+  );
+
   return (
     <div>
       <div style={{ marginBottom: "1.25rem" }}>
-        <h1 className="fv-page-title">Upload Requirements File</h1>
+        <h1 className="fv-page-title">Configure Master Data Scope</h1>
         <p className="fv-page-subtitle">
-          Upload the customer&apos;s Excel requirements to begin AI-driven Master Data generation.
+          Use the approved Phase 1 rows as the source for optional Master Data analysis.
+          No second requirements upload is needed.
         </p>
       </div>
 
@@ -325,200 +343,194 @@ function UploadConfigureScreen({
       ) : null}
 
       <div className="fv-two-col-wide">
-        {/* Left: dropzone + config */}
+        {/* Left: source basis + analysis settings */}
         <div style={{ display: "grid", gap: "1.25rem" }}>
-          {/* Dropzone */}
-          <div
-            className={`fv-dropzone${approvedCount > 0 ? " fv-dropzone-ready" : ""}`}
+          <section
+            aria-labelledby="phase2-source-basis-title"
+            className={`fv-card ${isPhase2Locked ? "fv-card-left-warning" : "fv-card-left-success"}`}
           >
-            <svg className="fv-dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="17 8 12 3 7 8" />
-              <line x1="12" y1="3" x2="12" y2="15" />
-            </svg>
-            <div className="fv-dropzone-title">Drag & drop your .xlsx file here</div>
-            <div className="fv-dropzone-sub">Supports Excel workbooks from MES requirements templates</div>
-            <button type="button" className="fv-btn-secondary" style={{ marginTop: "0.5rem", fontSize: "0.8rem" }}>
-              Browse files
-            </button>
-          </div>
+            <p className="fv-field-label">Source basis</p>
+            <h2 className="fv-card-title" id="phase2-source-basis-title">
+              {isPhase2Locked ? "Phase 1 review required" : "Phase 1 approved slice"}
+            </h2>
+            <p style={{ color: "var(--muted-fg)", fontSize: "0.82rem", lineHeight: 1.5, marginTop: "0.45rem" }}>
+              {isPhase2Locked
+                ? "Approve at least one generated Phase 1 row before configuring optional Master Data."
+                : "Master Data setup will analyze only the requirements that consultants approved in Phase 1."}
+            </p>
 
-          {/* File loaded state */}
-          {approvedCount > 0 ? (
-            <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-              <span className="fv-file-chip">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                  <path d="M9 2H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V6z" />
-                  <polyline points="9 2 9 6 13 6" />
-                </svg>
-                Phase 1 requirements loaded · {approvedCount} approved rows · ✓ Ready
-              </span>
+            <div style={{ display: "grid", gap: "0.65rem", marginTop: "0.875rem" }}>
+              {[
+                {
+                  label: "Approved rows",
+                  value: approvedCount > 0 ? `${approvedCount}` : "None yet",
+                },
+                {
+                  label: "Source",
+                  value: "Phase 1 review decisions",
+                },
+                {
+                  label: "Analysis state",
+                  value: isPhase2Locked
+                    ? "Waiting for approval"
+                    : hasAnalysisRun
+                      ? "No candidates found"
+                      : "Not analyzed",
+                },
+              ].map((row) => (
+                <div key={row.label} style={{ borderBottom: "1px solid var(--surface-border)", display: "flex", gap: "1rem", justifyContent: "space-between", paddingBottom: "0.55rem" }}>
+                  <span style={{ color: "var(--muted-fg)", fontSize: "0.78rem" }}>{row.label}</span>
+                  <strong style={{ color: "var(--foreground)", fontSize: "0.8rem", textAlign: "right" }}>{row.value}</strong>
+                </div>
+              ))}
             </div>
+          </section>
+
+          {!isPhase2Locked ? (
+            <section className="fv-card" aria-labelledby="phase2-settings-title">
+              <button
+                aria-expanded={showAdvanced}
+                aria-controls="phase2-analysis-settings"
+                type="button"
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                style={{
+                  alignItems: "center",
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--foreground)",
+                  cursor: "pointer",
+                  display: "flex",
+                  fontSize: "0.9rem",
+                  fontWeight: 700,
+                  justifyContent: "space-between",
+                  padding: 0,
+                  width: "100%",
+                }}
+              >
+                <span id="phase2-settings-title">Analysis settings</span>
+                <span aria-hidden="true" style={{ color: "var(--muted-fg)", transform: showAdvanced ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }}>
+                  ˅
+                </span>
+              </button>
+
+              {showAdvanced ? (
+                <div id="phase2-analysis-settings" style={{ display: "grid", gap: "1rem", marginTop: "0.875rem" }}>
+                  <div>
+                    <div className="fv-field-label" style={{ marginBottom: "0.625rem" }}>Generation mode</div>
+                    <div style={{ display: "grid", gap: "0.5rem" }}>
+                      {(["real", "mock"] as MasterDataGenerationMode[]).map((candidateMode) => (
+                        <button
+                          aria-pressed={mode === candidateMode}
+                          key={candidateMode}
+                          type="button"
+                          onClick={() => onModeChange(candidateMode)}
+                          style={{
+                            background: mode === candidateMode ? "#eff6ff" : "#fff",
+                            border: `1px solid ${mode === candidateMode ? "var(--brand-primary)" : "var(--surface-border)"}`,
+                            borderRadius: "6px",
+                            cursor: "pointer",
+                            fontSize: "0.8rem",
+                            padding: "0.625rem 0.875rem",
+                            textAlign: "left",
+                          }}
+                        >
+                          <strong style={{ color: "var(--foreground)", display: "block" }}>
+                            {candidateMode === "real" ? "Grounded real generation" : "Prototype drafts"}
+                          </strong>
+                          <span style={{ color: "var(--muted-fg)", fontSize: "0.72rem" }}>
+                            {candidateMode === "real"
+                              ? "Uses configured provider grounding where available."
+                              : "Uses deterministic fixture drafts for offline review."}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="fv-field-label" style={{ marginBottom: "0.625rem" }}>Object scope</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                      {masterDataObjectTypes.map((type) => (
+                        <button
+                          aria-pressed={selectedObjectTypes.includes(type)}
+                          key={type}
+                          type="button"
+                          onClick={() => onToggleObjectType(type)}
+                          style={{
+                            background: selectedObjectTypes.includes(type) ? "#eff6ff" : "#fff",
+                            border: `1px solid ${selectedObjectTypes.includes(type) ? "var(--brand-primary)" : "var(--surface-border)"}`,
+                            borderRadius: "9999px",
+                            color: selectedObjectTypes.includes(type) ? "var(--brand-primary)" : "var(--muted-fg)",
+                            cursor: "pointer",
+                            fontSize: "0.72rem",
+                            fontWeight: 600,
+                            padding: "0.25rem 0.625rem",
+                          }}
+                        >
+                          {masterDataObjectTypeLabels[type]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </section>
           ) : null}
-
-          {/* Config fields */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.875rem" }}>
-            <div>
-              <label className="fv-field-label">Industry Template</label>
-              <select className="fv-select">
-                <option>Electronics / Semiconductors</option>
-                <option>Automotive</option>
-                <option>Medical Devices</option>
-                <option>Food &amp; Beverage</option>
-                <option>Aerospace &amp; Defence</option>
-                <option>Generic / Custom</option>
-              </select>
-            </div>
-            <div>
-              <label className="fv-field-label">MES Version</label>
-              <input className="fv-input" value="10.3.2" readOnly style={{ background: "var(--surface-muted)", color: "var(--muted-fg)" }} />
-            </div>
-          </div>
-
-          {/* Generation mode (formerly advanced) */}
-          <div style={{ border: "1px solid var(--surface-border)", borderRadius: "8px", overflow: "hidden" }}>
-            <button
-              type="button"
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              style={{
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                width: "100%", padding: "0.75rem 1rem", background: "var(--surface-muted)",
-                border: "none", cursor: "pointer", fontSize: "0.875rem", fontWeight: 600,
-                color: "var(--foreground)",
-              }}
-            >
-              Advanced Settings
-              <span style={{ fontSize: "1rem", color: "var(--muted-fg)", transform: showAdvanced ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }}>
-                ˅
-              </span>
-            </button>
-            {showAdvanced ? (
-              <div style={{ padding: "0.75rem 1rem", display: "grid", gap: "0.25rem" }}>
-                <div className="fv-toggle-row">
-                  <span className="fv-toggle-label">Include data collection points</span>
-                  <label className="fv-toggle">
-                    <input type="checkbox" defaultChecked onChange={() => onToggleObjectType("area")} />
-                    <div className="fv-toggle-track" />
-                  </label>
-                </div>
-                <div className="fv-toggle-row">
-                  <span className="fv-toggle-label">Generate alert rules</span>
-                  <label className="fv-toggle">
-                    <input type="checkbox" />
-                    <div className="fv-toggle-track" />
-                  </label>
-                </div>
-                <div className="fv-toggle-row">
-                  <span className="fv-toggle-label">Include routing logic</span>
-                  <label className="fv-toggle">
-                    <input type="checkbox" defaultChecked />
-                    <div className="fv-toggle-track" />
-                  </label>
-                </div>
-                <div style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid var(--surface-border)" }}>
-                  <div className="fv-field-label" style={{ marginBottom: "0.625rem" }}>Generation Mode</div>
-                  <div style={{ display: "grid", gap: "0.5rem" }}>
-                    {(["real", "mock"] as MasterDataGenerationMode[]).map((m) => (
-                      <button
-                        key={m}
-                        type="button"
-                        onClick={() => onModeChange(m)}
-                        style={{
-                          padding: "0.625rem 0.875rem", borderRadius: "6px", textAlign: "left",
-                          border: `1px solid ${mode === m ? "var(--brand-primary)" : "var(--surface-border)"}`,
-                          background: mode === m ? "#eff6ff" : "#fff",
-                          cursor: "pointer", fontSize: "0.8rem",
-                        }}
-                      >
-                        <strong style={{ display: "block", color: "var(--foreground)" }}>
-                          {m === "real" ? "Grounded real generation" : "Prototype drafts"}
-                        </strong>
-                        <span style={{ color: "var(--muted-fg)", fontSize: "0.72rem" }}>
-                          {m === "real"
-                            ? "Uses MCP + Bedrock grounded in MES documentation"
-                            : "Deterministic defaults — works offline"}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid var(--surface-border)" }}>
-                  <div className="fv-field-label" style={{ marginBottom: "0.625rem" }}>Object Scope</div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-                    {masterDataObjectTypes.map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => onToggleObjectType(t)}
-                        style={{
-                          padding: "0.25rem 0.625rem", borderRadius: "9999px", fontSize: "0.72rem", fontWeight: 600,
-                          border: `1px solid ${selectedObjectTypes.includes(t) ? "var(--brand-primary)" : "var(--surface-border)"}`,
-                          background: selectedObjectTypes.includes(t) ? "#eff6ff" : "#fff",
-                          color: selectedObjectTypes.includes(t) ? "var(--brand-primary)" : "var(--muted-fg)",
-                          cursor: "pointer",
-                        }}
-                      >
-                        {masterDataObjectTypeLabels[t]}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : null}
-          </div>
 
           {visibleFeedback ? (
             <div className="fv-callout fv-callout-warning">{visibleFeedback}</div>
           ) : null}
         </div>
 
-        {/* Right: template coverage + file preview + analyze button */}
+        {/* Right: analysis plan + blocker state */}
         <div style={{ display: "grid", gap: "1rem", alignContent: "start" }}>
-          {/* Template Coverage */}
-          <div className="fv-card">
-            <div className="fv-card-title">Template Coverage</div>
+          <section className="fv-card" aria-labelledby="phase2-analysis-plan-title">
+            <p className="fv-field-label">What happens when I click Analyze?</p>
+            <h2 className="fv-card-title" id="phase2-analysis-plan-title">Analysis plan</h2>
             {[
-              { label: "Materials", included: true },
-              { label: "Resources", included: true },
-              { label: "Operations", included: true },
-              { label: "Data Coll.", included: true },
-              { label: "Routing", included: false },
-            ].map((item) => (
-              <div key={item.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.3rem 0", borderBottom: "1px solid var(--surface-border)", fontSize: "0.8rem" }}>
-                <span style={{ color: "var(--foreground)" }}>{item.label}</span>
-                {item.included ? (
-                  <span style={{ color: "var(--status-approved)", fontWeight: 600 }}>✓ included</span>
-                ) : (
-                  <span style={{ color: "var(--muted-fg)" }}>optional</span>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* File Preview */}
-          <div className="fv-card">
-            <div className="fv-card-title">File Preview</div>
-            {[
-              { label: "Total rows", value: approvedCount > 0 ? String(approvedCount) : "—" },
-              { label: "Mapped columns", value: approvedCount > 0 ? "8 / 12" : "—" },
-              { label: "Est. objects", value: approvedCount > 0 ? `~${Math.round(approvedCount * 0.65)}` : "—" },
+              {
+                label: "Input",
+                value: `${approvedCount} approved Phase 1 ${approvedCount === 1 ? "row" : "rows"}`,
+              },
+              {
+                label: "Scope",
+                value: selectedObjectTypeLabels.length > 0
+                  ? selectedObjectTypeLabels.join(", ")
+                  : "Select at least one object family",
+              },
+              {
+                label: "Output",
+                value: "Requirements analysis table before generation",
+              },
             ].map((row) => (
-              <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.3rem 0", borderBottom: "1px solid var(--surface-border)", fontSize: "0.8rem" }}>
-                <span style={{ color: "var(--muted-fg)" }}>{row.label}</span>
-                <span style={{ fontWeight: 700, color: "var(--foreground)" }}>{row.value}</span>
+              <div key={row.label} style={{ borderBottom: "1px solid var(--surface-border)", display: "flex", gap: "1rem", justifyContent: "space-between", paddingBottom: "0.55rem", paddingTop: "0.55rem" }}>
+                <span style={{ color: "var(--muted-fg)", fontSize: "0.78rem" }}>{row.label}</span>
+                <strong style={{ color: "var(--foreground)", fontSize: "0.8rem", textAlign: "right" }}>{row.value}</strong>
               </div>
             ))}
-          </div>
+          </section>
 
-          <button
-            type="button"
-            onClick={onAnalyze}
-            disabled={isPhase2Locked || analyzing}
-            className="fv-btn-primary"
-            style={{ width: "100%", justifyContent: "center", padding: "0.75rem 1rem" }}
-          >
-            {analyzing ? "Analyzing…" : "Analyze Requirements →"}
-          </button>
+          <section className="fv-card" aria-labelledby="phase2-readiness-title">
+            <p className="fv-field-label">What blocks me?</p>
+            <h2 className="fv-card-title" id="phase2-readiness-title">
+              {isPhase2Locked ? "Phase 1 review required" : "Ready for analysis"}
+            </h2>
+            <p style={{ color: "var(--muted-fg)", fontSize: "0.82rem", lineHeight: 1.5, marginTop: "0.45rem" }}>
+              {isPhase2Locked
+                ? "Approve at least one Phase 1 requirement before running Master Data analysis."
+                : "You can analyze the approved Phase 1 slice now. Requirement selection happens on the next screen."}
+            </p>
+
+            <button
+              type="button"
+              onClick={onAnalyze}
+              disabled={isPhase2Locked || analyzing}
+              className="fv-btn-primary"
+              style={{ justifyContent: "center", marginTop: "1rem", padding: "0.75rem 1rem", width: "100%" }}
+            >
+              {analyzing ? "Analyzing…" : "Analyze Requirements →"}
+            </button>
+          </section>
         </div>
       </div>
     </div>

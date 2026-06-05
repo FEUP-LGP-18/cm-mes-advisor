@@ -99,12 +99,15 @@ test("locked Phase 2 setup hides inactive generation controls", async ({
 
   await expect(
     page.getByRole("heading", {
-      name: "Upload Requirements File",
+      name: "Configure Master Data Scope",
     }),
   ).toBeVisible();
   await expect(page.getByText(/phase 1 approval required/i)).toBeVisible();
+  await expect(page.getByText(/no second requirements upload is needed/i)).toBeVisible();
   await expect(page.getByText("Grounded real generation")).toHaveCount(0);
   await expect(page.getByText("Object scope")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /browse files/i })).toHaveCount(0);
+  await expect(page.getByText(/drag & drop/i)).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Generate Master Data" }),
   ).toHaveCount(0);
@@ -139,12 +142,17 @@ test("approved Phase 1 rows can move through Phase 2 draft review and traceabili
   await seedProjectRegistry(page, registry);
   await page.goto(`/projects/${project.projectId}/master-data/setup`);
 
-  await expect(page.getByRole("heading", { name: "Upload Requirements File" })).toBeVisible();
-  await expect(page.getByText(/phase 1 requirements loaded/i)).toBeVisible();
-  await expect(page.getByText(/2 approved rows/i)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Configure Master Data Scope" })).toBeVisible();
+  await expect(page.getByText(/no second requirements upload is needed/i)).toBeVisible();
+  await expect(page.getByText("2 approved Phase 1 rows", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /browse files/i })).toHaveCount(0);
+  await expect(page.getByText(/drag & drop/i)).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: /analyze requirements/i }),
   ).toBeVisible();
+  await assertNoHorizontalOverflow(page);
+  await attachFullPageScreenshot(page, testInfo, "phase2-setup-ready");
+
   await page.getByRole("button", { name: /analyze requirements/i }).click();
   await expect(page.getByRole("heading", { name: "Requirements Analysis" })).toBeVisible();
   await expect(page.getByText("Requirements → MES Object Mapping")).toBeVisible();
@@ -152,7 +160,7 @@ test("approved Phase 1 rows can move through Phase 2 draft review and traceabili
     page.getByRole("button", { name: /generate master data/i }),
   ).toBeEnabled();
   await assertNoHorizontalOverflow(page);
-  await attachFullPageScreenshot(page, testInfo, "phase2-setup-ready");
+  await attachFullPageScreenshot(page, testInfo, "phase2-analysis-table");
 
   await page.getByRole("button", { name: /generate master data/i }).click();
   await expect(
