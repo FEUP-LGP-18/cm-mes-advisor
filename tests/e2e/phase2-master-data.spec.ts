@@ -60,21 +60,18 @@ async function assertNoHorizontalOverflow(page: Page) {
 }
 
 async function approveGeneratedMasterDataObjects(page: Page) {
-  const approveButton = page.getByRole("button", {
-    name: /^Approve/,
-  });
-  const openExportButton = page.getByRole("button", { name: /proceed to export/i });
+  const approveButton = page.getByRole("button", { name: /^Approve/ });
+  const allApprovedBanner = page.getByText(/All \d+ objects approved/i);
 
   for (let attempt = 0; attempt < 20; attempt += 1) {
-    if (await openExportButton.isEnabled()) {
+    if (await allApprovedBanner.isVisible()) {
       return;
     }
-
     await expect(approveButton).toBeEnabled();
     await approveButton.click();
   }
 
-  await expect(openExportButton).toBeEnabled();
+  await expect(allApprovedBanner).toBeVisible();
 }
 
 test("locked Phase 2 setup hides inactive generation controls", async ({
@@ -178,7 +175,7 @@ test("approved Phase 1 rows can move through Phase 2 draft review and traceabili
   await attachFullPageScreenshot(page, testInfo, "phase2-review");
 
   await approveGeneratedMasterDataObjects(page);
-  await page.goto(`/projects/${project.projectId}/master-data/export`);
+  await page.getByRole("button", { name: /proceed to export/i }).click();
   await expect(
     page.getByRole("heading", {
       name: "Export Master Data",
@@ -189,6 +186,14 @@ test("approved Phase 1 rows can move through Phase 2 draft review and traceabili
   ).toBeEnabled();
   await assertNoHorizontalOverflow(page);
   await attachFullPageScreenshot(page, testInfo, "phase2-export");
+
+  await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: /download master data package/i }).click(),
+  ]);
+  await expect(page.getByRole("heading", { name: "Export Complete" })).toBeVisible({
+    timeout: 10000,
+  });
 
   await page.getByRole("button", { name: "View Traceability" }).click();
   await expect(
