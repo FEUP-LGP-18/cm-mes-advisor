@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useEffect,
   useId,
   useRef,
   useState,
@@ -15,6 +16,7 @@ import {
   type MasterDataGenerationMode,
   type MasterDataObjectType,
 } from "@/lib/master-data/types";
+import { ArrowRight, Check } from "@/components/icons";
 
 export default function MasterDataSetupStudio({
   applicableRequirements,
@@ -30,6 +32,8 @@ export default function MasterDataSetupStudio({
   onOpenPhase1Review,
   onToggleObjectType,
   onToggleRequirement,
+  onSelectRequirements,
+  onDeselectRequirements,
   selectedObjectTypes,
   selectedRequirementKeys,
 }: {
@@ -46,6 +50,8 @@ export default function MasterDataSetupStudio({
   onOpenPhase1Review: () => void;
   onToggleObjectType: (objectType: MasterDataObjectType) => void;
   onToggleRequirement: (requirementKey: string) => void;
+  onSelectRequirements: (keys: string[]) => void;
+  onDeselectRequirements: (keys: string[]) => void;
   selectedObjectTypes: MasterDataObjectType[];
   selectedRequirementKeys: string[];
 }) {
@@ -59,6 +65,9 @@ export default function MasterDataSetupStudio({
   const [analyzing, setAnalyzing] = useState(false);
   const [query, setQuery] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [objectTypeFilter, setObjectTypeFilter] = useState("all");
+  const [confidenceFilter, setConfidenceFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   async function handleAnalyze() {
     setAnalyzing(true);
@@ -67,11 +76,25 @@ export default function MasterDataSetupStudio({
   }
 
   const canProceed = selectedRequirementKeys.length > 0 && !isPhase2Locked;
-  const filteredReqs = applicableRequirements.filter((r) =>
-    !query.trim() ||
-    r.requirementDescription.toLowerCase().includes(query.toLowerCase()) ||
-    r.requirementId.toLowerCase().includes(query.toLowerCase()),
-  );
+  const filteredReqs = applicableRequirements.filter((r) => {
+    const q = query.trim().toLowerCase();
+    if (q && !r.requirementDescription.toLowerCase().includes(q) && !r.requirementId.toLowerCase().includes(q)) {
+      return false;
+    }
+    if (objectTypeFilter !== "all" && !r.suggestedObjectTypes.includes(objectTypeFilter as MasterDataObjectType)) {
+      return false;
+    }
+    if (confidenceFilter !== "all" && r.confidence.level !== confidenceFilter) {
+      return false;
+    }
+    if (statusFilter !== "all") {
+      const isSelected = selectedRequirementKeys.includes(r.requirementKey);
+      if (statusFilter === "approved" && !r.preselected) return false;
+      if (statusFilter === "selected" && (r.preselected || !isSelected)) return false;
+      if (statusFilter === "pending" && isSelected) return false;
+    }
+    return true;
+  });
 
   // Screen 1: Upload & Configure (no analysis yet)
   if (!hasAnalysis) {
@@ -99,19 +122,17 @@ export default function MasterDataSetupStudio({
   const allSelected = filteredReqs.every((r) => selectedRequirementKeys.includes(r.requirementKey));
 
   function handleSelectAll() {
-    filteredReqs.forEach((r) => {
-      if (!selectedRequirementKeys.includes(r.requirementKey)) {
-        onToggleRequirement(r.requirementKey);
-      }
-    });
+    const toAdd = filteredReqs
+      .filter((r) => !selectedRequirementKeys.includes(r.requirementKey))
+      .map((r) => r.requirementKey);
+    if (toAdd.length > 0) onSelectRequirements(toAdd);
   }
 
   function handleDeselectAll() {
-    filteredReqs.forEach((r) => {
-      if (selectedRequirementKeys.includes(r.requirementKey)) {
-        onToggleRequirement(r.requirementKey);
-      }
-    });
+    const toRemove = filteredReqs
+      .filter((r) => selectedRequirementKeys.includes(r.requirementKey))
+      .map((r) => r.requirementKey);
+    if (toRemove.length > 0) onDeselectRequirements(toRemove);
   }
 
   return (
@@ -142,16 +163,44 @@ export default function MasterDataSetupStudio({
             placeholder="Search requirement or object..."
             className="fv-search-input"
           />
-          <button type="button" className="fv-filter-btn">Object Type ▾</button>
-          <button type="button" className="fv-filter-btn">Confidence ▾</button>
-          <button type="button" className="fv-filter-btn">Status ▾</button>
+          <FilterDropdown
+            label="Object Type"
+            value={objectTypeFilter}
+            onChange={setObjectTypeFilter}
+            options={[
+              { value: "all", label: "Object Type" },
+              ...masterDataObjectTypes.map((t) => ({ value: t, label: masterDataObjectTypeLabels[t] })),
+            ]}
+          />
+          <FilterDropdown
+            label="Confidence"
+            value={confidenceFilter}
+            onChange={setConfidenceFilter}
+            options={[
+              { value: "all", label: "Confidence" },
+              { value: "high", label: "High" },
+              { value: "medium", label: "Medium" },
+              { value: "low", label: "Low" },
+            ]}
+          />
+          <FilterDropdown
+            label="Status"
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={[
+              { value: "all", label: "Status" },
+              { value: "approved", label: "Approved" },
+              { value: "selected", label: "AI Selected" },
+              { value: "pending", label: "Pending" },
+            ]}
+          />
           <div className="fv-table-toolbar-right">
             <button
               type="button"
               onClick={handleSelectAll}
-              style={{ fontSize: "0.78rem", color: "var(--brand-primary)", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}
+              style={{ fontSize: "0.78rem", color: "var(--brand-primary)", background: "none", border: "none", cursor: "pointer", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "0.25rem", padding: 0 }}
             >
-              ✓ Select All
+              <Check />Select All
             </button>
             <button
               type="button"
@@ -165,7 +214,7 @@ export default function MasterDataSetupStudio({
 
         {/* Table header label */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.625rem 0.875rem", borderBottom: "1px solid var(--surface-border)", background: "var(--surface-muted)" }}>
-          <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--foreground)" }}>
+          <span style={{ fontSize: "0.8rem", fontWeight: 500, color: "var(--muted-fg)" }}>
             Requirements → MES Object Mapping
           </span>
           <span style={{ fontSize: "0.72rem", color: "var(--muted-fg)" }}>
@@ -265,9 +314,106 @@ export default function MasterDataSetupStudio({
           disabled={!canProceed}
           className="fv-btn-primary"
         >
-          Generate Master Data →
+          Generate Master Data <ArrowRight />
         </button>
       </div>
+    </div>
+  );
+}
+
+function FilterDropdown({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: { value: string; label: string }[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [panelStyle, setPanelStyle] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const isActive = value !== "all";
+
+  function handleToggle() {
+    if (!open && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPanelStyle({ top: rect.bottom + 4, left: rect.left });
+    }
+    setOpen((prev) => !prev);
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    function handleOutside(e: MouseEvent) {
+      const target = e.target as Node;
+      if (triggerRef.current?.contains(target) || panelRef.current?.contains(target)) return;
+      setOpen(false);
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [open]);
+
+  const selectedLabel = options.find((o) => o.value === value)?.label ?? label;
+
+  return (
+    <div>
+      <button
+        ref={triggerRef}
+        type="button"
+        className="fv-filter-btn"
+        onClick={handleToggle}
+        style={isActive ? { color: "var(--brand-primary)", borderColor: "var(--brand-primary)", background: "#eff6ff" } : undefined}
+      >
+        {selectedLabel}
+        <span aria-hidden="true" style={{
+          display: "inline-block",
+          width: "6px",
+          height: "6px",
+          borderRight: "1.5px solid currentColor",
+          borderBottom: "1.5px solid currentColor",
+          transform: "rotate(45deg)",
+          marginTop: "-3px",
+          flexShrink: 0,
+        }} />
+      </button>
+      {open ? (
+        <div
+          ref={panelRef}
+          style={{
+            position: "fixed",
+            top: panelStyle.top,
+            left: panelStyle.left,
+            zIndex: 1000,
+            background: "var(--surface)",
+            border: "1px solid var(--surface-border)",
+            borderRadius: "var(--radius-md)",
+            boxShadow: "var(--shadow-card)",
+            minWidth: "160px",
+            overflow: "hidden",
+          }}
+        >
+          {options.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => { onChange(opt.value); setOpen(false); }}
+              style={{
+                display: "block", width: "100%", textAlign: "left",
+                padding: "0.45rem 0.875rem", fontSize: "0.8rem",
+                background: opt.value === value ? "#eff6ff" : "transparent",
+                color: opt.value === value ? "var(--brand-primary)" : "var(--foreground)",
+                border: "none", cursor: "pointer",
+              }}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -395,7 +541,7 @@ function UploadConfigureScreen({
               onClick={hasGeneratedPhase1Drafts ? onOpenPhase1Review : onOpenPhase1Generate}
               style={{ color: "var(--brand-primary)", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}
             >
-              {hasGeneratedPhase1Drafts ? "Open Phase 1 review →" : "Generate Phase 1 drafts →"}
+              {hasGeneratedPhase1Drafts ? <>Open Phase 1 review <ArrowRight /></> : <>Generate Phase 1 drafts <ArrowRight /></>}
             </button>
           </div>
         </div>
@@ -407,7 +553,7 @@ function UploadConfigureScreen({
           {/* Dropzone */}
           <div
             aria-disabled={!canAcceptUpload}
-            className={`fv-dropzone${approvedCount > 0 ? " fv-dropzone-ready" : ""}${dragActive ? " fv-dropzone-active" : ""}${uploadError ? " fv-dropzone-error" : ""}`}
+            className={`fv-dropzone${dragActive ? " fv-dropzone-active" : ""}${uploadError ? " fv-dropzone-error" : ""}`}
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
             onDragOver={handleDragOver}
@@ -453,16 +599,22 @@ function UploadConfigureScreen({
             ) : null}
           </div>
 
-          {/* File loaded state */}
+          {/* File ready bar — same width as dropzone, matches Screen 7 mockup */}
           {approvedCount > 0 ? (
-            <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-              <span className="fv-file-chip">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                  <path d="M9 2H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V6z" />
-                  <polyline points="9 2 9 6 13 6" />
-                </svg>
-                Phase 1 requirements loaded · {approvedCount} approved rows · ✓ Ready
-              </span>
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "0.5rem 0.875rem",
+              borderRadius: "var(--radius-md)",
+              background: "#f0fdf4",
+              border: "1px solid #bbf7d0",
+              fontSize: "0.8rem",
+              fontWeight: 500,
+              color: "var(--status-approved)",
+            }}>
+              <span>Phase 1 requirements loaded · {approvedCount} approved rows</span>
+              <span style={{ fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "0.25rem" }}><Check />Ready</span>
             </div>
           ) : null}
 
@@ -498,9 +650,16 @@ function UploadConfigureScreen({
               }}
             >
               Advanced Settings
-              <span style={{ fontSize: "1rem", color: "var(--muted-fg)", transform: showAdvanced ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }}>
-                ˅
-              </span>
+              <span aria-hidden="true" style={{
+                display: "inline-block",
+                width: "6px",
+                height: "6px",
+                borderRight: "1.5px solid var(--muted-fg)",
+                borderBottom: "1.5px solid var(--muted-fg)",
+                transform: showAdvanced ? "rotate(225deg)" : "rotate(45deg)",
+                transition: "transform 160ms ease",
+                marginTop: showAdvanced ? "3px" : "-3px",
+              }} />
             </button>
             {showAdvanced ? (
               <div style={{ padding: "0.75rem 1rem", display: "grid", gap: "0.25rem" }}>
@@ -597,7 +756,7 @@ function UploadConfigureScreen({
               <div key={item.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.3rem 0", borderBottom: "1px solid var(--surface-border)", fontSize: "0.8rem" }}>
                 <span style={{ color: "var(--foreground)" }}>{item.label}</span>
                 {item.included ? (
-                  <span style={{ color: "var(--status-approved)", fontWeight: 600 }}>✓ included</span>
+                  <span style={{ color: "var(--status-approved)", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "0.25rem" }}><Check />included</span>
                 ) : (
                   <span style={{ color: "var(--muted-fg)" }}>optional</span>
                 )}
@@ -627,7 +786,7 @@ function UploadConfigureScreen({
             className="fv-btn-primary"
             style={{ width: "100%", justifyContent: "center", padding: "0.75rem 1rem" }}
           >
-            {analyzing ? "Analyzing…" : "Analyze Requirements →"}
+            {analyzing ? "Analyzing…" : <>Analyze Requirements <ArrowRight /></>}
           </button>
         </div>
       </div>

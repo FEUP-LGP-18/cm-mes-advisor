@@ -3055,6 +3055,12 @@ textarea {
   color: #94a3b8;
 }
 
+.fv-step-circle-available {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--sidebar-fg);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
 .fv-step-text {
   display: flex;
   flex-direction: column;
@@ -3075,6 +3081,10 @@ textarea {
 
 .fv-step-name-done {
   color: var(--sidebar-muted);
+}
+
+.fv-step-name-available {
+  color: var(--sidebar-fg);
 }
 
 .fv-step-sub {

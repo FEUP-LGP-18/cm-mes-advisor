@@ -8,17 +8,16 @@ import {
   type MasterDataPhase2State,
   type MasterDataReviewStatus,
 } from "@/lib/master-data/types";
+import { ArrowLeft, ArrowRight, Check, WarningTriangle } from "@/components/icons";
 
 export default function MasterDataReviewStudio({
   onOpenExport,
-  onOpenTraceability,
   onReturnToProcess,
   onUpdateField,
   onUpdateReviewStatus,
   phase2,
 }: {
   onOpenExport: () => void;
-  onOpenTraceability: () => void;
   onReturnToProcess: () => void;
   onUpdateField: (objectId: string, fieldKey: string, value: string) => void;
   onUpdateReviewStatus: (
@@ -79,7 +78,7 @@ export default function MasterDataReviewStudio({
           <p className="fv-page-subtitle">No objects generated yet. Return to the process step to generate Master Data first.</p>
         </div>
         <button type="button" onClick={onReturnToProcess} className="fv-btn-secondary">
-          ← Back to Process
+          <ArrowLeft />Back to Process
         </button>
       </div>
     );
@@ -107,9 +106,20 @@ export default function MasterDataReviewStudio({
         </div>
       ) : null}
 
-      <div className="fv-review-layout">
-        {/* Left: object list */}
-        <aside style={{ display: "grid", gap: "0.5rem", alignContent: "start" }}>
+      <div className="fv-review-layout" style={{ alignItems: "stretch" }}>
+        {/* Left: object list — sticky, independently scrollable */}
+        <aside style={{
+          display: "grid",
+          gap: "0.5rem",
+          alignContent: "start",
+          position: "sticky",
+          top: "1rem",
+          maxHeight: "calc(100vh - 120px)",
+          overflowY: "auto",
+          paddingRight: "0.5rem",
+          scrollbarWidth: "thin",
+          scrollbarColor: "var(--surface-border) transparent",
+        }}>
           <div style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted-fg)", marginBottom: "0.25rem" }}>
             Objects ({allObjects.length})
           </div>
@@ -176,7 +186,7 @@ export default function MasterDataReviewStudio({
                       </div>
                       <div style={{ fontSize: "0.7rem", color: statusColor, marginTop: "0.125rem" }}>
                         {formatReviewStatus(o.reviewStatus)}
-                        {o.warnings.length > 0 ? " · ⚠" : ""}
+                        {o.warnings.length > 0 ? <> · <WarningTriangle size={11} style={{ verticalAlign: "middle" }} /></> : null}
                       </div>
                     </button>
                   );
@@ -186,8 +196,19 @@ export default function MasterDataReviewStudio({
           })}
         </aside>
 
-        {/* Right: detail panel */}
-        <div style={{ display: "grid", gap: "1rem", alignContent: "start" }}>
+        {/* Right: detail panel — sticky, independently scrollable */}
+        <div style={{
+          display: "grid",
+          gap: "1rem",
+          alignContent: "start",
+          position: "sticky",
+          top: "1rem",
+          maxHeight: "calc(100vh - 120px)",
+          overflowY: "auto",
+          paddingRight: "0.25rem",
+          scrollbarWidth: "thin",
+          scrollbarColor: "var(--surface-border) transparent",
+        }}>
           {/* Object header card */}
           <div className="fv-card">
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
@@ -198,11 +219,11 @@ export default function MasterDataReviewStudio({
                 <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--foreground)", margin: 0 }}>{activeObject.name}</h2>
                 <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.5rem" }}>
                   <span className={`fv-conf-${activeObject.confidence.level}`}>{activeObject.confidence.level} confidence</span>
-                  <span className={`fv-badge-${activeObject.reviewStatus === "approved" ? "approved" : activeObject.reviewStatus === "review" ? "flagged" : "pending"}`}>
+                  <span className={`fv-badge fv-badge-${activeObject.reviewStatus === "approved" ? "approved" : activeObject.reviewStatus === "review" ? "flagged" : "pending"}`}>
                     {formatReviewStatus(activeObject.reviewStatus)}
                   </span>
                   {activeObject.warnings.length > 0 ? (
-                    <span className="fv-badge-flagged">{activeObject.warnings.length} warning{activeObject.warnings.length > 1 ? "s" : ""}</span>
+                    <span className="fv-badge fv-badge-flagged">{activeObject.warnings.length} warning{activeObject.warnings.length > 1 ? "s" : ""}</span>
                   ) : null}
                 </div>
               </div>
@@ -223,7 +244,9 @@ export default function MasterDataReviewStudio({
                   className="fv-btn-primary"
                   style={{ padding: "0.375rem 0.75rem", fontSize: "0.78rem" }}
                 >
-                  Approve {pendingCount > 1 ? "& Next →" : "✓"}
+                  Approve {pendingCount > 1 ? (
+                    <>& Next <ArrowRight /></>
+                  ) : <Check />}
                 </button>
               </div>
             </div>
@@ -232,8 +255,9 @@ export default function MasterDataReviewStudio({
             {activeObject.warnings.length > 0 ? (
               <div style={{ marginTop: "0.75rem", display: "grid", gap: "0.375rem" }}>
                 {activeObject.warnings.map((w) => (
-                  <div key={w} className="fv-callout fv-callout-warning" style={{ fontSize: "0.8rem", padding: "0.5rem 0.75rem" }}>
-                    ⚠ {w}
+                  <div key={w} className="fv-callout fv-callout-warning" style={{ fontSize: "0.8rem", padding: "0.5rem 0.75rem", display: "flex", gap: "0.375rem", alignItems: "flex-start" }}>
+                    <WarningTriangle style={{ flexShrink: 0, marginTop: "1px" }} />
+                    {w}
                   </div>
                 ))}
               </div>
@@ -257,25 +281,33 @@ export default function MasterDataReviewStudio({
             <div style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted-fg)", marginBottom: "0.75rem" }}>
               Fields ({activeObject.fields.length})
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "0.75rem" }}>
-              {activeObject.fields.map((field) => (
-                <div key={field.key}>
-                  <label className="fv-field-label" htmlFor={`field-${activeObject.objectId}-${field.key}`}>
-                    {field.label}
-                    {field.required ? <span style={{ color: "var(--status-error)" }}> *</span> : null}
-                    {field.warning ? <span style={{ marginLeft: "0.25rem", color: "var(--status-flagged)" }}>⚠</span> : null}
-                  </label>
-                  <input
-                    id={`field-${activeObject.objectId}-${field.key}`}
-                    className="fv-input"
-                    value={field.value}
-                    onChange={(e) => onUpdateField(activeObject.objectId, field.key, e.currentTarget.value)}
-                  />
-                  {field.warning ? (
-                    <div style={{ fontSize: "0.7rem", color: "var(--status-flagged)", marginTop: "0.2rem" }}>{field.warning}</div>
-                  ) : null}
-                </div>
-              ))}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+              {activeObject.fields.map((field) => {
+                const displayLabel = field.label.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase()).trim();
+                return (
+                  <div key={field.key}>
+                    <label
+                      className="fv-field-label"
+                      htmlFor={`field-${activeObject.objectId}-${field.key}`}
+                      title={displayLabel}
+                      style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}
+                    >
+                      {displayLabel}
+                      {field.required ? <span style={{ color: "var(--status-error)" }}> *</span> : null}
+                      {field.warning ? <span style={{ marginLeft: "0.25rem", color: "var(--status-flagged)", display: "inline-flex", verticalAlign: "middle" }}><WarningTriangle size={12} /></span> : null}
+                    </label>
+                    <input
+                      id={`field-${activeObject.objectId}-${field.key}`}
+                      className="fv-input"
+                      value={field.value}
+                      onChange={(e) => onUpdateField(activeObject.objectId, field.key, e.currentTarget.value)}
+                    />
+                    {field.warning ? (
+                      <div style={{ fontSize: "0.7rem", color: "var(--status-flagged)", marginTop: "0.2rem" }}>{field.warning}</div>
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -310,25 +342,18 @@ export default function MasterDataReviewStudio({
                 className="fv-btn-secondary"
                 style={{ fontSize: "0.78rem" }}
               >
-                ← Back to Process
-              </button>
-              <button
-                type="button"
-                onClick={onOpenTraceability}
-                className="fv-btn-secondary"
-                style={{ fontSize: "0.78rem" }}
-              >
-                Traceability
+                <ArrowLeft />Back to Process
               </button>
             </div>
             <button
               type="button"
               onClick={onOpenExport}
-              disabled={!allApproved}
+              disabled={allObjects.length === 0}
               className="fv-btn-primary"
-              style={{ fontSize: "0.78rem", opacity: allApproved ? 1 : 0.5, cursor: allApproved ? "pointer" : "not-allowed" }}
+              style={{ fontSize: "0.78rem" }}
             >
-              Proceed to Export →
+              Proceed to Export
+              <ArrowRight />
             </button>
           </div>
         </div>

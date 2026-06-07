@@ -1,10 +1,73 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type {
-  MasterDataGenerationStatus,
-  MasterDataPhase2State,
+import {
+  masterDataObjectTypeLabels,
+  type MasterDataGenerationStatus,
+  type MasterDataObjectType,
+  type MasterDataPhase2State,
 } from "@/lib/master-data/types";
+import { ArrowLeft, ArrowRight, Retry } from "@/components/icons";
+
+function ObjectFailurePanel({ phase2 }: { phase2: MasterDataPhase2State }) {
+  const objectsWithWarnings = (Object.entries(phase2.generatedObjects) as [MasterDataObjectType, typeof phase2.generatedObjects[MasterDataObjectType]][])
+    .flatMap(([type, arr]) => arr.filter((o) => o.warnings.length > 0).map((o) => ({ ...o, type })));
+
+  if (objectsWithWarnings.length === 0 && Object.values(phase2.generatedObjects).flat().length === 0) {
+    return (
+      <div className="fv-card fv-card-left-error" style={{ marginTop: "0.25rem" }}>
+        <div className="fv-card-title" style={{ color: "var(--status-error)" }}>Generation Failed</div>
+        <p style={{ fontSize: "0.8rem", color: "var(--muted-fg)", margin: 0, lineHeight: 1.5 }}>
+          No objects were generated. This typically means the AI could not connect to the requirements data or the generation request failed before producing output. Use Retry or switch to prototype drafts.
+        </p>
+      </div>
+    );
+  }
+
+  if (objectsWithWarnings.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="fv-card fv-card-left-error" style={{ marginTop: "0.25rem" }}>
+      <div className="fv-card-title" style={{ color: "var(--status-error)" }}>
+        Object Warnings — {objectsWithWarnings.length} {objectsWithWarnings.length === 1 ? "object" : "objects"} flagged
+      </div>
+      <p style={{ fontSize: "0.78rem", color: "var(--muted-fg)", marginBottom: "0.75rem", lineHeight: 1.5 }}>
+        These objects were generated but have warnings that need resolution before export. Review them individually in the review step or retry generation.
+      </p>
+      <div style={{ display: "grid", gap: "0.5rem" }}>
+        {objectsWithWarnings.map((obj) => (
+          <div
+            key={obj.objectId}
+            style={{
+              background: "var(--status-error-bg)",
+              border: "1px solid var(--surface-border)",
+              borderRadius: "var(--radius-sm)",
+              padding: "0.625rem 0.75rem",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.375rem" }}>
+              <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--muted-fg)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                {masterDataObjectTypeLabels[obj.type]}
+              </span>
+              <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--foreground)" }}>
+                {obj.name}
+              </span>
+            </div>
+            <ul style={{ margin: 0, padding: "0 0 0 1rem", display: "grid", gap: "0.2rem" }}>
+              {obj.warnings.map((w, i) => (
+                <li key={i} style={{ fontSize: "0.78rem", color: "var(--status-error)", lineHeight: 1.5 }}>
+                  {w}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function shouldAutoStartMasterDataGeneration(
   status: MasterDataGenerationStatus,
@@ -184,6 +247,9 @@ export default function MasterDataProcessStudio({
               <span className="fv-terminal-info">Waiting for generation to start…</span>
             </div>
           )}
+
+          {/* Per-object failure panel — only shown in error state */}
+          {isError ? <ObjectFailurePanel phase2={phase2} /> : null}
         </div>
 
         {/* Right: stats cards + actions */}
@@ -234,7 +300,7 @@ export default function MasterDataProcessStudio({
           <div style={{ display: "grid", gap: "0.5rem" }}>
             {isReady ? (
               <button type="button" onClick={onOpenReview} className="fv-btn-primary" style={{ justifyContent: "center" }}>
-                Review Results →
+                Review Results <ArrowRight />
               </button>
             ) : null}
             {isError ? (
@@ -245,7 +311,7 @@ export default function MasterDataProcessStudio({
                   </button>
                 ) : null}
                 <button type="button" onClick={() => void onGenerate()} className="fv-btn-secondary" style={{ justifyContent: "center" }}>
-                  ⟳ Retry Generation
+                  <Retry />Retry Generation
                 </button>
                 <button type="button" onClick={onOpenReview} className="fv-btn-secondary" style={{ justifyContent: "center" }}>
                   Review Partial Results
@@ -253,7 +319,7 @@ export default function MasterDataProcessStudio({
               </>
             ) : null}
             <button type="button" onClick={onReturnToSetup} className="fv-btn-secondary" style={{ justifyContent: "center" }}>
-              ← Back to Setup
+              <ArrowLeft />Back to Setup
             </button>
           </div>
         </div>

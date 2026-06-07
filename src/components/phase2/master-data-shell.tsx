@@ -58,7 +58,6 @@ export default function MasterDataProjectShell({
     .filter((o) => o.reviewStatus === "review").length;
   const pendingCount = objectCount - approvedCount - modifiedCount;
 
-  const currentStepIndex = masterDataWorkflowSteps.indexOf(currentStep);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const currentLabel = STEP_LABELS[currentStep] ?? currentStep;
 
@@ -138,10 +137,10 @@ export default function MasterDataProjectShell({
             <span className="fv-sidebar-label">Progress</span>
             <div className="fv-step-list">
               {masterDataWorkflowSteps.map((step, idx) => {
-                const isDone = idx < currentStepIndex;
                 const isActive = step === currentStep;
                 const href = getMasterDataStepPath(project.projectId, step);
                 const status = getMasterDataStepStatus(phase2, step);
+                const isDone = status === "complete" && !isActive;
 
                 return (
                   <Link
@@ -158,7 +157,9 @@ export default function MasterDataProjectShell({
                           ? "fv-step-circle-done"
                           : isActive
                             ? "fv-step-circle-active"
-                            : "fv-step-circle-future"
+                            : status === "available"
+                              ? "fv-step-circle-available"
+                              : "fv-step-circle-future"
                       }`}
                     >
                       {isDone ? <CheckIcon /> : idx + 1}
@@ -170,7 +171,9 @@ export default function MasterDataProjectShell({
                             ? "fv-step-name-active"
                             : isDone
                               ? "fv-step-name-done"
-                              : ""
+                              : status === "available"
+                                ? "fv-step-name-available"
+                                : ""
                         }`}
                       >
                         {STEP_LABELS[step]}
@@ -320,26 +323,23 @@ function getMasterDataStepStatus(
   phase2: MasterDataPhase2State,
   step: MasterDataWorkflowStep,
 ) {
-  const objectCount = Object.values(phase2.generatedObjects).reduce(
-    (total, entries) => total + entries.length,
-    0,
-  );
-  const allApproved =
-    objectCount > 0 &&
-    Object.values(phase2.generatedObjects)
-      .flat()
-      .every((o) => o.reviewStatus === "approved");
+  const allObjects = Object.values(phase2.generatedObjects).flat();
+  const objectCount = allObjects.length;
+  const allApproved = objectCount > 0 && allObjects.every((o) => o.reviewStatus === "approved");
 
   switch (step) {
     case "setup":
       return phase2.applicableRequirements.length > 0 ? "complete" : "available";
     case "process":
+      if (phase2.generationStatus === "ready" || phase2.generationStatus === "error") return "complete";
       return phase2.selectedRequirementKeys.length > 0 ? "available" : "blocked";
     case "review":
+      if (allApproved) return "complete";
       return objectCount > 0 ? "available" : "blocked";
     case "export":
-      return allApproved ? "available" : "blocked";
-    case "traceability":
+      if (phase2.exportSummary !== null) return "complete";
       return objectCount > 0 ? "available" : "blocked";
+    case "traceability":
+      return phase2.exportSummary !== null ? "available" : "blocked";
   }
 }

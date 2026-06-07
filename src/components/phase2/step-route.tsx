@@ -121,6 +121,16 @@ export default function MasterDataStepRoute({
               : [...masterDataPhase2.selectedRequirementKeys, requirementKey];
             setSelectedMasterDataRequirementKeys(nextKeys);
           }}
+          onSelectRequirements={(keys) => {
+            const next = [...new Set([...masterDataPhase2.selectedRequirementKeys, ...keys])];
+            setSelectedMasterDataRequirementKeys(next);
+          }}
+          onDeselectRequirements={(keys) => {
+            const keySet = new Set(keys);
+            setSelectedMasterDataRequirementKeys(
+              masterDataPhase2.selectedRequirementKeys.filter((k) => !keySet.has(k)),
+            );
+          }}
           selectedObjectTypes={masterDataPhase2.selectedObjectTypes}
           selectedRequirementKeys={masterDataPhase2.selectedRequirementKeys}
         />
@@ -147,9 +157,6 @@ export default function MasterDataStepRoute({
         <MasterDataReviewStudio
           onOpenExport={() =>
             router.push(getMasterDataStepPath(project.projectId, "export"))
-          }
-          onOpenTraceability={() =>
-            router.push(getMasterDataStepPath(project.projectId, "traceability"))
           }
           onReturnToProcess={() =>
             router.push(getMasterDataStepPath(project.projectId, "process"))
