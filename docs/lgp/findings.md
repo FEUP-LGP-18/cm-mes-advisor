@@ -27,7 +27,7 @@ Last updated: 2026-06-07
 | **29 May 2026** | **Beta Version** — Final Event Script (SFE) + Intermediate Strategic Plan delivered |
 | May–Jun 2026 | UI revamp — full design system from MM mockups (Polina Andreeva, Dayo Ashaolu), applied across all surfaces |
 | June 2026 | Academic advisor review meeting — João Pascoal Faria (45 min, UX feedback, metrics guidance) |
-| June 2026 | Final partner validation meeting with Rui Barbosa — positive outcome |
+| **03 Jun 2026** | **Final partner validation meeting** — Rui Barbosa (30 min); positive outcome |
 | **08 Jun 2026** | **Delivery — Final MVP delivered** |
 | **12 Jun 2026** | **Final Event presentation** — partner (Rui Barbosa) attending |
 | **26 Jun 2026** | **Closure** — Final Strategic Plan, Final Management Report, Project Folder |
