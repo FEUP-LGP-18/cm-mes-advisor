@@ -109,7 +109,7 @@ To enable real-mode AI generation, set the env vars from `.env.example` includin
 
 | Item | Status | Action needed |
 |---|---|---|
-| Real-mode Bedrock generation | Implemented, 403 credential issue in April 2026 | Confirm working Bedrock credentials or auth path with Critical Manufacturing |
+| Real-mode Bedrock generation | Implemented, blocked by IAM permission error | Key `BedrockAPIKey-ww58` is denied `bedrock:CallWithBearerToken`. MCP/RAG side works. Fix: enable that permission for the key, or provide the correct Bedrock access path/credential |
 | Phase 2 MES import validation | Not validated | Import generated package via **Administration → Master Data Package** in MES and confirm format |
 | Phase 2 DEE file generation | Out of scope (stretch goal) | Future iteration if needed |
 
