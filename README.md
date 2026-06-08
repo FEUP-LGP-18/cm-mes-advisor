@@ -79,35 +79,16 @@ The top-level home screen creates or reopens projects. Without Supabase, project
 Use Node `20.19.0` and pnpm through Corepack:
 
 ```bash
-./start.sh
-```
-
-Run that command from the workspace root, one level above this app directory.
-
-The root `start.sh` script is the preferred local entrypoint for teammates and agents. It:
-
-- validates the expected Node version from `.nvmrc`
-- enables Corepack and installs dependencies only when needed
-- always restarts the archived partner support stack before launching the app
-- safely stops the existing CM MES Advisor app on `3000` when it owns the port
-- refuses to kill unrelated processes on required ports
-- restarts `clickhouse`, `rag`, `LibreChat`, `ferretdb`, and `postgres` from `../98_archive/large-artifacts/LGP2026`
-
-After startup:
-
-- app: [http://localhost:3000](http://localhost:3000)
-- onboarding docs: [http://localhost:3000/docs](http://localhost:3000/docs)
-- LibreChat: [http://localhost:3080](http://localhost:3080)
-
-## Manual App-Only Fallback
-
-If you need to start only the Next.js app manually from this directory:
-
-```bash
 corepack enable
 pnpm install
 pnpm dev
 ```
+
+App available at [http://localhost:3000](http://localhost:3000). Onboarding docs at [http://localhost:3000/docs](http://localhost:3000/docs).
+
+Mock generation is enabled by default — no partner credentials needed.
+
+> **Archived partner stack:** a `start.sh` script exists one level above this repo that starts the full partner support stack (LibreChat, clickhouse, rag, ferretdb, postgres). It is not committed to this repo, is specific to a particular macOS setup, and is not required for normal development or the MVP demo.
 
 ## Authentication
 
@@ -164,8 +145,8 @@ Default local mode:
 
 Startup behavior:
 
-- `./start.sh` always restarts the archived local partner support stack before launching the app
-- `GENERATION_MODE` still controls app generation behavior, but it no longer changes what `./start.sh` starts
+- `pnpm dev` starts only the Next.js app — the normal path for development and demo
+- `GENERATION_MODE` controls generation behavior independently of how the app is started
 
 Real mode requires the server-side values shown in [`.env.example`](.env.example), including:
 
@@ -210,6 +191,18 @@ Optional GitHub Actions repository secrets for the fallback workflows:
 
 The Vercel project is currently configured with `GENERATION_MODE=mock` for both Preview and Production so review builds stay safe without partner credentials.
 
+## LGP Project Documentation
+
+Artefacts produced for the FEUP LGP 2025/2026 academic milestone:
+
+- [docs/lgp/requirements.md](docs/lgp/requirements.md): user stories and functional requirements by area
+- [docs/lgp/architecture.md](docs/lgp/architecture.md): stack, app structure, design system, key decisions
+- [docs/lgp/user-manual.md](docs/lgp/user-manual.md): consultant-facing guide for Phase 1 and Phase 2
+- [docs/lgp/handover.md](docs/lgp/handover.md): what is delivered and how Critical Manufacturing can take it over
+- [docs/lgp/findings.md](docs/lgp/findings.md): partner validation, metrics, development stats, lessons learned
+
+See also [COLLABORATORS.md](COLLABORATORS.md) for the full team list.
+
 ## Where To Read Next
 
 Canonical docs:
@@ -222,7 +215,6 @@ Canonical docs:
 - [docs/discovery/project-context.md](docs/discovery/project-context.md): current-state product and repo context
 - [docs/phase-1-epic-plan.md](docs/phase-1-epic-plan.md): current roadmap and status
 - [content/docs/release-checklist.mdx](content/docs/release-checklist.mdx): pilot-ready release checklist
-- [`../start.sh`](../start.sh): root local startup orchestrator for the full local stack
 
 Supporting project notes:
 
