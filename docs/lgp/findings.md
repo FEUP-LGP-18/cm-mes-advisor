@@ -29,6 +29,7 @@ Last updated: 2026-06-07
 | June 2026 | Academic advisor review meeting — João Pascoal Faria (45 min, UX feedback, metrics guidance) |
 | June 2026 | Final partner validation meeting with Rui Barbosa — positive outcome |
 | **08 Jun 2026** | **Delivery — Final MVP delivered** |
+| **12 Jun 2026** | **Final Event presentation** — partner (Rui Barbosa) attending |
 | **26 Jun 2026** | **Closure** — Final Strategic Plan, Final Management Report, Project Folder |
 
 ---
@@ -110,15 +111,20 @@ The following metrics are tracked and visible in the application:
 
 ### Real-Mode Bedrock Integration
 
-The AWS Bedrock integration was implemented and tested in April 2026. The app successfully reaches the partner Bedrock endpoint, but a 403 credential authorization error was encountered during live testing. Both credential paths were implemented (standard AWS SigV4 and bearer-token auth). The issue is a partner-side credential configuration problem, not an app-side implementation bug.
+The AWS Bedrock integration was implemented and tested in April 2026. Both credential paths were implemented (standard AWS SigV4 and bearer-token auth). The blocker went through two distinct phases:
 
-**Impact:** Real-mode generation could not be fully validated. Mock mode is the tested and deployed default.
+1. **Budget exhaustion (April 2026)** — the partner's API key had a 75 USD budget that was exhausted before the team had made any successful calls. Rui Barbosa resolved this on the partner side; both the direct app flow and LibreChat were confirmed working briefly after the fix.
+2. **IAM permission error (June 2026)** — the `bedrock:CallWithBearerToken` permission is explicitly denied for key `BedrockAPIKey-ww58`. MCP/RAG side works correctly. Fix request sent to Rui Barbosa on 05 Jun 2026, pending response.
+
+**Impact:** Real-mode generation could not be fully validated end-to-end. Mock mode is the tested and deployed default.
 
 **Reference:** `docs/discovery/phase-1-real-mode-validation-2026-04-20.md`
 
 ### Phase 2 MES Import Validation
 
 The Phase 2 export package (Excel workbook + JSON manifest) was designed following the `MasterData_CookieFactory.zip` reference provided by the partner. Required fields use safe template-backed defaults where the requirement data does not specify a value. The package has not been validated by a live MES import.
+
+DEE file generation is explicitly out of scope — confirmed by Rui Barbosa (April 2026): "the end goal is to generate the DEE files too, but that might be beyond the scope of what can be achieved in this project."
 
 **Impact:** Phase 2 is described as a pilot demo artifact throughout the application.
 
