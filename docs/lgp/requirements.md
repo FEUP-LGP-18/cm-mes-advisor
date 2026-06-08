@@ -9,7 +9,7 @@ This document lists the user stories developed throughout the project, grouped b
 ## Authentication and Session
 
 **As a user, I can sign up, sign in, reset my password, stay signed in, and sign out so my project work is protected.**
-_(#14 — Auth flows and protected session shell)_
+_([#14](https://github.com/FEUP-LGP-18/cm-mes-advisor/issues/14) — Auth flows and protected session shell)_
 
 - Unauthenticated users are redirected to login before accessing any project, settings, or profile page.
 - Login and signup use email and password.
@@ -28,14 +28,14 @@ _(#14 — Auth flows and protected session shell)_
 - Projects can be reopened from the dashboard and resume from the last active step.
 
 **As a project owner, I can invite collaborators by email so my team can work together on the same project.**
-_(#25 — Project collaboration settings UI)_
+_([#25](https://github.com/FEUP-LGP-18/cm-mes-advisor/issues/25) — Project collaboration settings UI)_
 
 - Owners can invite users with editor or viewer roles.
 - Invites are sent by email and accepted via a link.
 - Owners can remove members and change roles.
 
 **As a project owner, I can archive or delete a project when it is no longer needed.**
-_(#26 — Project settings, ownership, archive, and delete)_
+_([#26](https://github.com/FEUP-LGP-18/cm-mes-advisor/issues/26) — Project settings, ownership, archive, and delete)_
 
 ---
 
@@ -54,7 +54,7 @@ _(#26 — Project settings, ownership, archive, and delete)_
 - The generation step produces draft comments and demo guidance per requirement.
 
 **As a consultant, I can review, approve, flag, and edit generated requirement comments so the demo output reflects my professional judgment.**
-_(#60 — Requirements Review dense table workspace)_
+_([#60](https://github.com/FEUP-LGP-18/cm-mes-advisor/issues/60) — Requirements Review dense table workspace)_
 
 - Review is a dense table workspace with per-row selection and inline editing.
 - Requirements can be approved, flagged for review, skipped, or edited.
@@ -62,20 +62,20 @@ _(#60 — Requirements Review dense table workspace)_
 - A no-results state is shown when filters return nothing.
 
 **As an editor, my generation results, review decisions, script edits, and export readiness are saved to the project and visible to collaborators.**
-_(#21 — Persist Phase 1 workflow state to Supabase)_
+_([#21](https://github.com/FEUP-LGP-18/cm-mes-advisor/issues/21) — Persist Phase 1 workflow state to Supabase)_
 
 - Phase 1 state is persisted server-side when Supabase is configured.
 - Refreshing or reopening the project restores the last saved state.
 - Viewers cannot save changes; editors and owners can.
 
 **As a consultant, I can generate a demo script that summarises approved requirements for the customer meeting.**
-_(#65 — Script, Export, and Handoff)_
+_([#65](https://github.com/FEUP-LGP-18/cm-mes-advisor/issues/65) — Script, Export, and Handoff)_
 
 - The script assembles approved requirements into a consultant-facing narrative.
 - Consultant name and MES version from General Preferences appear in output metadata when set.
 
 **As a consultant, I can download a Markdown handoff document that captures the Phase 1 output for the customer record.**
-_(#65 — Script, Export, and Handoff)_
+_([#65](https://github.com/FEUP-LGP-18/cm-mes-advisor/issues/65) — Script, Export, and Handoff)_
 
 - Export is available once there are approved requirements.
 - The download is a Markdown file suitable for sharing or archiving.
@@ -96,7 +96,7 @@ _(#65 — Script, Export, and Handoff)_
 - Requirements can be selected individually or in bulk.
 
 **As a consultant, I can review and approve generated Master Data objects before exporting so the package reflects my review.**
-_(#67 — Phase 2 Master Data screens)_
+_([#67](https://github.com/FEUP-LGP-18/cm-mes-advisor/issues/67) — Phase 2 Master Data screens)_
 
 - Objects are presented in a review workspace grouped by type.
 - Each object shows its fields, AI rationale, confidence level, warnings, and source requirements.
@@ -117,13 +117,13 @@ _(#67 — Phase 2 Master Data screens)_
 ## Settings and Profile
 
 **As a user, I can configure general preferences (consultant name, MES version, language) so they appear in generated outputs.**
-_(#54 — General Prefs)_
+_([#54](https://github.com/FEUP-LGP-18/cm-mes-advisor/issues/54) — General Prefs)_
 
 **As a user, I can configure AI generation behavior (model, temperature, system prompt) so generation reflects my preferred style.**
-_(#51 — AI Config)_
+_([#51](https://github.com/FEUP-LGP-18/cm-mes-advisor/issues/51) — AI Config)_
 
 **As a user, I can view my profile and update my display name and avatar.**
-_(#15 — Profile and account management)_
+_([#15](https://github.com/FEUP-LGP-18/cm-mes-advisor/issues/15) — Profile and account management)_
 
 ---
 
