@@ -53,7 +53,14 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<Supabase publishable key>
 
 This keeps review deployments usable without partner credentials.
 
-Real mode should only be enabled when server-side MCP and Bedrock credentials are available and the team intentionally wants to validate that path.
+Real mode should only be enabled when server-side MCP plus the selected model-provider credentials are available and the team intentionally wants to validate that path.
+
+Supported requirement-generation providers are:
+
+- `REQUIREMENT_GENERATION_PROVIDER=bedrock`
+- `REQUIREMENT_GENERATION_PROVIDER=anthropic`
+
+For Anthropic validation, configure `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` only as Vercel environment variables. Do not paste secret values into PRs, docs, screenshots, or workflow files.
 
 ## Supabase Deployment Setup
 
@@ -93,7 +100,7 @@ CI can prove that commands pass. It cannot prove:
 - mobile hierarchy is good
 - next-action language is coherent
 - a consultant can understand the workflow
-- real Bedrock access is partner-validated
+- real Bedrock or Anthropic access is validated in the target runtime
 
 For UI-heavy changes, include browser verification notes even when CI is green.
 

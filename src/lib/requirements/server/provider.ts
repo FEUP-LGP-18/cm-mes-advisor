@@ -82,7 +82,7 @@ export function getRequirementGenerationAvailability(
       code: "real-generation-unavailable",
       reason: "missing-config",
       message:
-        "Grounded generation is not configured yet. Add the MCP server URL, Bedrock model, region, and either AWS credentials or a Bedrock bearer token before switching out of draft mode.",
+        "Grounded generation is not configured yet. Add the MCP server URL and the selected model provider credentials before switching out of draft mode.",
       missingConfig,
     };
   }

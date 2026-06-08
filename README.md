@@ -18,7 +18,7 @@ The optional pilot Phase 2 demo continuation lives under:
 - `master-data/export`
 - `master-data/traceability`
 
-Mock generation is the default so teammates can run the app locally without partner credentials. Real grounded generation is implemented behind the server route boundary, but live validation is still blocked by partner Bedrock access. Phase 2 exports are not MES-validated until a partner manually imports and accepts the package.
+Mock generation is the default so teammates can run the app locally without partner credentials. Real grounded requirement generation is implemented behind the server route boundary with Bedrock and direct Anthropic provider options; prior validation notes still record Bedrock bearer-token access as partner-blocked. Phase 2 exports are not MES-validated until a partner manually imports and accepts the package.
 
 ## What The Product Does Now
 
@@ -51,7 +51,7 @@ Phase 2 is available as an optional pilot demo continuation after Phase 1 approv
 
 - direct LibreChat product shell
 - broad unstructured document ingestion
-- browser-exposed Bedrock, AWS, MCP, or MES credentials
+- browser-exposed Bedrock, Anthropic, AWS, MCP, or MES credentials
 - committing raw partner artifacts, generated exports, or extra workbooks
 
 ## Workflow
@@ -151,14 +151,13 @@ Startup behavior:
 Real mode requires the server-side values shown in [`.env.example`](.env.example), including:
 
 - `MCP_SERVER_URL`
-- `BEDROCK_MODEL_ID`
-- `AWS_REGION`
-- either bearer-token auth or working AWS credentials
+- `REQUIREMENT_GENERATION_PROVIDER=bedrock` with `BEDROCK_MODEL_ID`, `AWS_REGION`, and either bearer-token auth or working AWS credentials
+- `REQUIREMENT_GENERATION_PROVIDER=anthropic` with `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL`
 
 Current status:
 
 - mock mode is the safe default and should work for normal teammate onboarding
-- real mode is implemented for both requirement generation and Phase 2 Master Data generation
+- real mode is implemented for requirement generation; Phase 2 Master Data generation still uses the existing Bedrock server path
 - use the existing validation notes in `docs/discovery/` for partner-stack history and retest evidence
 
 ## Quality Commands
@@ -265,4 +264,4 @@ Do not commit:
 - additional partner workbooks without explicit review
 - Supabase CLI local state or SQL scratch snippets
 
-Keep all partner, MES, MCP, Bedrock, and AWS secrets server-side only.
+Keep all partner, MES, MCP, Bedrock, Anthropic, and AWS secrets server-side only.

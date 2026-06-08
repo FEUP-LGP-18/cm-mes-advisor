@@ -114,6 +114,16 @@ describe("mock requirement generation", () => {
     );
   });
 
+  it("accepts Anthropic MCP as a real generation source", () => {
+    const draft = {
+      ...createMockGeneratedRequirementDraft(standardRequirement),
+      generator: "anthropic-mcp",
+      generatedAt: "2026-06-08T12:00:00.000Z",
+    };
+
+    expect(isGeneratedRequirementDraft(draft)).toBe(true);
+  });
+
   it("uses different confidence and warnings for standard and partial/custom rows", () => {
     const standardAssessment = assessRequirementSupport(standardRequirement);
     const partialAssessment = assessRequirementSupport(partialRequirement);

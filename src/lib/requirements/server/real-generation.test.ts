@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { AnthropicResponseFormatError } from "./anthropic-client";
 import {
   BedrockRequestError,
   BedrockResponseFormatError,
@@ -42,6 +43,7 @@ const partialRequirement = {
 
 const config = {
   mode: "real" as const,
+  generationProvider: "bedrock" as const,
   mcpServerUrl: "https://example.invalid/mcp",
   mesBaseUrl: "https://example.invalid/mes",
   bedrockModelId: "example-bedrock-model-id",
@@ -50,7 +52,23 @@ const config = {
   awsSecretAccessKey: "example-secret-access-key",
   awsSessionToken: null,
   awsBearerTokenBedrock: null,
+  anthropicApiKey: null,
+  anthropicMaxTokens: 1200,
+  anthropicModel: null,
+  anthropicTemperature: 0.1,
+  anthropicVersion: "2023-06-01",
   mcpUserAccount: null,
+};
+
+const anthropicConfig = {
+  ...config,
+  generationProvider: "anthropic" as const,
+  bedrockModelId: null,
+  awsAccessKeyId: null,
+  awsRegion: null,
+  awsSecretAccessKey: null,
+  anthropicApiKey: "sk-ant-example-key",
+  anthropicModel: "claude-haiku-4-5-20251001",
 };
 
 describe("real requirement generation orchestration", () => {
@@ -123,6 +141,72 @@ describe("real requirement generation orchestration", () => {
     expect(drafts[1]?.warnings.join(" ")).toContain("Consultant review");
   });
 
+  it("labels Anthropic drafts and still uses MCP documentation lookup", async () => {
+    const lookupRequirementDocumentation = vi.fn(async () => ({
+      primaryChunks: [],
+      adjacentChunks: [],
+      allChunks: [
+        {
+          id: "chunk-1",
+          title: "Batch review workspace",
+          text: "Open the Batch Review workspace and review by exception.",
+          sourceUrl: "https://example.invalid/docs/review",
+          docSource: "Documentation Portal",
+          docVersion: "9.0",
+          previousChunkId: null,
+          nextChunkId: null,
+        },
+      ],
+    }));
+
+    const drafts = await generateRealRequirementDrafts(
+      [standardRequirement],
+      anthropicConfig,
+      {
+        async createDocumentationClient() {
+          return {
+            lookupRequirementDocumentation,
+            async close() {},
+          };
+        },
+        createModelClient() {
+          return {
+            async checkAvailability() {},
+            async generateDraft({ documentation }) {
+              expect(documentation).toHaveLength(1);
+              return {
+                generatedComment: "Grounded Anthropic batch review comment.",
+                confidenceLevel: "high" as const,
+                confidenceRationale: "Strong grounding.",
+                assumptions: [],
+                warnings: [],
+                demoSteps: [
+                  {
+                    title: "Open Batch Review",
+                    mesModuleOrScreen: "Batch Review",
+                    reviewStatus: "draft" as const,
+                    instructions: [
+                      "Open Batch Review.",
+                      "Show the configured result.",
+                    ],
+                  },
+                ],
+              };
+            },
+          };
+        },
+      },
+    );
+
+    expect(lookupRequirementDocumentation).toHaveBeenCalledWith(
+      standardRequirement,
+    );
+    expect(drafts[0]).toMatchObject({
+      generator: "anthropic-mcp",
+      sourceReferences: [{ kind: "mcp-documentation" }],
+    });
+  });
+
   it("degrades one row safely when the model response is malformed", async () => {
     const drafts = await generateRealRequirementDrafts(
       [standardRequirement, partialRequirement],
@@ -185,6 +269,77 @@ describe("real requirement generation orchestration", () => {
 
     expect(drafts).toHaveLength(2);
     expect(drafts[1]?.confidence.level).toBe("low");
+    expect(drafts[1]?.warnings.join(" ")).toContain("expected draft format");
+  });
+
+  it("degrades one Anthropic row safely when the model response is malformed", async () => {
+    const drafts = await generateRealRequirementDrafts(
+      [standardRequirement, partialRequirement],
+      anthropicConfig,
+      {
+        async createDocumentationClient() {
+          return {
+            async lookupRequirementDocumentation() {
+              return {
+                primaryChunks: [],
+                adjacentChunks: [],
+                allChunks: [
+                  {
+                    id: "chunk-1",
+                    title: "Grounding",
+                    text: "Grounded review instructions.",
+                    sourceUrl: "https://example.invalid/docs/review",
+                    docSource: "Documentation Portal",
+                    docVersion: "9.0",
+                    previousChunkId: null,
+                    nextChunkId: null,
+                  },
+                ],
+              };
+            },
+            async close() {},
+          };
+        },
+        createModelClient() {
+          return {
+            async checkAvailability() {},
+            async generateDraft({ requirement }) {
+              if (requirement.requirementId === "01.02") {
+                throw new AnthropicResponseFormatError("bad JSON");
+              }
+
+              return {
+                generatedComment: "Grounded batch review comment.",
+                confidenceLevel: "high" as const,
+                confidenceRationale: "Strong grounding.",
+                assumptions: [],
+                warnings: [],
+                demoSteps: [
+                  {
+                    title: "Open Batch Review",
+                    mesModuleOrScreen: "Batch Review",
+                    reviewStatus: "draft" as const,
+                    instructions: [
+                      "Open Batch Review.",
+                      "Show the configured result.",
+                    ],
+                  },
+                ],
+              };
+            },
+          };
+        },
+      },
+    );
+
+    expect(drafts).toHaveLength(2);
+    expect(drafts[0]?.generator).toBe("anthropic-mcp");
+    expect(drafts[1]).toMatchObject({
+      confidence: {
+        level: "low",
+      },
+      generator: "anthropic-mcp",
+    });
     expect(drafts[1]?.warnings.join(" ")).toContain("expected draft format");
   });
 

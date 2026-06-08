@@ -1,23 +1,26 @@
 ---
 title: "Real Generation"
-description: "How MCP and Bedrock generation is wired, what it needs, and what is currently blocked."
+description: "How MCP-grounded real generation is wired, what Bedrock or Anthropic needs, and how to verify it."
 ---
 
 ## Current Status
 
-Real generation is implemented behind the server route boundary, but live partner validation is still blocked by Bedrock access.
+Real generation is implemented behind the server route boundary. The Bedrock path is still supported, but direct Bedrock bearer-token access has been blocked by partner-side permissions in prior validation notes.
+
+Direct Anthropic API support is available as an alternate server-side model provider for local and Vercel validation when the required secret environment variables are configured.
 
 Use mock mode for normal teammate onboarding and local QA.
 
-Do not describe real mode as validated end to end unless the repo has a newer validation note that proves it.
+Do not describe either real provider as validated end to end unless the repo has a newer validation note or smoke result that proves it.
 
 ## Server Boundary
 
-The browser does not talk directly to MCP, Bedrock, AWS, or MES. It calls:
+The browser does not talk directly to MCP, Bedrock, Anthropic, AWS, or MES. It calls:
 
 ```text
 POST /api/requirements/generate
 GET /api/requirements/generation-availability
+POST /api/requirements/ai-smoke
 ```
 
 Those routes live in:
@@ -25,6 +28,7 @@ Those routes live in:
 ```text
 src/app/api/requirements/generate/route.ts
 src/app/api/requirements/generation-availability/route.ts
+src/app/api/requirements/ai-smoke/route.ts
 ```
 
 ## Main Server Files
@@ -34,9 +38,11 @@ src/app/api/requirements/generation-availability/route.ts
 | `src/lib/requirements/server/config.ts`          | Reads and validates generation environment config  |
 | `src/lib/requirements/server/provider.ts`        | Chooses mock or real provider                      |
 | `src/lib/requirements/server/availability.ts`    | Checks whether real generation is currently usable |
-| `src/lib/requirements/server/real-generation.ts` | Orchestrates MCP lookup plus Bedrock generation    |
+| `src/lib/requirements/server/real-generation.ts` | Orchestrates MCP lookup plus selected model        |
 | `src/lib/requirements/server/mcp-client.ts`      | Calls MCP tools and normalizes returned chunks     |
+| `src/lib/requirements/server/model-draft-contract.ts` | Shared prompt, JSON parser, and model draft schema |
 | `src/lib/requirements/server/bedrock-client.ts`  | Calls Bedrock and validates JSON responses         |
+| `src/lib/requirements/server/anthropic-client.ts` | Calls Anthropic Messages API and validates JSON responses |
 | `src/lib/requirements/server/request.ts`         | Validates incoming generation request payloads     |
 
 ## Configuration
@@ -45,24 +51,48 @@ Real mode requires:
 
 - `GENERATION_MODE=real`
 - `MCP_SERVER_URL`
+- `REQUIREMENT_GENERATION_PROVIDER=bedrock` or `REQUIREMENT_GENERATION_PROVIDER=anthropic`
+
+Bedrock provider requires:
+
 - `BEDROCK_MODEL_ID`
 - `AWS_REGION`
 - either `AWS_BEARER_TOKEN_BEDROCK` or AWS access key credentials
 
+Anthropic provider requires:
+
+- `ANTHROPIC_API_KEY`
+- `ANTHROPIC_MODEL`
+
 Optional:
 
 - `MCP_USER_ACCOUNT`
+- `MES_BASE_URL`
 - `AWS_SESSION_TOKEN`
 - Bedrock-specific AWS variable aliases listed in `.env.example`
+- `ANTHROPIC_VERSION`, default `2023-06-01`
+- `ANTHROPIC_MAX_TOKENS`, default `1200`
+- `ANTHROPIC_TEMPERATURE`, default `0.1`
 
 Variable names are safe to document. Actual values are not.
+
+For the urgent direct Anthropic path, set the values only as server-side local or Vercel environment variables:
+
+```text
+GENERATION_MODE=real
+REQUIREMENT_GENERATION_PROVIDER=anthropic
+MCP_SERVER_URL=<mcp server url>
+ANTHROPIC_API_KEY=
+ANTHROPIC_MODEL=claude-haiku-4-5-20251001
+ANTHROPIC_VERSION=2023-06-01
+```
 
 ## Availability Flow
 
 `src/lib/requirements/server/availability.ts` checks real mode in two stages:
 
 1. MCP availability
-2. Bedrock availability
+2. selected model provider availability
 
 The result is cached briefly so the UI can refresh status without hammering services.
 
@@ -91,7 +121,7 @@ Optional MCP tool:
 get_adjacent_chunks
 ```
 
-The client builds a search query from requirement fields, calls the tool, normalizes different chunk shapes, deduplicates results, and sends the best evidence to Bedrock.
+The client builds a search query from requirement fields, calls the tool, normalizes different chunk shapes, deduplicates results, and sends the best evidence to the selected model provider.
 
 If the MCP server returns no chunks or a lookup fails in a recoverable way, real generation should degrade safely instead of inventing evidence.
 
@@ -109,6 +139,22 @@ It supports:
 
 The prompt is intentionally conservative. It asks the model to stay evidence-grounded, avoid invention, and surface workaround or consultant-review situations.
 
+## Anthropic Generation
+
+`anthropic-client.ts` uses server-side `fetch` against:
+
+```text
+POST https://api.anthropic.com/v1/messages
+```
+
+It sends only server-held headers:
+
+- `x-api-key`
+- `anthropic-version`
+- `content-type: application/json`
+
+It supports JSON-only model responses, Zod validation through the shared draft contract, and safe error classification for blocked auth vs transient check failures.
+
 ## Provider Behavior
 
 `provider.ts` exposes a single generation-provider interface to the API route.
@@ -122,9 +168,23 @@ Mock provider:
 Real provider:
 
 - requires config
-- checks MCP and Bedrock availability
-- returns drafts with `generator: "bedrock-mcp"`
+- checks MCP and the selected model provider availability
+- returns Bedrock drafts with `generator: "bedrock-mcp"`
+- returns Anthropic drafts with `generator: "anthropic-mcp"`
 - includes documentation source references when available
+
+## Smoke Verification
+
+Use the protected smoke route only when a server-side `AI_SMOKE_TEST_TOKEN` is configured:
+
+```bash
+curl -X POST http://localhost:3000/api/requirements/ai-smoke \
+  -H "x-ai-smoke-token: <local smoke token>"
+```
+
+The route returns only summary fields such as generator, comment length, demo step count, source reference count, and warning count. It must not return generated text or secret values.
+
+For Vercel validation, configure the same server-side env vars in the target Preview or Production environment, then call the deployed smoke route with the smoke token.
 
 ## Testing
 
@@ -135,6 +195,7 @@ Real-generation tests are server-side and mocked:
 - `availability.test.ts`
 - `mcp-client.test.ts`
 - `bedrock-client.test.ts`
+- `anthropic-client.test.ts`
 - `real-generation.test.ts`
 - API route tests under `src/app/api/requirements/`
 
@@ -143,7 +204,8 @@ Do not add tests that require real partner credentials.
 ## Troubleshooting Checklist
 
 1. Confirm `GENERATION_MODE=real`.
-2. Confirm the server has all required env vars.
-3. Open the availability endpoint with `refresh=1`.
-4. Check whether failure is config, MCP, Bedrock access, or response validation.
-5. Fall back to mock mode for UI and workflow QA.
+2. Confirm `REQUIREMENT_GENERATION_PROVIDER` is the intended provider.
+3. Confirm the server has all required env vars for MCP and the selected model provider.
+4. Open the availability endpoint with `refresh=1`.
+5. Check whether failure is config, MCP, model-provider access, or response validation.
+6. Fall back to mock mode for UI and workflow QA.

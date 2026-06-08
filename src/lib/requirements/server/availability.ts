@@ -9,6 +9,12 @@ import {
   type RequirementGenerationServerConfig,
 } from "./config";
 import {
+  AnthropicRequestError,
+  classifyAnthropicAvailabilityFailure,
+  createAnthropicRequirementGenerationClient,
+} from "./anthropic-client";
+import {
+  BedrockRequestError,
   classifyBedrockAvailabilityFailure,
   createBedrockRequirementGenerationClient,
 } from "./bedrock-client";
@@ -18,7 +24,7 @@ import {
 } from "./mcp-client";
 
 interface RequirementGenerationAvailabilityDependencies {
-  checkBedrockAvailability?: (
+  checkModelAvailability?: (
     config: RequirementGenerationServerConfig,
   ) => Promise<void>;
   createDocumentationClient?: (
@@ -93,7 +99,7 @@ async function resolveRealCapability(
   if (missingConfig.length > 0) {
     return createUnavailableCapability(
       "missing-config",
-      "Grounded generation is unavailable because the MCP or Bedrock configuration is incomplete.",
+      "Grounded generation is unavailable because the MCP or model provider configuration is incomplete.",
       missingConfig,
     );
   }
@@ -105,17 +111,10 @@ async function resolveRealCapability(
         mcpServerUrl: resolvedConfig.mcpServerUrl!,
         mcpUserAccount: resolvedConfig.mcpUserAccount,
       }));
-  const checkBedrockAvailability =
-    dependencies.checkBedrockAvailability ??
+  const checkModelAvailability =
+    dependencies.checkModelAvailability ??
     ((resolvedConfig: RequirementGenerationServerConfig) =>
-      createBedrockRequirementGenerationClient({
-        awsAccessKeyId: resolvedConfig.awsAccessKeyId,
-        awsBearerTokenBedrock: resolvedConfig.awsBearerTokenBedrock,
-        awsRegion: resolvedConfig.awsRegion!,
-        awsSecretAccessKey: resolvedConfig.awsSecretAccessKey,
-        awsSessionToken: resolvedConfig.awsSessionToken,
-        bedrockModelId: resolvedConfig.bedrockModelId!,
-      }).checkAvailability());
+      createDefaultModelClient(resolvedConfig).checkAvailability());
 
   let documentationWarning: string | null = null;
   try {
@@ -127,7 +126,7 @@ async function resolveRealCapability(
   }
 
   try {
-    await checkBedrockAvailability(config);
+    await checkModelAvailability(config);
 
     return createAvailableCapability(
       "real",
@@ -137,9 +136,30 @@ async function resolveRealCapability(
     const reason = classifyAvailabilityReason(error);
     return createUnavailableCapability(
       reason,
-      getUnavailableMessage(reason),
+      getUnavailableMessage(reason, config),
     );
   }
+}
+
+function createDefaultModelClient(config: RequirementGenerationServerConfig) {
+  if (config.generationProvider === "anthropic") {
+    return createAnthropicRequirementGenerationClient({
+      anthropicApiKey: config.anthropicApiKey!,
+      anthropicMaxTokens: config.anthropicMaxTokens,
+      anthropicModel: config.anthropicModel!,
+      anthropicTemperature: config.anthropicTemperature,
+      anthropicVersion: config.anthropicVersion,
+    });
+  }
+
+  return createBedrockRequirementGenerationClient({
+    awsAccessKeyId: config.awsAccessKeyId,
+    awsBearerTokenBedrock: config.awsBearerTokenBedrock,
+    awsRegion: config.awsRegion!,
+    awsSecretAccessKey: config.awsSecretAccessKey,
+    awsSessionToken: config.awsSessionToken,
+    bedrockModelId: config.bedrockModelId!,
+  });
 }
 
 function createAvailableCapability(
@@ -171,6 +191,14 @@ function createUnavailableCapability(
 function classifyAvailabilityReason(
   error: unknown,
 ): Exclude<RequirementGenerationUnavailableReason, "missing-config"> {
+  if (error instanceof AnthropicRequestError) {
+    return classifyAnthropicAvailabilityFailure(error);
+  }
+
+  if (error instanceof BedrockRequestError) {
+    return classifyBedrockAvailabilityFailure(error.cause);
+  }
+
   if (
     typeof error === "object" &&
     error !== null &&
@@ -185,10 +213,13 @@ function classifyAvailabilityReason(
 
 function getUnavailableMessage(
   reason: Exclude<RequirementGenerationUnavailableReason, "missing-config">,
+  config: RequirementGenerationServerConfig,
 ) {
   switch (reason) {
     case "blocked":
-      return "Grounded generation is unavailable because direct Bedrock access is currently blocked by partner-side permissions.";
+      return config.generationProvider === "anthropic"
+        ? "Grounded generation is unavailable because direct Anthropic API access is currently blocked."
+        : "Grounded generation is unavailable because direct Bedrock access is currently blocked by partner-side permissions.";
     case "check-failed":
       return "Grounded generation could not be confirmed right now. You can continue with draft mode and recheck later.";
   }
