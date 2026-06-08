@@ -9,7 +9,8 @@ describe("repository onboarding docs", () => {
     expect(readme).toContain("# Critical Manufacturing MES Demo Advisor");
     expect(readme).toContain("## Supabase Migrations");
     expect(readme).toContain("pilot-ready");
-    expect(readme).toContain("Phase 2 is required for the pilot demo");
+    expect(readme).toContain("Phase 2 is available as an optional pilot demo continuation");
+    expect(readme).not.toContain("Phase 2 is required for the pilot demo");
     expect(readme).not.toContain("a Phase 1-only product");
     expect(readme).not.toContain("Phase 2 Master Data generation remains optional");
     expect(readme).not.toContain("# Supabase CLI");
@@ -35,7 +36,9 @@ describe("repository onboarding docs", () => {
     expect(meta).toContain("release-checklist");
     expect(checklist).toContain("Pilot-ready release checklist");
     expect(checklist).toContain("Supabase-backed multi-user QA");
-    expect(productScope).toContain("Phase 2 is required for the pilot demo");
+    expect(productScope).toContain(
+      "Phase 2 is available as an optional pilot demo continuation",
+    );
     expect(productScope).toContain("not MES-validated");
   });
 

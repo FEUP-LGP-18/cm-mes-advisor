@@ -2,7 +2,7 @@
 
 Last updated: 2026-06-07
 
-**From:** FEUP LGP Team 18  
+**From:** FEUP LGP Team 18
 **To:** Critical Manufacturing (partner contact: Rui Barbosa)
 
 ---

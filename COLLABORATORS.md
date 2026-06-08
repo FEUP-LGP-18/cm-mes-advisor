@@ -1,6 +1,6 @@
 # Collaborators
 
-**MESMate** — FEUP LGP 2025/2026, Group 18  
+**MESMate** — FEUP LGP 2025/2026, Group 18
 *AI-Guided MES Configuration Advisor*, developed in partnership with Critical Manufacturing.
 
 ---
@@ -38,13 +38,13 @@ All engineers are MESW (Master in Software Engineering), FEUP.
 
 ## Partner
 
-**Rui Barbosa** — Critical Manufacturing (primary partner contact)  
-**José Pedro Silva** — Critical Manufacturing (technical support)  
+**Rui Barbosa** — Critical Manufacturing (primary partner contact)
+**José Pedro Silva** — Critical Manufacturing (technical support)
 Global leader in MES for high-tech industries (semiconductors, electronics, medical devices).
 
 ## Academic Supervisor
 
-**João Pascoal Faria** — Faculty of Engineering, University of Porto (FEUP)  
+**João Pascoal Faria** — Faculty of Engineering, University of Porto (FEUP)
 Project Management Laboratory
 
 ---

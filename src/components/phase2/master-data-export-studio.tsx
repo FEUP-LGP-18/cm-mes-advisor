@@ -297,15 +297,9 @@ export default function MasterDataExportStudio({
               >
                 {downloading ? "Preparing…" : <><ArrowDown />Download Master Data Package</>}
               </button>
-              <button
-                type="button"
-                onClick={onOpenTraceability}
-                disabled={!canExport}
-                className="fv-btn-secondary"
-                style={{ justifyContent: "center", opacity: canExport ? 1 : 0.4, cursor: canExport ? "pointer" : "not-allowed" }}
-              >
-                View Traceability <ArrowRight />
-              </button>
+              <p style={{ margin: 0, color: "var(--muted-fg)", fontSize: "0.75rem", lineHeight: 1.5, textAlign: "center" }}>
+                Traceability unlocks after the package download completes.
+              </p>
               <button
                 type="button"
                 onClick={onReturnToReview}

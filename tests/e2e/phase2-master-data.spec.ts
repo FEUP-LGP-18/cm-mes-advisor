@@ -184,6 +184,14 @@ test("approved Phase 1 rows can move through Phase 2 draft review and traceabili
   await expect(
     page.getByRole("button", { name: /download master data package/i }),
   ).toBeEnabled();
+  await expect(page.getByRole("button", { name: "View Traceability" })).toHaveCount(0);
+  await page.goto(`/projects/${project.projectId}/master-data/traceability`);
+  await expect(page).toHaveURL(
+    new RegExp(`/projects/${project.projectId}/master-data/export$`),
+  );
+  await expect(
+    page.getByRole("button", { name: /download master data package/i }),
+  ).toBeEnabled();
   await assertNoHorizontalOverflow(page);
   await attachFullPageScreenshot(page, testInfo, "phase2-export");
 

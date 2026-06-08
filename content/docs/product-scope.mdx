@@ -17,9 +17,9 @@ Output:
 - generated demo guidance for selected requirements
 - consultant-reviewed approvals and edits
 - a separate Markdown demo script export
-- a Phase 2 Master Data demo package when approved Phase 1 rows exist
+- an optional Phase 2 Master Data demo package when approved Phase 1 rows exist
 
-The app is intentionally route-based and project-based. A teammate should think in terms of "open a project, move Phase 1 through the five steps, export the handoff, then run the required pilot Phase 2 demo flow."
+The app is intentionally route-based and project-based. A teammate should think in terms of "open a project, move Phase 1 through the five steps, export the handoff, then optionally run the pilot Phase 2 demo flow."
 
 ## Canonical Phase 1 Flow
 
@@ -47,8 +47,8 @@ The main state owner is `src/components/phase1/project-provider.tsx`.
 
 ## Pilot Phase 2 Demo Flow
 
-Phase 2 is required for the pilot demo once Phase 1 has approved rows. The
-demo path is:
+Phase 2 is available as an optional pilot demo continuation once Phase 1 has
+approved rows. The demo path is:
 
 ```text
 approved Phase 1 rows -> setup -> generate -> review -> export -> traceability
@@ -97,7 +97,7 @@ Use:
 
 - "Excel-first Phase 1 workspace"
 - "consultant-reviewed generated drafts"
-- "Phase 2 is required for the pilot demo"
+- "Phase 2 is available as an optional pilot demo continuation"
 - "Phase 2 package is not MES-validated yet"
 - "mock generation is the default"
 - "real generation is implemented but not live partner-validated"

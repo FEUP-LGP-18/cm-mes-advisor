@@ -26,7 +26,7 @@ Phase 1 should be understood as a consultant-reviewed, Excel-first workflow that
 - Demo script assembly and Markdown export
 - Supabase Auth: login, signup, forgot/reset password, PKCE callback, logout, and middleware-based route protection
 - Supabase profiles, global settings status, project roles, activity visibility, and Phase 1 state persistence
-- Required pilot Phase 2 demo path: setup, generation, review, export, and traceability
+- Optional pilot Phase 2 demo path: setup, generation, review, export, and traceability
 
 ## Current Direction
 
@@ -36,7 +36,7 @@ The next meaningful work should stay aligned with this product shape:
 - keep the review workspace as the core Phase 1 artifact surface
 - keep setup and onboarding docs aligned with the current project-first model, with the root `start.sh` script as the preferred full-stack local startup entrypoint
 - improve real-mode confidence only after the partner access blocker is resolved
-- preserve honest scope language so Phase 2 is required for the pilot demo without implying MES import validation
+- preserve honest scope language so Phase 2 remains an optional pilot continuation without implying MES import validation
 
 ## External Blockers
 
@@ -81,4 +81,4 @@ Use these to guide specific workstreams:
 - [docs/design/phase1-ui-audit-2026-04-21.md](design/phase1-ui-audit-2026-04-21.md)
 - [docs/discovery/rui-answers-2026-04-14.md](discovery/rui-answers-2026-04-14.md)
 
-Note: Phase 2 Master Data generation now exists as the required pilot demo continuation under the routed project shell. It should still be discussed as not MES-validated until manual partner import validation happens.
+Note: Phase 2 Master Data generation now exists as the optional pilot demo continuation under the routed project shell. It should still be discussed as not MES-validated until manual partner import validation happens.

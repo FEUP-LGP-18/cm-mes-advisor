@@ -42,7 +42,7 @@ behavior.
 4. Approve the strongest subset first. If one row is weak, leave it in review rather than forcing approval.
 5. Open `Script` and confirm the approved rows assemble into a coherent narrative.
 6. Open `Export` and download the Markdown deliverable.
-7. Start the required pilot Phase 2 demo from approved rows after the export moment, and keep MES import validation explicitly out of scope unless a manual partner import pass has happened.
+7. Start the optional pilot Phase 2 demo from approved rows after the export moment, and keep MES import validation explicitly out of scope unless a manual partner import pass has happened.
 
 ## Output Quality Rubric
 
