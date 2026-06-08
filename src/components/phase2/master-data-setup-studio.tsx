@@ -22,7 +22,6 @@ export default function MasterDataSetupStudio({
   applicableRequirements,
   approvedCount,
   feedback,
-  hasAnalysisRun: _hasAnalysisRun,
   hasGeneratedPhase1Drafts,
   mode,
   onAnalyze,
