@@ -45,6 +45,8 @@ describe("MasterDataSetupStudio", () => {
         onOpenPhase1Review={vi.fn()}
         onToggleObjectType={vi.fn()}
         onToggleRequirement={vi.fn()}
+        onSelectRequirements={vi.fn()}
+        onDeselectRequirements={vi.fn()}
         selectedObjectTypes={["enterprise", "site"]}
         selectedRequirementKeys={[]}
       />,
@@ -75,6 +77,8 @@ describe("MasterDataSetupStudio", () => {
         onOpenPhase1Review={vi.fn()}
         onToggleObjectType={vi.fn()}
         onToggleRequirement={vi.fn()}
+        onSelectRequirements={vi.fn()}
+        onDeselectRequirements={vi.fn()}
         selectedObjectTypes={["enterprise", "site"]}
         selectedRequirementKeys={[]}
       />,
@@ -99,6 +103,8 @@ describe("MasterDataSetupStudio", () => {
         onOpenPhase1Review={vi.fn()}
         onToggleObjectType={vi.fn()}
         onToggleRequirement={vi.fn()}
+        onSelectRequirements={vi.fn()}
+        onDeselectRequirements={vi.fn()}
         selectedObjectTypes={["enterprise", "site"]}
         selectedRequirementKeys={[]}
       />,
@@ -126,6 +132,8 @@ describe("MasterDataSetupStudio", () => {
         onOpenPhase1Review={vi.fn()}
         onToggleObjectType={vi.fn()}
         onToggleRequirement={vi.fn()}
+        onSelectRequirements={vi.fn()}
+        onDeselectRequirements={vi.fn()}
         selectedObjectTypes={["product", "material"]}
         selectedRequirementKeys={["28:03.01"]}
       />,

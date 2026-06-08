@@ -22,6 +22,7 @@ docs/current-state-reset
   - `AGENTS.md`
   - `docs/discovery/project-context.md`
   - `docs/phase-1-epic-plan.md`
+- LGP academic documentation lives in `docs/lgp/` — update it if the architecture, requirements, or handover information changes significantly.
 - Run `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build` before requesting review.
 
 ## Scope Rules

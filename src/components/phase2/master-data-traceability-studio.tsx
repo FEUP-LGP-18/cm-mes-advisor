@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { masterDataObjectTypeLabels, type MasterDataTraceabilityRecord } from "@/lib/master-data/types";
+import { ArrowLeft } from "@/components/icons";
 
 export function filterMasterDataTraceabilityRecords(
   records: MasterDataTraceabilityRecord[],
@@ -57,7 +58,7 @@ export default function MasterDataTraceabilityStudio({
           onClick={onReturnToExport}
           className="fv-btn-secondary"
         >
-          ← Back to Export
+          <ArrowLeft />Back to Export
         </button>
       </div>
 
@@ -78,7 +79,7 @@ export default function MasterDataTraceabilityStudio({
             className="fv-btn-secondary"
             style={{ marginTop: "1rem" }}
           >
-            ← Back to Export
+            <ArrowLeft />Back to Export
           </button>
         </div>
       ) : filteredRecords.length === 0 ? (

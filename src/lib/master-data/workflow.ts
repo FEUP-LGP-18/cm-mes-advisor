@@ -35,15 +35,15 @@ export function getAllowedMasterDataStep(
     return state.selectedRequirementKeys.length > 0 ? "process" : "setup";
   }
 
-  if (step === "review" || step === "traceability") {
+  if (step === "review") {
     return step;
   }
 
-  const hasPendingReview = Object.values(state.generatedObjects)
-    .flat()
-    .some((object) => object.reviewStatus !== "approved");
+  if (step === "traceability") {
+    return state.exportSummary !== null ? step : "export";
+  }
 
-  return hasPendingReview ? "review" : step;
+  return step;
 }
 
 export function getProjectResumePath(project: Phase1ProjectRecord): string {

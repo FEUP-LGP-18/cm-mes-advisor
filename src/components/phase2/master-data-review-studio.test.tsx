@@ -67,7 +67,6 @@ describe("MasterDataReviewStudio", () => {
     const html = render(
       <MasterDataReviewStudio
         onOpenExport={vi.fn()}
-        onOpenTraceability={vi.fn()}
         onReturnToProcess={vi.fn()}
         onUpdateField={vi.fn()}
         onUpdateReviewStatus={vi.fn()}
@@ -98,7 +97,6 @@ describe("MasterDataReviewStudio", () => {
     const html = render(
       <MasterDataReviewStudio
         onOpenExport={vi.fn()}
-        onOpenTraceability={vi.fn()}
         onReturnToProcess={vi.fn()}
         onUpdateField={vi.fn()}
         onUpdateReviewStatus={vi.fn()}
@@ -126,7 +124,6 @@ describe("MasterDataReviewStudio", () => {
     const html = render(
       <MasterDataReviewStudio
         onOpenExport={vi.fn()}
-        onOpenTraceability={vi.fn()}
         onReturnToProcess={vi.fn()}
         onUpdateField={vi.fn()}
         onUpdateReviewStatus={vi.fn()}

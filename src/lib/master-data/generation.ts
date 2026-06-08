@@ -195,11 +195,11 @@ export function generateMasterDataDrafts({
       "Hierarchy references were resolved across enterprise, site, facility, area, resource, product, and material where applicable.",
     ),
     createLogEntry(
-      "validation",
+      "packaging",
       warnings.size > 0 ? "warning" : "complete",
       warnings.size > 0
         ? "Some fields still rely on safe defaults and should be checked in review before export."
-        : "The generated objects are ready for consultant review.",
+        : "Master Data package assembled and ready for consultant review.",
     ),
   );
 
