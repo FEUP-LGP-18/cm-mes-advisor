@@ -37,9 +37,11 @@ All engineers are MESW (Master in Software Engineering), FEUP.
 ---
 
 ## Partner
+| Name | Role |
+|------|------|
+|**Rui Barbosa** | Critical Manufacturing (primary partner contact)|
+|**José Pedro Silva** | Critical Manufacturing (technical support)|
 
-**Rui Barbosa** — Critical Manufacturing (primary partner contact)
-**José Pedro Silva** — Critical Manufacturing (technical support)
 Global leader in MES for high-tech industries (semiconductors, electronics, medical devices).
 
 ## Academic Supervisor
