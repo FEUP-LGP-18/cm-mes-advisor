@@ -7,7 +7,7 @@ This is the current-state source of truth for the GitHub repo. Use this before r
 ## Product Summary
 
 - Product: Critical Manufacturing MES Demo Advisor
-- Current repo scope: Phase 1 plus required pilot Phase 2 demo continuation
+- Current repo scope: Phase 1 plus optional pilot Phase 2 demo continuation
 - Primary users: Critical Manufacturing consultants and pre-sales engineers
 - Input: customer requirements Excel workbook
 - Output: consultant-reviewed requirement comments, demo guidance, a separate Markdown demo document, and a pilot Master Data package continuation
@@ -20,7 +20,7 @@ The current product direction is a project-based, route-based workflow. A user s
 4. `script`
 5. `export`
 
-Required pilot demo continuation after export:
+Optional pilot demo continuation after export:
 
 6. `master-data/setup`
 7. `master-data/process`
@@ -108,7 +108,7 @@ Reference:
 - Read `AGENTS.md` for coding and scope guardrails.
 - Use `.nvmrc` and `package.json` as the source of truth for local runtime and commands.
 - Use `.env.example` only for placeholder names and safe example values.
-- Do present Phase 2 as required for the pilot demo after Phase 1 approvals.
+- Do present Phase 2 as an optional pilot demo continuation after Phase 1 approvals.
 - Do not claim the generated Phase 2 package is MES-validated until the manual import pass is complete.
 
 ## Supporting Sources And History

@@ -1,6 +1,6 @@
 # Critical Manufacturing MES Demo Advisor
 
-Consultant-facing MES workspace for turning customer requirements Excel workbooks into reviewable demo outputs. The current completion bar is pilot-ready: Phase 1 remains the main consultant workflow, and Phase 2 is required for the pilot demo path after approved Phase 1 rows exist.
+Consultant-facing MES workspace for turning customer requirements Excel workbooks into reviewable demo outputs. The current completion bar is pilot-ready: Phase 1 remains the main consultant workflow, and Phase 2 is available as an optional pilot demo continuation after approved Phase 1 rows exist.
 
 The current product direction is project-based and route-based. Phase 1 is the primary consultant handoff:
 
@@ -10,7 +10,7 @@ The current product direction is project-based and route-based. Phase 1 is the p
 - `script`
 - `export`
 
-The required pilot Phase 2 demo continuation lives under:
+The optional pilot Phase 2 demo continuation lives under:
 
 - `master-data/setup`
 - `master-data/process`
@@ -28,7 +28,7 @@ Mock generation is the default so teammates can run the app locally without part
 - Generates draft requirement comments and demo guidance through the server-side generation route.
 - Supports consultant review, approval, and script shaping before export.
 - Downloads a separate Markdown Phase 1 handoff document.
-- Supports the required pilot Phase 2 demo flow: approved Phase 1 rows, setup, Master Data generation, review, export, and traceability.
+- Supports the optional pilot Phase 2 demo flow: approved Phase 1 rows, setup, Master Data generation, review, export, and traceability.
 - Supports project roles, invites, collaboration settings, profile persistence, activity records, and owner-only project lifecycle controls when Supabase is configured.
 
 ## Phase 1 Scope
@@ -45,7 +45,7 @@ Output:
 - demo guidance for selected requirements
 - separate Markdown demo document
 
-Phase 2 is required for the pilot demo after Phase 1 approvals. The exported package is a demo artifact and is not MES-validated until manual partner import validation is completed.
+Phase 2 is available as an optional pilot demo continuation after Phase 1 approvals. The exported package is a demo artifact and is not MES-validated until manual partner import validation is completed.
 
 ## Non-Goals
 
@@ -64,7 +64,7 @@ The current routed Phase 1 flow lives under `src/app/projects/[projectId]/`:
 4. `script`: shape the assembled consultant-facing narrative
 5. `export`: download the Markdown handoff
 
-The required pilot Phase 2 demo continuation lives under `src/app/projects/[projectId]/master-data/`:
+The optional pilot Phase 2 demo continuation lives under `src/app/projects/[projectId]/master-data/`:
 
 1. `setup`: analyze applicable requirements and select object types
 2. `process`: generate Master Data drafts with template-backed defaults
@@ -240,7 +240,7 @@ This repo should currently be understood as:
 - locally persistent for mock-mode review flows
 - server-backed for Supabase auth, profiles, roles, collaboration, and Phase 1 state
 - server-backed for generation boundaries
-- Phase 2-ready for the required pilot demo path, but not MES import-validated
+- Phase 2-ready for the optional pilot demo path, but not MES import-validated
 
 What is still not done:
 

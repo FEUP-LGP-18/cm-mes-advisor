@@ -7,7 +7,7 @@ These rules narrow the root `AGENTS.md` guidance for the Phase 1 product code in
 - Treat `src/app/projects/[projectId]/`, `src/components/phase1/`, `src/lib/phase1/`, and `src/lib/requirements/` as the main consultant-facing product surface.
 - The work unit is the `project`, not a single oversized workbook page.
 - Preserve the routed Phase 1 flow: `source -> generate -> review -> script -> export`.
-- Treat the routed `master-data/*` subtree as the required pilot Phase 2 demo continuation rather than as extra Phase 1 steps.
+- Treat the routed `master-data/*` subtree as the optional pilot Phase 2 demo continuation rather than as extra Phase 1 steps.
 - Prefer shared shell, routed step, and queue/detail patterns over pushing everything back into one monolithic screen.
 
 ## UI Expectations
