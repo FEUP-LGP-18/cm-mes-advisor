@@ -79,6 +79,14 @@ After the preview or production URL is deployed, run:
 AI_SMOKE_URL=https://<vercel-deployment-url> pnpm smoke:ai:vercel
 ```
 
+If deployment protection is enabled, include the local-only Vercel automation bypass secret:
+
+```bash
+VERCEL_PROTECTION_BYPASS=<automation bypass secret> \
+  AI_SMOKE_URL=https://<vercel-deployment-url> \
+  pnpm smoke:ai:vercel
+```
+
 Production cannot validate this Anthropic provider until the provider code is merged into `main` or otherwise deployed to the production Vercel project.
 
 ## Supabase Deployment Setup

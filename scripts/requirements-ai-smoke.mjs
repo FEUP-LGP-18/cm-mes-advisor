@@ -34,6 +34,7 @@ if (!supportedProviders.has(expectProvider)) {
 }
 
 const token = env.AI_SMOKE_TEST_TOKEN?.trim();
+const vercelProtectionBypass = env.VERCEL_PROTECTION_BYPASS?.trim();
 const missing = [];
 const invalid = [];
 
@@ -60,11 +61,17 @@ if (missing.length > 0 || invalid.length > 0) {
 }
 
 const smokeUrl = new URL("/api/requirements/ai-smoke", targetBaseUrl);
+const headers = {
+  "x-ai-smoke-token": token,
+};
+
+if (vercelProtectionBypass) {
+  headers["x-vercel-protection-bypass"] = vercelProtectionBypass;
+}
+
 const response = await fetch(smokeUrl, {
   method: "POST",
-  headers: {
-    "x-ai-smoke-token": token,
-  },
+  headers,
 });
 
 const body = await readJsonBody(response);
@@ -359,5 +366,7 @@ Options:
   --skip-local-env-check       Skip local .env preflight for localhost targets.
   --help                       Show this message.
 
-The script prints only safe smoke summary fields. It never prints the smoke token, API keys, or generated draft text.`);
+Set VERCEL_PROTECTION_BYPASS when the target Vercel deployment is protected.
+
+The script prints only safe smoke summary fields. It never prints the smoke token, API keys, Vercel protection bypass secret, or generated draft text.`);
 }

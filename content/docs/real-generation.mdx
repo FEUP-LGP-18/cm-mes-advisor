@@ -196,6 +196,14 @@ For Vercel validation, configure the same server-side env vars in the target Pre
 AI_SMOKE_URL=https://<vercel-deployment-url> pnpm smoke:ai:vercel
 ```
 
+For protected Vercel preview deployments, also set the automation bypass secret locally:
+
+```bash
+VERCEL_PROTECTION_BYPASS=<automation bypass secret> \
+  AI_SMOKE_URL=https://<vercel-deployment-url> \
+  pnpm smoke:ai:vercel
+```
+
 The runner reads the caller token from local shell env or `.env.local`, prints only safe summary fields, and exits non-zero for missing env, wrong provider, route failure, or ungrounded output.
 
 ## Testing
