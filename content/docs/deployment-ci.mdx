@@ -62,6 +62,25 @@ Supported requirement-generation providers are:
 
 For Anthropic validation, configure `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` only as Vercel environment variables. Do not paste secret values into PRs, docs, screenshots, or workflow files.
 
+For strict Vercel smoke validation with Anthropic, the target Vercel environment needs:
+
+```text
+GENERATION_MODE=real
+REQUIREMENT_GENERATION_PROVIDER=anthropic
+MCP_SERVER_URL=<MCP server URL>
+ANTHROPIC_API_KEY=<server-side secret>
+ANTHROPIC_MODEL=<Anthropic model>
+AI_SMOKE_TEST_TOKEN=<server-side smoke token>
+```
+
+After the preview or production URL is deployed, run:
+
+```bash
+AI_SMOKE_URL=https://<vercel-deployment-url> pnpm smoke:ai:vercel
+```
+
+Production cannot validate this Anthropic provider until the provider code is merged into `main` or otherwise deployed to the production Vercel project.
+
 ## Supabase Deployment Setup
 
 Before a Supabase-backed preview or production release:

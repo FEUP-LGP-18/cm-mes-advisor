@@ -167,6 +167,8 @@ Current status:
 - `pnpm typecheck`
 - `pnpm test`
 - `pnpm build`
+- `pnpm smoke:ai:local`
+- `AI_SMOKE_URL=https://<vercel-deployment-url> pnpm smoke:ai:vercel`
 - `pnpm storybook`
 - `pnpm storybook:build`
 - `pnpm test:e2e`

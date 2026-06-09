@@ -184,7 +184,19 @@ curl -X POST http://localhost:3000/api/requirements/ai-smoke \
 
 The route returns only summary fields such as generator, comment length, demo step count, source reference count, and warning count. It must not return generated text or secret values.
 
-For Vercel validation, configure the same server-side env vars in the target Preview or Production environment, then call the deployed smoke route with the smoke token.
+The repo also includes a strict smoke runner that fails when the response is mock mode, the wrong generator, missing runtime output, or missing documentation source references:
+
+```bash
+pnpm smoke:ai:local
+```
+
+For Vercel validation, configure the same server-side env vars in the target Preview or Production environment, then call the deployed smoke route with the smoke token:
+
+```bash
+AI_SMOKE_URL=https://<vercel-deployment-url> pnpm smoke:ai:vercel
+```
+
+The runner reads the caller token from local shell env or `.env.local`, prints only safe summary fields, and exits non-zero for missing env, wrong provider, route failure, or ungrounded output.
 
 ## Testing
 
