@@ -7,23 +7,26 @@ import type {
 import type { ParsedRequirement } from "../types";
 import type { McpDocumentationChunk } from "./mcp-client";
 
+const demoStepSchema = z.object({
+  title: z.string().trim().min(1),
+  mesModuleOrScreen: z.string().trim().min(1),
+  reviewStatus: z.preprocess(
+    normalizeReviewStatus,
+    z.enum(["draft", "consultant-review"]),
+  ),
+  instructions: z.array(nonEmptyStringSchema()).min(2),
+});
+
 const generatedDraftSchema = z.object({
   generatedComment: z.string().trim().min(1),
-  confidenceLevel: z.enum(["high", "medium", "low"]),
+  confidenceLevel: z.preprocess(
+    normalizeConfidenceLevel,
+    z.enum(["high", "medium", "low"]),
+  ),
   confidenceRationale: z.string().trim().min(1),
-  assumptions: z.array(z.string().trim().min(1)).max(5),
-  warnings: z.array(z.string().trim().min(1)).max(5),
-  demoSteps: z
-    .array(
-      z.object({
-        title: z.string().trim().min(1),
-        mesModuleOrScreen: z.string().trim().min(1),
-        reviewStatus: z.enum(["draft", "consultant-review"]),
-        instructions: z.array(z.string().trim().min(1)).min(2).max(5),
-      }),
-    )
-    .min(1)
-    .max(4),
+  assumptions: z.preprocess(arrayOrEmpty, z.array(nonEmptyStringSchema())),
+  warnings: z.preprocess(arrayOrEmpty, z.array(nonEmptyStringSchema())),
+  demoSteps: z.preprocess(arrayOrEmpty, z.array(demoStepSchema).min(1)),
 });
 
 export interface RequirementGenerationModelDraft {
@@ -129,6 +132,11 @@ export function buildUserPrompt(input: RequirementGenerationModelInput): string 
     "- Return valid JSON only, no markdown fences.",
     "- generatedComment must be 2-4 sentences and customer-demo ready.",
     "- generatedComment must make clear what MES does and how the consultant should demo it.",
+    "- confidenceLevel must be exactly one lowercase value: high, medium, or low.",
+    "- assumptions and warnings must each contain at most 5 strings.",
+    "- demoSteps must contain 1-4 steps.",
+    "- Each demo step must contain 2-5 instruction strings.",
+    "- reviewStatus must be exactly draft or consultant-review.",
     "- Treat the Excel comment as a hint only. Never repeat it blindly if the evidence does not support it.",
     "- demoSteps must be practical consultant steps with action verbs and observable outcomes.",
     "- Use exact click, module, or screen wording only when the documentation evidence supports that level of specificity.",
@@ -159,11 +167,14 @@ export function buildUserPrompt(input: RequirementGenerationModelInput): string 
 }
 
 export function parseDraftResponse(
-  responseText: string,
+  responsePayload: string | unknown,
 ):
   | { success: true; data: RequirementGenerationModelDraft }
   | { success: false; error: unknown } {
-  const jsonValue = extractJsonValue(responseText);
+  const jsonValue =
+    typeof responsePayload === "string"
+      ? extractJsonValue(responsePayload)
+      : responsePayload;
   if (jsonValue === null) {
     return {
       success: false,
@@ -171,7 +182,9 @@ export function parseDraftResponse(
     };
   }
 
-  const parsed = generatedDraftSchema.safeParse(jsonValue);
+  const parsed = generatedDraftSchema.safeParse(
+    normalizeDraftJsonValue(jsonValue),
+  );
   if (!parsed.success) {
     return {
       success: false,
@@ -185,9 +198,12 @@ export function parseDraftResponse(
       generatedComment: parsed.data.generatedComment,
       confidenceLevel: parsed.data.confidenceLevel,
       confidenceRationale: parsed.data.confidenceRationale,
-      assumptions: parsed.data.assumptions,
-      warnings: parsed.data.warnings,
-      demoSteps: parsed.data.demoSteps,
+      assumptions: parsed.data.assumptions.slice(0, 5),
+      warnings: parsed.data.warnings.slice(0, 5),
+      demoSteps: parsed.data.demoSteps.slice(0, 4).map((step) => ({
+        ...step,
+        instructions: step.instructions.slice(0, 5),
+      })),
     },
   };
 }
@@ -223,4 +239,207 @@ function tryParseJson(value: string): unknown | null {
   } catch {
     return null;
   }
+}
+
+function normalizeDraftJsonValue(value: unknown): unknown {
+  if (!isRecord(value)) {
+    return value;
+  }
+
+  const confidence = readRecord(value, "confidence");
+  const rawSteps = readFirstDefined(value, [
+    "demoSteps",
+    "demo_steps",
+    "steps",
+    "demo",
+  ]);
+
+  return {
+    ...value,
+    generatedComment:
+      readStringAlias(value, [
+        "generatedComment",
+        "generated_comment",
+        "comment",
+        "consultantComment",
+        "consultant_comment",
+      ]) ?? value.generatedComment,
+    confidenceLevel:
+      readStringAlias(value, ["confidenceLevel", "confidence_level"]) ??
+      readStringAlias(confidence, ["level", "confidenceLevel"]) ??
+      value.confidenceLevel,
+    confidenceRationale:
+      readStringAlias(value, [
+        "confidenceRationale",
+        "confidence_rationale",
+        "rationale",
+      ]) ??
+      readStringAlias(confidence, ["rationale", "reason", "confidenceRationale"]) ??
+      value.confidenceRationale,
+    assumptions: normalizeStringArray(
+      readFirstDefined(value, ["assumptions", "assumption"]),
+    ),
+    warnings: normalizeStringArray(
+      readFirstDefined(value, ["warnings", "warning", "risks"]),
+    ),
+    demoSteps: normalizeDemoSteps(rawSteps),
+  };
+}
+
+function normalizeDemoSteps(value: unknown): unknown {
+  const steps = Array.isArray(value) ? value : isRecord(value) ? [value] : [];
+  return steps.map((step) => {
+    if (!isRecord(step)) {
+      return step;
+    }
+
+    const rawInstructions = readFirstDefined(step, [
+      "instructions",
+      "instruction",
+      "actions",
+      "actionItems",
+      "action_items",
+    ]);
+
+    return {
+      ...step,
+      title:
+        readStringAlias(step, ["title", "stepTitle", "step_title", "name"]) ??
+        step.title,
+      mesModuleOrScreen:
+        readStringAlias(step, [
+          "mesModuleOrScreen",
+          "mes_module_or_screen",
+          "module",
+          "screen",
+          "mesScreen",
+          "mes_screen",
+        ]) ?? step.mesModuleOrScreen,
+      reviewStatus:
+        readStringAlias(step, ["reviewStatus", "review_status", "status"]) ??
+        step.reviewStatus,
+      instructions: normalizeInstructionArray(rawInstructions),
+    };
+  });
+}
+
+function normalizeStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map(stringifyLoose).filter(hasText);
+  }
+
+  const text = stringifyLoose(value);
+  return hasText(text) ? [text] : [];
+}
+
+function normalizeInstructionArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map(stringifyLoose).filter(hasText);
+  }
+
+  const text = stringifyLoose(value);
+  if (!hasText(text)) {
+    return [];
+  }
+
+  return text
+    .split(/\n+|(?:^|\s)\d+[.)]\s+|;\s+/)
+    .map((part) => part.replace(/^[-*]\s+/, "").trim())
+    .filter(hasText);
+}
+
+function nonEmptyStringSchema() {
+  return z.preprocess(
+    (value) =>
+      typeof value === "string"
+        ? value
+        : value == null
+          ? ""
+          : String(value),
+    z.string().trim().min(1),
+  );
+}
+
+function arrayOrEmpty(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function normalizeConfidenceLevel(value: unknown): unknown {
+  return typeof value === "string" ? value.trim().toLowerCase() : value;
+}
+
+function normalizeReviewStatus(value: unknown): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const normalized = value.trim().toLowerCase().replace(/[\s_]+/g, "-");
+  if (
+    normalized === "review" ||
+    normalized === "needs-review" ||
+    normalized === "consultant-review-needed"
+  ) {
+    return "consultant-review";
+  }
+
+  return normalized;
+}
+
+function readFirstDefined(
+  value: Record<string, unknown>,
+  keys: string[],
+): unknown {
+  for (const key of keys) {
+    if (value[key] !== undefined) {
+      return value[key];
+    }
+  }
+
+  return undefined;
+}
+
+function readStringAlias(
+  value: Record<string, unknown> | null,
+  keys: string[],
+): string | null {
+  if (value === null) {
+    return null;
+  }
+
+  for (const key of keys) {
+    const text = stringifyLoose(value[key]);
+    if (hasText(text)) {
+      return text;
+    }
+  }
+
+  return null;
+}
+
+function readRecord(
+  value: Record<string, unknown>,
+  key: string,
+): Record<string, unknown> | null {
+  const nextValue = value[key];
+  return isRecord(nextValue) ? nextValue : null;
+}
+
+function stringifyLoose(value: unknown): string {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  return "";
+}
+
+function hasText(value: string): boolean {
+  return value.trim().length > 0;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

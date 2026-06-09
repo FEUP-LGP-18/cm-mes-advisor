@@ -118,6 +118,10 @@ describe("Anthropic requirement generation client", () => {
       system: expect.stringContaining(
         "Treat any existing Excel comment as a hint",
       ),
+      tool_choice: {
+        type: "tool",
+        name: "emit_requirement_draft",
+      },
       messages: [
         {
           role: "user",
@@ -127,6 +131,36 @@ describe("Anthropic requirement generation client", () => {
         },
       ],
     });
+    expect(body.tools).toEqual([
+      expect.objectContaining({
+        name: "emit_requirement_draft",
+        input_schema: expect.objectContaining({
+          required: expect.arrayContaining([
+            "generatedComment",
+            "confidenceLevel",
+            "confidenceRationale",
+            "assumptions",
+            "warnings",
+            "demoSteps",
+          ]),
+        }),
+      }),
+    ]);
+  });
+
+  it("parses a forced Anthropic tool-use draft response", async () => {
+    fetchMock.mockResolvedValueOnce(anthropicToolResponse(validDraft));
+    const client = createTestClient();
+
+    const draft = await client.generateDraft({
+      requirement: standardRequirement,
+      assessment,
+      documentation: [],
+      mesBaseUrl: null,
+    });
+
+    expect(draft.generatedComment).toContain("batch record review");
+    expect(draft.demoSteps[0]?.title).toBe("Open Batch Review");
   });
 
   it("parses valid JSON returned across multiple text blocks", async () => {
@@ -143,6 +177,136 @@ describe("Anthropic requirement generation client", () => {
     });
 
     expect(draft.generatedComment).toContain("batch record review");
+  });
+
+  it("normalizes common Anthropic JSON drift without falling back", async () => {
+    fetchMock.mockResolvedValueOnce(
+      anthropicResponse([
+        JSON.stringify({
+          ...validDraft,
+          confidenceLevel: "HIGH",
+          assumptions: [
+            "Assumption 1",
+            "Assumption 2",
+            "Assumption 3",
+            "Assumption 4",
+            "Assumption 5",
+            "Assumption 6",
+          ],
+          warnings: [
+            "Warning 1",
+            "Warning 2",
+            "Warning 3",
+            "Warning 4",
+            "Warning 5",
+            "Warning 6",
+          ],
+          demoSteps: Array.from({ length: 5 }, (_, index) => ({
+            title: `Step ${index + 1}`,
+            mesModuleOrScreen: "Batch Review",
+            reviewStatus: "Consultant Review",
+            instructions: [
+              "Open the workspace.",
+              "Select the target batch.",
+              "Review the status.",
+              "Confirm the exception details.",
+              "Capture the result.",
+              "Close the workspace.",
+            ],
+          })),
+        }),
+      ]),
+    );
+    const client = createTestClient();
+
+    const draft = await client.generateDraft({
+      requirement: standardRequirement,
+      assessment,
+      documentation: [],
+      mesBaseUrl: null,
+    });
+
+    expect(draft.confidenceLevel).toBe("high");
+    expect(draft.assumptions).toHaveLength(5);
+    expect(draft.warnings).toHaveLength(5);
+    expect(draft.demoSteps).toHaveLength(4);
+    expect(draft.demoSteps[0]?.reviewStatus).toBe("consultant-review");
+    expect(draft.demoSteps[0]?.instructions).toHaveLength(5);
+  });
+
+  it("accepts common alias fields from Anthropic JSON responses", async () => {
+    fetchMock.mockResolvedValueOnce(
+      anthropicResponse([
+        JSON.stringify({
+          generated_comment:
+            "CM MES can guide the consultant through batch review evidence. The row should remain under review until the exact customer path is confirmed.",
+          confidence: {
+            level: "medium",
+            rationale: "The evidence is related but needs consultant validation.",
+          },
+          warning: "Confirm the exact demo path.",
+          assumption: "The consultant has access to the review workspace.",
+          steps: [
+            {
+              step_title: "Review the batch evidence",
+              mes_screen: "Batch Review",
+              status: "review",
+              instructions:
+                "Open the Batch Review workspace; Select the target batch; Confirm the exception evidence",
+            },
+          ],
+        }),
+      ]),
+    );
+    const client = createTestClient();
+
+    const draft = await client.generateDraft({
+      requirement: standardRequirement,
+      assessment,
+      documentation: [],
+      mesBaseUrl: null,
+    });
+
+    expect(draft).toMatchObject({
+      confidenceLevel: "medium",
+      confidenceRationale:
+        "The evidence is related but needs consultant validation.",
+      demoSteps: [
+        {
+          title: "Review the batch evidence",
+          mesModuleOrScreen: "Batch Review",
+          reviewStatus: "consultant-review",
+        },
+      ],
+    });
+    expect(draft.assumptions).toEqual([
+      "The consultant has access to the review workspace.",
+    ]);
+    expect(draft.warnings).toEqual(["Confirm the exact demo path."]);
+    expect(draft.demoSteps[0]?.instructions).toHaveLength(3);
+  });
+
+  it("retries with a repair prompt when Anthropic returns invalid draft JSON", async () => {
+    fetchMock
+      .mockResolvedValueOnce(anthropicResponse(["not valid json"]))
+      .mockResolvedValueOnce(anthropicResponse([JSON.stringify(validDraft)]));
+    const client = createTestClient();
+
+    const draft = await client.generateDraft({
+      requirement: standardRequirement,
+      assessment,
+      documentation: [],
+      mesBaseUrl: null,
+    });
+
+    expect(draft.generatedComment).toContain("batch record review");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(readLastRequestBody().messages).toEqual([
+      {
+        role: "user",
+        content: expect.stringContaining("previous model response was rejected"),
+      },
+    ]);
   });
 
   it("maps 401 and 403 responses to blocked availability without leaking the API key", async () => {
@@ -194,7 +358,10 @@ describe("Anthropic requirement generation client", () => {
   });
 
   it("raises a response format error when Anthropic returns invalid draft JSON", async () => {
-    fetchMock.mockResolvedValueOnce(anthropicResponse(["not valid json"]));
+    fetchMock
+      .mockResolvedValueOnce(anthropicResponse(["not valid json"]))
+      .mockResolvedValueOnce(anthropicResponse(["still not valid json"]))
+      .mockResolvedValueOnce(anthropicResponse(["also not valid json"]));
     const client = createTestClient();
 
     await expect(
@@ -246,6 +413,22 @@ function anthropicResponse(textBlocks: string[]) {
         type: "text",
         text,
       })),
+    }),
+    { status: 200 },
+  );
+}
+
+function anthropicToolResponse(input: unknown) {
+  return new Response(
+    JSON.stringify({
+      content: [
+        {
+          type: "tool_use",
+          id: "toolu_example",
+          name: "emit_requirement_draft",
+          input,
+        },
+      ],
     }),
     { status: 200 },
   );
