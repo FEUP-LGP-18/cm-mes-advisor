@@ -1,0 +1,11 @@
+.env*
+.vercel/
+.next/
+.source/
+node_modules/
+playwright-report/
+test-results/
+storybook-static/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
