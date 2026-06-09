@@ -164,7 +164,7 @@ function readDotenvFiles(repoRoot, filenames) {
       }
 
       const [, key, rawValue] = match;
-      env[key] = normalizeDotenvValue(rawValue);
+      env[key] ??= normalizeDotenvValue(rawValue);
     }
   }
 
