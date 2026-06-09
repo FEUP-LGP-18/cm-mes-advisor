@@ -87,6 +87,23 @@ VERCEL_PROTECTION_BYPASS=<automation bypass secret> \
   pnpm smoke:ai:vercel
 ```
 
+When the only MCP/RAG service is the archived local Docker stack on port `8080`,
+Preview validation needs a temporary public bridge. With the local support stack
+running and `cloudflared` installed, use:
+
+```bash
+pnpm vercel:mcp:tunnel
+```
+
+That command starts a Cloudflare quick tunnel to local MCP/RAG, updates only the
+Vercel Preview `MCP_SERVER_URL`, deploys a Preview build, and runs
+`pnpm smoke:ai:vercel`. It does not print the tunnel URL, `MCP_SERVER_URL`,
+smoke token, Vercel bypass secret, API keys, or generated text.
+
+The quick tunnel is an operational bridge for Preview validation. Stable
+production validation still needs a persistent public MCP endpoint or a named
+Cloudflare tunnel.
+
 Production cannot validate this Anthropic provider until the provider code is merged into `main` or otherwise deployed to the production Vercel project.
 
 ## Supabase Deployment Setup
