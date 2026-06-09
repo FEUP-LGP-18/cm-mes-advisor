@@ -207,6 +207,65 @@ describe("real requirement generation orchestration", () => {
     });
   });
 
+  it("uses the in-process documentation client for self-hosted MCP config", async () => {
+    const generateDraft = vi.fn(async ({ documentation }) => ({
+      generatedComment:
+        "CM MES Demo Advisor can prepare consultant-reviewed batch review demo guidance with grounded source references.",
+      confidenceLevel: "high" as const,
+      confidenceRationale: `Grounded by ${documentation.length} documentation chunks.`,
+      assumptions: [],
+      warnings: [],
+      demoSteps: [
+        {
+          title: "Review generated batch guidance",
+          mesModuleOrScreen: "Review queue",
+          reviewStatus: "draft" as const,
+          instructions: [
+            "Open the generated requirement row.",
+            "Review the generated comment and source references.",
+          ],
+        },
+      ],
+    }));
+
+    const drafts = await generateRealRequirementDrafts(
+      [standardRequirement],
+      {
+        ...anthropicConfig,
+        mcpServerUrl: "https://example.invalid/api/requirements/mcp",
+        mcpServerUrlKind: "self",
+      },
+      {
+        createModelClient() {
+          return {
+            async checkAvailability() {},
+            generateDraft,
+          };
+        },
+        now: () => new Date("2026-04-20T10:00:00.000Z"),
+      },
+    );
+
+    expect(generateDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        documentation: expect.arrayContaining([
+          expect.objectContaining({
+            docSource: "CM MES Demo Advisor docs",
+          }),
+        ]),
+      }),
+    );
+    expect(drafts[0]?.generator).toBe("anthropic-mcp");
+    expect(drafts[0]?.sourceReferences.length).toBeGreaterThan(0);
+    expect(drafts[0]?.sourceReferences).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "mcp-documentation",
+        }),
+      ]),
+    );
+  });
+
   it("degrades one row safely when the model response is malformed", async () => {
     const drafts = await generateRealRequirementDrafts(
       [standardRequirement, partialRequirement],

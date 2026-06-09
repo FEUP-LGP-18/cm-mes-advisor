@@ -68,6 +68,7 @@ Optional:
 
 - `MCP_USER_ACCOUNT`
 - `MES_BASE_URL`
+- `SELF_MCP_BASE_URL`, only when `MCP_SERVER_URL=self` needs a local base URL other than `http://localhost:3000`
 - `AWS_SESSION_TOKEN`
 - Bedrock-specific AWS variable aliases listed in `.env.example`
 - `ANTHROPIC_VERSION`, default `2023-06-01`
@@ -81,11 +82,16 @@ For the urgent direct Anthropic path, set the values only as server-side local o
 ```text
 GENERATION_MODE=real
 REQUIREMENT_GENERATION_PROVIDER=anthropic
-MCP_SERVER_URL=<mcp server url>
+MCP_SERVER_URL=self
 ANTHROPIC_API_KEY=
 ANTHROPIC_MODEL=claude-haiku-4-5-20251001
 ANTHROPIC_VERSION=2023-06-01
 ```
+
+`MCP_SERVER_URL=self` resolves to this app's own
+`/api/requirements/mcp` endpoint. On Vercel it uses `VERCEL_URL`; locally it
+uses `http://localhost:3000` unless `SELF_MCP_BASE_URL` is set. External MCP
+server URLs continue to work for partner-hosted RAG validation.
 
 ## Availability Flow
 
@@ -206,8 +212,8 @@ VERCEL_PROTECTION_BYPASS=<automation bypass secret> \
 
 The runner reads the caller token from local shell env or `.env.local`, prints only safe summary fields, and exits non-zero for missing env, wrong provider, route failure, or ungrounded output.
 
-If Preview needs to reach the archived local MCP/RAG Docker stack, use the
-local tunnel helper:
+If Preview specifically needs to reach the archived local MCP/RAG Docker stack,
+use the local tunnel helper:
 
 ```bash
 pnpm vercel:mcp:tunnel
@@ -216,8 +222,8 @@ pnpm vercel:mcp:tunnel
 The helper starts a Cloudflare quick tunnel to local MCP/RAG, updates the Vercel
 Preview `MCP_SERVER_URL`, deploys a Preview build, and then runs the strict
 Vercel smoke check. Leave it running while using that Preview, because quick
-tunnel URLs are temporary. For stable Production, replace this with a persistent
-public MCP URL.
+tunnel URLs are temporary. For stable Vercel validation, prefer
+`MCP_SERVER_URL=self` or a persistent partner MCP URL.
 
 ## Testing
 

@@ -5,6 +5,7 @@ export interface RequirementGenerationServerConfig {
   mode: RequirementGenerationMode;
   generationProvider: RequirementGenerationModelProvider;
   mcpServerUrl: string | null;
+  mcpServerUrlKind?: "external" | "self";
   mesBaseUrl: string | null;
   bedrockModelId: string | null;
   awsRegion: string | null;
@@ -39,13 +40,16 @@ const defaultAnthropicTemperature = 0.1;
 export function readRequirementGenerationServerConfig(
   env: Record<string, string | undefined> = process.env,
 ): RequirementGenerationServerConfig {
+  const mcpServerUrl = normalizeMcpServerUrl(env);
+
   return {
     mode: env.GENERATION_MODE === "real" ? "real" : "mock",
     generationProvider:
       env.REQUIREMENT_GENERATION_PROVIDER === "anthropic"
         ? "anthropic"
         : "bedrock",
-    mcpServerUrl: normalizeEnvValue(env.MCP_SERVER_URL),
+    mcpServerUrl: mcpServerUrl.url,
+    mcpServerUrlKind: mcpServerUrl.kind,
     mesBaseUrl: normalizeEnvValue(env.MES_BASE_URL),
     bedrockModelId: normalizeEnvValue(env.BEDROCK_MODEL_ID),
     awsRegion: readFirstDefinedEnvValue(env, [
@@ -145,6 +149,39 @@ function normalizeEnvValue(value: string | undefined): string | null {
 
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeMcpServerUrl(
+  env: Record<string, string | undefined>,
+): { kind: "external" | "self"; url: string | null } {
+  const value = normalizeEnvValue(env.MCP_SERVER_URL);
+  if (value === null) {
+    return {
+      kind: "external",
+      url: null,
+    };
+  }
+
+  if (value !== "self" && value !== "/api/requirements/mcp") {
+    return {
+      kind: "external",
+      url: value,
+    };
+  }
+
+  const explicitBaseUrl =
+    normalizeEnvValue(env.SELF_MCP_BASE_URL) ??
+    normalizeEnvValue(env.NEXT_PUBLIC_SITE_URL) ??
+    normalizeEnvValue(env.NEXT_PUBLIC_APP_URL);
+  const vercelUrl = normalizeEnvValue(env.VERCEL_URL);
+  const baseUrl =
+    explicitBaseUrl ??
+    (vercelUrl !== null ? `https://${vercelUrl}` : "http://localhost:3000");
+
+  return {
+    kind: "self",
+    url: new URL("/api/requirements/mcp", baseUrl).toString(),
+  };
 }
 
 function readFirstDefinedEnvValue(

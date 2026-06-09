@@ -37,6 +37,7 @@ import {
   type McpDocumentationChunk,
   type RequirementDocumentationClient,
 } from "./mcp-client";
+import { createSelfHostedRequirementDocumentationClient } from "./self-mcp-docs";
 
 const defaultGenerationConcurrency = 3;
 
@@ -125,11 +126,7 @@ export async function generateRealRequirementDrafts(
 
   const createDocumentationClient =
     dependencies.createDocumentationClient ??
-    ((resolvedConfig: RequirementGenerationServerConfig) =>
-      createRequirementDocumentationClient({
-        mcpServerUrl: resolvedConfig.mcpServerUrl!,
-        mcpUserAccount: resolvedConfig.mcpUserAccount,
-      }));
+    createDefaultDocumentationClient;
   const createModelClient =
     dependencies.createModelClient ??
     ((resolvedConfig: RequirementGenerationServerConfig) =>
@@ -167,6 +164,19 @@ export async function generateRealRequirementDrafts(
   } finally {
     await documentationClient?.close();
   }
+}
+
+async function createDefaultDocumentationClient(
+  config: RequirementGenerationServerConfig,
+) {
+  if (config.mcpServerUrlKind === "self") {
+    return createSelfHostedRequirementDocumentationClient();
+  }
+
+  return createRequirementDocumentationClient({
+    mcpServerUrl: config.mcpServerUrl!,
+    mcpUserAccount: config.mcpUserAccount,
+  });
 }
 
 async function generateDraftForRequirement({

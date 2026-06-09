@@ -22,6 +22,7 @@ import {
   createRequirementDocumentationClient,
   type RequirementDocumentationClient,
 } from "./mcp-client";
+import { createSelfHostedRequirementDocumentationClient } from "./self-mcp-docs";
 
 interface RequirementGenerationAvailabilityDependencies {
   checkModelAvailability?: (
@@ -106,11 +107,7 @@ async function resolveRealCapability(
 
   const createDocumentationClient =
     dependencies.createDocumentationClient ??
-    ((resolvedConfig: RequirementGenerationServerConfig) =>
-      createRequirementDocumentationClient({
-        mcpServerUrl: resolvedConfig.mcpServerUrl!,
-        mcpUserAccount: resolvedConfig.mcpUserAccount,
-      }));
+    createDefaultDocumentationClient;
   const checkModelAvailability =
     dependencies.checkModelAvailability ??
     ((resolvedConfig: RequirementGenerationServerConfig) =>
@@ -139,6 +136,19 @@ async function resolveRealCapability(
       getUnavailableMessage(reason, config),
     );
   }
+}
+
+async function createDefaultDocumentationClient(
+  config: RequirementGenerationServerConfig,
+) {
+  if (config.mcpServerUrlKind === "self") {
+    return createSelfHostedRequirementDocumentationClient();
+  }
+
+  return createRequirementDocumentationClient({
+    mcpServerUrl: config.mcpServerUrl!,
+    mcpUserAccount: config.mcpUserAccount,
+  });
 }
 
 function createDefaultModelClient(config: RequirementGenerationServerConfig) {

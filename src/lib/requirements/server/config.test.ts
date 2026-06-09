@@ -98,6 +98,41 @@ describe("requirement generation server config", () => {
     expect(getMissingRealGenerationConfigKeys(config)).toEqual([]);
   });
 
+  it("resolves self-hosted MCP URL to localhost by default", () => {
+    const config = readRequirementGenerationServerConfig({
+      MCP_SERVER_URL: "self",
+    });
+
+    expect(config.mcpServerUrl).toBe(
+      "http://localhost:3000/api/requirements/mcp",
+    );
+    expect(config.mcpServerUrlKind).toBe("self");
+  });
+
+  it("resolves self-hosted MCP URL from Vercel deployment URL", () => {
+    const config = readRequirementGenerationServerConfig({
+      MCP_SERVER_URL: "self",
+      VERCEL_URL: "cm-mes-advisor-example.vercel.app",
+    });
+
+    expect(config.mcpServerUrl).toBe(
+      "https://cm-mes-advisor-example.vercel.app/api/requirements/mcp",
+    );
+    expect(config.mcpServerUrlKind).toBe("self");
+  });
+
+  it("resolves self-hosted MCP URL from explicit base URL", () => {
+    const config = readRequirementGenerationServerConfig({
+      MCP_SERVER_URL: "/api/requirements/mcp",
+      SELF_MCP_BASE_URL: "https://advisor.example.com",
+    });
+
+    expect(config.mcpServerUrl).toBe(
+      "https://advisor.example.com/api/requirements/mcp",
+    );
+    expect(config.mcpServerUrlKind).toBe("self");
+  });
+
   it("accepts Anthropic optional tuning values when they are numeric", () => {
     const config = readRequirementGenerationServerConfig({
       GENERATION_MODE: "real",

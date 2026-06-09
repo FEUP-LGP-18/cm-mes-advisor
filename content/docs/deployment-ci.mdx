@@ -67,11 +67,17 @@ For strict Vercel smoke validation with Anthropic, the target Vercel environment
 ```text
 GENERATION_MODE=real
 REQUIREMENT_GENERATION_PROVIDER=anthropic
-MCP_SERVER_URL=<MCP server URL>
+MCP_SERVER_URL=self
 ANTHROPIC_API_KEY=<server-side secret>
 ANTHROPIC_MODEL=<Anthropic model>
 AI_SMOKE_TEST_TOKEN=<server-side smoke token>
 ```
+
+`MCP_SERVER_URL=self` uses the app-hosted MCP documentation endpoint at
+`/api/requirements/mcp`. This is the preferred Vercel value because it works on
+Preview and Production without exposing a local MCP/RAG service to the public
+internet. External MCP server URLs remain supported when a partner-hosted MCP
+endpoint is available.
 
 After the preview or production URL is deployed, run:
 
@@ -87,9 +93,9 @@ VERCEL_PROTECTION_BYPASS=<automation bypass secret> \
   pnpm smoke:ai:vercel
 ```
 
-When the only MCP/RAG service is the archived local Docker stack on port `8080`,
-Preview validation needs a temporary public bridge. With the local support stack
-running and `cloudflared` installed, use:
+If you specifically need to validate the archived local MCP/RAG Docker stack on
+port `8080` from Vercel Preview, use the temporary tunnel helper with the local
+support stack running and `cloudflared` installed:
 
 ```bash
 pnpm vercel:mcp:tunnel
@@ -100,9 +106,9 @@ Vercel Preview `MCP_SERVER_URL`, deploys a Preview build, and runs
 `pnpm smoke:ai:vercel`. It does not print the tunnel URL, `MCP_SERVER_URL`,
 smoke token, Vercel bypass secret, API keys, or generated text.
 
-The quick tunnel is an operational bridge for Preview validation. Stable
-production validation still needs a persistent public MCP endpoint or a named
-Cloudflare tunnel.
+The quick tunnel is an operational bridge for the archived local RAG stack only.
+Stable production should use `MCP_SERVER_URL=self` or a persistent partner MCP
+URL.
 
 Production cannot validate this Anthropic provider until the provider code is merged into `main` or otherwise deployed to the production Vercel project.
 

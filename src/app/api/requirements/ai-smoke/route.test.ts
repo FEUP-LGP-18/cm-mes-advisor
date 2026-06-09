@@ -175,6 +175,7 @@ describe("POST /api/requirements/ai-smoke", () => {
         firstStepInstructions: 2,
         generatedAtLooksRuntime: true,
         generator: "anthropic-mcp",
+        mcpServerUrlKind: "external",
         providerMode: "real",
         sourceReferences: 1,
         warnings: 1,

@@ -271,6 +271,7 @@ function summarizeSmokeResponse(status, body) {
       ? {
           providerMode: generation.providerMode,
           generator: generation.generator,
+          mcpServerUrlKind: generation.mcpServerUrlKind,
           draftPresent: generation.commentLength > 0,
           commentLength: generation.commentLength,
           demoSteps: generation.demoSteps,
