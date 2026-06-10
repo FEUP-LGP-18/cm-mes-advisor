@@ -9,6 +9,62 @@ export function sanitizeAuthNextPath(rawNext: string | null | undefined) {
   return rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/";
 }
 
+export function buildAuthCallbackUrl({
+  currentOrigin,
+  next,
+  siteUrl = process.env.NEXT_PUBLIC_SITE_URL,
+}: {
+  currentOrigin: string;
+  next?: string | null;
+  siteUrl?: string | null;
+}) {
+  const callbackUrl = new URL(
+    "/auth/callback",
+    readAuthRedirectBaseUrl(siteUrl, currentOrigin),
+  );
+  callbackUrl.searchParams.set("next", sanitizeAuthNextPath(next));
+
+  return callbackUrl.toString();
+}
+
+export function buildPasswordResetRedirectUrl({
+  currentOrigin,
+  siteUrl = process.env.NEXT_PUBLIC_SITE_URL,
+}: {
+  currentOrigin: string;
+  siteUrl?: string | null;
+}) {
+  return buildAuthCallbackUrl({
+    currentOrigin,
+    next: "/reset-password",
+    siteUrl,
+  });
+}
+
+function readAuthRedirectBaseUrl(
+  siteUrl: string | null | undefined,
+  currentOrigin: string,
+) {
+  return (
+    normalizeUrlOrigin(siteUrl) ??
+    normalizeUrlOrigin(currentOrigin) ??
+    currentOrigin
+  );
+}
+
+function normalizeUrlOrigin(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  try {
+    return new URL(trimmed).origin;
+  } catch {
+    return null;
+  }
+}
+
 export function getAuthRedirectErrorMessage(code: string | null) {
   switch (code) {
     case "auth-callback-failed":

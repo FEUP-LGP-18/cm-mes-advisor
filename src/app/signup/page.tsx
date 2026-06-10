@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   AUTH_NOT_CONFIGURED_MESSAGE,
+  buildAuthCallbackUrl,
   mapSignUpError,
   sanitizeAuthNextPath,
 } from "@/lib/supabase/auth-messages";
@@ -41,16 +42,16 @@ function SignUpForm() {
     }
 
     const supabase = createClient();
-    const callbackUrl = new URL(`${window.location.origin}/auth/callback`);
-    if (next) {
-      callbackUrl.searchParams.set("next", next);
-    }
+    const callbackUrl = buildAuthCallbackUrl({
+      currentOrigin: window.location.origin,
+      next,
+    });
 
     const { error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: callbackUrl.toString(),
+        emailRedirectTo: callbackUrl,
       },
     });
 
@@ -66,7 +67,9 @@ function SignUpForm() {
   }
 
   if (success) {
-    const loginLink = next ? `/login?next=${encodeURIComponent(next)}` : "/login";
+    const loginLink = next
+      ? `/login?next=${encodeURIComponent(next)}`
+      : "/login";
     return (
       <AuthShell>
         <div className="fv-auth-card fv-auth-card-compact fv-auth-stack">
@@ -80,7 +83,11 @@ function SignUpForm() {
               link to activate your account and return to the advisor.
             </p>
           </div>
-          <Link href={loginLink} className="fv-auth-submit" style={{ textDecoration: "none" }}>
+          <Link
+            href={loginLink}
+            className="fv-auth-submit"
+            style={{ textDecoration: "none" }}
+          >
             Go to sign in
           </Link>
         </div>
@@ -95,88 +102,88 @@ function SignUpForm() {
           <MesLogo className="fv-auth-logo-full" tone="color" />
         </div>
         <h1 className="fv-auth-heading">Create account</h1>
-        <p className="fv-auth-sub">Consultant access to the MES Advisor workspace.</p>
+        <p className="fv-auth-sub">
+          Consultant access to the MES Advisor workspace.
+        </p>
 
-          <form onSubmit={handleSubmit} className="fv-auth-form" noValidate>
-            <div className="fv-auth-field">
-              <label
-                htmlFor="email"
-                className="fv-auth-field-label"
-              >
-                Email address
-              </label>
-              <input
-                id="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.currentTarget.value)}
-                placeholder="consultant@criticalmanufacturing.com"
-                className="fv-auth-input"
-              />
-            </div>
+        <form onSubmit={handleSubmit} className="fv-auth-form" noValidate>
+          <div className="fv-auth-field">
+            <label htmlFor="email" className="fv-auth-field-label">
+              Email address
+            </label>
+            <input
+              id="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.currentTarget.value)}
+              placeholder="consultant@criticalmanufacturing.com"
+              className="fv-auth-input"
+            />
+          </div>
 
-            <div className="fv-auth-field">
-              <label
-                htmlFor="password"
-                className="fv-auth-field-label"
-              >
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.currentTarget.value)}
-                placeholder="At least 6 characters"
-                className="fv-auth-input"
-              />
-            </div>
-
-            {!supabaseConfigured ? (
-              <div role="alert" className="fv-auth-alert">
-                {AUTH_NOT_CONFIGURED_MESSAGE}
-              </div>
-            ) : null}
-
-            {error ? (
-              <div role="alert" className="fv-auth-alert">
-                {error}
-              </div>
-            ) : null}
-
-            <button
-              type="submit"
-              disabled={loading || !supabaseConfigured}
-              className="fv-auth-submit"
-            >
-              {loading ? "Creating account…" : "Create account"}
-            </button>
-          </form>
+          <div className="fv-auth-field">
+            <label htmlFor="password" className="fv-auth-field-label">
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              autoComplete="new-password"
+              required
+              minLength={6}
+              value={password}
+              onChange={(e) => setPassword(e.currentTarget.value)}
+              placeholder="At least 6 characters"
+              className="fv-auth-input"
+            />
+          </div>
 
           {!supabaseConfigured ? (
+            <div role="alert" className="fv-auth-alert">
+              {AUTH_NOT_CONFIGURED_MESSAGE}
+            </div>
+          ) : null}
+
+          {error ? (
+            <div role="alert" className="fv-auth-alert">
+              {error}
+            </div>
+          ) : null}
+
+          <button
+            type="submit"
+            disabled={loading || !supabaseConfigured}
+            className="fv-auth-submit"
+          >
+            {loading ? "Creating account…" : "Create account"}
+          </button>
+        </form>
+
+        {!supabaseConfigured ? (
+          <Link
+            href="/"
+            className="fv-auth-submit"
+            style={{
+              display: "flex",
+              marginTop: "1rem",
+              textDecoration: "none",
+            }}
+          >
+            Continue in mock mode
+          </Link>
+        ) : (
+          <p className="fv-auth-footer" style={{ marginTop: "1rem" }}>
+            Already have an account?{" "}
             <Link
-              href="/"
-              className="fv-auth-submit"
-              style={{ display: "flex", marginTop: "1rem", textDecoration: "none" }}
+              href={next ? `/login?next=${encodeURIComponent(next)}` : "/login"}
+              className="fv-auth-link"
             >
-              Continue in mock mode
+              Sign in
             </Link>
-          ) : (
-            <p className="fv-auth-footer" style={{ marginTop: "1rem" }}>
-              Already have an account?{" "}
-              <Link
-                href={next ? `/login?next=${encodeURIComponent(next)}` : "/login"}
-                className="fv-auth-link"
-              >
-                Sign in
-              </Link>
-            </p>
-          )}
+          </p>
+        )}
       </div>
     </AuthShell>
   );
