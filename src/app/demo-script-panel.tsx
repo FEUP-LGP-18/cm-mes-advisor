@@ -17,7 +17,6 @@ import {
   FvBadge,
   FvCallout,
   FvEmptyState,
-  FvPageHeader,
   FvStatCard,
 } from "@/components/ui/fv";
 import {
@@ -40,6 +39,7 @@ interface DemoScriptEditingPanelProps {
 
 interface DemoScriptExportPanelProps {
   assembly: DemoScriptAssembly;
+  downloadedAt?: string | null;
   exportReady?: boolean;
   initialDownloadedAt?: string | null;
   outputPreferences?: GeneralOutputPreferences | null;
@@ -68,9 +68,7 @@ export default function DemoScriptEditingPanel({
   assembly,
   draft,
   onDraftAction,
-  onSwitchToExport,
   onSwitchToReview,
-  exportReady = !assembly.emptyState,
   pendingReviewCount = 0,
   projectMetadata,
 }: DemoScriptEditingPanelProps) {
@@ -116,11 +114,6 @@ export default function DemoScriptEditingPanel({
     selectedSection?.steps.find((step) => step.key === selectedStepKey) ??
     selectedSection?.steps[0] ??
     null;
-  const scriptDescription = assembly.emptyState
-    ? "Approve generated demo rows before shaping the Phase 1 handoff."
-    : exportReady
-      ? "AI generated | all approved requirements addressed | traceability maintained."
-      : "AI generated script with remaining review work before export.";
   const traceabilityLabel = overview.hasTraceability ? "Full" : "Needs check";
   const traceabilityHelper = overview.hasTraceability
     ? "Requirement and source row references present"
@@ -128,33 +121,6 @@ export default function DemoScriptEditingPanel({
 
   return (
     <section className="fv-page fv-script-output-page">
-      <FvPageHeader
-        actions={
-          <>
-            {onSwitchToExport ? (
-              <button
-                className="fv-btn-primary"
-                disabled={!exportReady}
-                onClick={onSwitchToExport}
-                type="button"
-              >
-                Continue to export
-              </button>
-            ) : null}
-            <button
-              className="fv-btn-secondary"
-              onClick={onSwitchToReview}
-              type="button"
-            >
-              Back to review
-            </button>
-          </>
-        }
-        description={scriptDescription}
-        eyebrow="Phase 1 / Script Output"
-        title="Demo Script"
-      />
-
       <div className="fv-stats-row fv-script-stats-row">
         <FvStatCard
           helper={`${assembly.approvedRequirementCount} approved row${
@@ -347,6 +313,7 @@ export function DemoScriptExportPanel({
   onSwitchToReview,
   onSwitchToScript,
   projectMetadata,
+  downloadedAt: providedDownloadedAt,
 }: DemoScriptExportPanelProps) {
   const overview = buildDemoScriptExportOverview(assembly);
   const blockerCopy = assembly.emptyState
@@ -369,10 +336,6 @@ export function DemoScriptExportPanel({
   const hasReadyPayload =
     exportReady && !assembly.emptyState && assembly.approvedRequirementCount > 0;
   const readinessLabel = hasReadyPayload ? "Ready" : "Blocked";
-  const exportDescription = hasReadyPayload
-    ? "Package the reviewed Phase 1 script as the supported Markdown handoff."
-    : "Complete review and script readiness before downloading the Phase 1 handoff.";
-
   useEffect(() => {
     if (providedOutputPreferences !== undefined) {
       setStoredOutputPreferences(providedOutputPreferences);
@@ -381,6 +344,12 @@ export function DemoScriptExportPanel({
 
     setStoredOutputPreferences(readGeneralOutputPreferencesFromStorage());
   }, [providedOutputPreferences]);
+
+  useEffect(() => {
+    if (providedDownloadedAt !== undefined) {
+      setDownloadedAt(providedDownloadedAt);
+    }
+  }, [providedDownloadedAt]);
 
   const handleDownloadMarkdown = () => {
     const outputPreferences =
@@ -397,30 +366,6 @@ export function DemoScriptExportPanel({
   if (assembly.emptyState) {
     return (
       <section className="fv-page fv-export-page">
-        <FvPageHeader
-          actions={
-            <div className="fv-export-header-actions">
-              <button
-                className="fv-btn-secondary"
-                onClick={onSwitchToScript}
-                type="button"
-              >
-                Back to Script
-              </button>
-              <button
-                className="fv-btn-secondary"
-                onClick={onSwitchToReview}
-                type="button"
-              >
-                Back to Review
-              </button>
-            </div>
-          }
-          description={exportDescription}
-          eyebrow="Phase 1 / Export"
-          title="Export Handoff"
-        />
-
         <div className="fv-stats-row fv-export-stats-row">
           <FvStatCard
             helper="Export remains disabled until a reviewed script exists"
@@ -489,38 +434,6 @@ export function DemoScriptExportPanel({
 
   return (
     <section className="fv-page fv-export-page">
-      <FvPageHeader
-        actions={
-          <div className="fv-export-header-actions">
-            <button
-              className="fv-btn-primary"
-              disabled={!hasReadyPayload}
-              onClick={handleDownloadMarkdown}
-              type="button"
-            >
-              Download Markdown
-            </button>
-            <button
-              className="fv-btn-secondary"
-              onClick={onSwitchToScript}
-              type="button"
-            >
-              Back to Script
-            </button>
-            <button
-              className="fv-btn-secondary"
-              onClick={onSwitchToReview}
-              type="button"
-            >
-              Back to Review
-            </button>
-          </div>
-        }
-        description={exportDescription}
-        eyebrow="Phase 1 / Export"
-        title="Export Handoff"
-      />
-
       <div className="fv-stats-row fv-export-stats-row">
         <FvStatCard
           helper={`${assembly.approvedRequirementCount} approved row${
@@ -986,14 +899,14 @@ export function getDemoScriptEmptyStateCopy(
   }
 }
 
-function formatExportDownloadTime(date: Date) {
+export function formatExportDownloadTime(date: Date) {
   return new Intl.DateTimeFormat("en-US", {
     hour: "numeric",
     minute: "2-digit",
   }).format(date);
 }
 
-function readGeneralOutputPreferencesFromStorage(): GeneralOutputPreferences | null {
+export function readGeneralOutputPreferencesFromStorage(): GeneralOutputPreferences | null {
   if (typeof window === "undefined") {
     return null;
   }

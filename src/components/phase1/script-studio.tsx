@@ -11,10 +11,10 @@ import type { ReviewProjectMetadata } from "@/lib/requirements/review";
 interface ScriptStudioProps {
   assembly: DemoScriptAssembly;
   draft: DemoScriptDraft;
-  exportReady: boolean;
+  exportReady?: boolean;
   onDraftAction: (action: DemoScriptDraftAction) => void;
   onGoToReview: () => void;
-  onOpenExport: () => void;
+  onOpenExport?: () => void;
   pendingReviewCount: number;
   projectMetadata: ReviewProjectMetadata;
 }
@@ -22,10 +22,8 @@ interface ScriptStudioProps {
 export default function ScriptStudio({
   assembly,
   draft,
-  exportReady,
   onDraftAction,
   onGoToReview,
-  onOpenExport,
   pendingReviewCount,
   projectMetadata,
 }: ScriptStudioProps) {
@@ -33,9 +31,7 @@ export default function ScriptStudio({
     <DemoScriptEditingPanel
       assembly={assembly}
       draft={draft}
-      exportReady={exportReady}
       onDraftAction={onDraftAction}
-      onSwitchToExport={onOpenExport}
       onSwitchToReview={onGoToReview}
       pendingReviewCount={pendingReviewCount}
       projectMetadata={projectMetadata}

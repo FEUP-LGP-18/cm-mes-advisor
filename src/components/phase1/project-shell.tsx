@@ -59,6 +59,7 @@ export default function Phase1ProjectShell({
   currentStep,
   currentUserRole: _currentUserRole = "owner",
   email,
+  headerActions,
   nextAction,
   persistenceFeedback,
   progress,
@@ -69,6 +70,7 @@ export default function Phase1ProjectShell({
   currentStep: Phase1WorkflowStep;
   currentUserRole?: ProjectRole | null;
   email?: string | null;
+  headerActions?: React.ReactNode;
   nextAction: Phase1NextAction;
   persistenceFeedback?: {
     tone: "neutral" | "success" | "error";
@@ -246,9 +248,16 @@ export default function Phase1ProjectShell({
               <span>{phase1WorkflowMeta[currentStep].label}</span>
             </nav>
 
-            <div style={{ marginBottom: "1.25rem" }}>
-              <h1 className="fv-page-title">{phase1WorkflowMeta[currentStep].label}</h1>
-              <p className="fv-page-subtitle">{nextAction.helper}</p>
+            <div className="fv-phase-page-heading">
+              <div className="fv-phase-page-heading-row">
+                <div className="fv-phase-page-heading-copy">
+                  <h1 className="fv-page-title">{phase1WorkflowMeta[currentStep].label}</h1>
+                  <p className="fv-page-subtitle">{nextAction.helper}</p>
+                </div>
+                {headerActions ? (
+                  <div className="fv-phase-page-heading-actions">{headerActions}</div>
+                ) : null}
+              </div>
 
               {!canEditPhase1 ? (
                 <div className="fv-callout fv-callout-info" style={{ marginTop: "0.75rem" }}>

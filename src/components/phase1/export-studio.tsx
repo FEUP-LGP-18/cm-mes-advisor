@@ -7,6 +7,7 @@ import type { ReviewProjectMetadata } from "@/lib/requirements/review";
 interface ExportStudioProps {
   approvedCount: number;
   assembly: DemoScriptAssembly;
+  downloadedAt?: string | null;
   exportReady: boolean;
   onGoToReview: () => void;
   onGoToScript: () => void;
@@ -18,6 +19,7 @@ interface ExportStudioProps {
 export default function ExportStudio({
   approvedCount,
   assembly,
+  downloadedAt,
   exportReady,
   onGoToReview,
   onGoToScript,
@@ -31,6 +33,7 @@ export default function ExportStudio({
     <div style={{ display: "grid", gap: "1.25rem" }}>
       <DemoScriptExportPanel
         assembly={assembly}
+        downloadedAt={downloadedAt}
         exportReady={exportReady}
         onSwitchToReview={onGoToReview}
         onSwitchToScript={onGoToScript}

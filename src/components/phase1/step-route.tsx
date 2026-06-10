@@ -1,7 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  downloadDemoScriptMarkdown,
+  formatExportDownloadTime,
+  readGeneralOutputPreferencesFromStorage,
+} from "@/app/demo-script-panel";
 import { getMasterDataStepPath } from "@/lib/master-data/workflow";
 import {
   getAllowedWorkflowStep,
@@ -59,6 +64,7 @@ export default function Phase1ProjectStepRoute({
   } = phase1;
   const allowedStep =
     isHydrated && project ? getAllowedWorkflowStep(workflowSnapshot, step) : step;
+  const [downloadedAt, setDownloadedAt] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isHydrated || !project) {
@@ -128,12 +134,82 @@ export default function Phase1ProjectStepRoute({
     router.push(getPhase1StepPath(project.projectId, nextStep));
   };
 
+  const hasReadyExportPayload =
+    workflowSnapshot.exportReady &&
+    !demoScriptAssembly.emptyState &&
+    demoScriptAssembly.approvedRequirementCount > 0;
+
+  const handleDownloadMarkdown = () => {
+    downloadDemoScriptMarkdown({
+      assembly: demoScriptAssembly,
+      outputPreferences: readGeneralOutputPreferencesFromStorage(),
+      projectMetadata: workspaceState.reviewState.project,
+    });
+    setDownloadedAt(formatExportDownloadTime(new Date()));
+  };
+
+  const headerActions =
+    step === "review" ? (
+      <button
+        className="fv-btn-primary"
+        disabled={summary.approvedCount === 0}
+        onClick={() => navigateToStep("script")}
+        type="button"
+      >
+        Generate Script
+      </button>
+    ) : step === "script" ? (
+      <>
+        <button
+          className="fv-btn-primary"
+          disabled={!workflowSnapshot.exportReady}
+          onClick={() => navigateToStep("export")}
+          type="button"
+        >
+          Continue to export
+        </button>
+        <button
+          className="fv-btn-secondary"
+          onClick={() => navigateToStep("review")}
+          type="button"
+        >
+          Back to review
+        </button>
+      </>
+    ) : step === "export" ? (
+      <>
+        <button
+          className="fv-btn-primary"
+          disabled={!hasReadyExportPayload}
+          onClick={handleDownloadMarkdown}
+          type="button"
+        >
+          Download Markdown
+        </button>
+        <button
+          className="fv-btn-secondary"
+          onClick={() => navigateToStep("script")}
+          type="button"
+        >
+          Back to Script
+        </button>
+        <button
+          className="fv-btn-secondary"
+          onClick={() => navigateToStep("review")}
+          type="button"
+        >
+          Back to Review
+        </button>
+      </>
+    ) : null;
+
   return (
     <Phase1ProjectShell
       canEditPhase1={canEditPhase1}
       currentStep={step}
       currentUserRole={currentUserRole}
       email={phase1.currentUser?.email}
+      headerActions={headerActions}
       nextAction={nextAction}
       persistenceFeedback={persistenceFeedback}
       progress={workflowProgress}
@@ -191,10 +267,8 @@ export default function Phase1ProjectStepRoute({
         <ScriptStudio
           assembly={demoScriptAssembly}
           draft={workspaceState.reviewState.demoScriptDraft}
-          exportReady={workflowSnapshot.exportReady}
           onDraftAction={updateDemoScriptDraft}
           onGoToReview={() => navigateToStep("review")}
-          onOpenExport={() => navigateToStep("export")}
           pendingReviewCount={generatedReviewableRequirements.length}
           projectMetadata={workspaceState.reviewState.project}
         />
@@ -204,6 +278,7 @@ export default function Phase1ProjectStepRoute({
         <ExportStudio
           approvedCount={summary.approvedCount}
           assembly={demoScriptAssembly}
+          downloadedAt={downloadedAt}
           exportReady={workflowSnapshot.exportReady}
           onGoToReview={() => navigateToStep("review")}
           onGoToScript={() => navigateToStep("script")}

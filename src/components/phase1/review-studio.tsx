@@ -6,7 +6,6 @@ import {
   FvCallout,
   FvEmptyState,
   FvInspectorPanel,
-  FvPageHeader,
   FvStatCard,
   FvTable,
   FvToolbar,
@@ -1282,22 +1281,6 @@ export default function ReviewStudio({
 
   return (
     <div className="fv-review-workspace">
-      <FvPageHeader
-        actions={
-          <button
-            className="fv-btn-primary"
-            disabled={approvedCount === 0}
-            onClick={onOpenScript}
-            type="button"
-          >
-            Generate Script
-          </button>
-        }
-        description="Review generated MES requirements, resolve flagged rows, and approve the set before script generation."
-        eyebrow="Phase 1 / Requirements"
-        title="Requirements Review"
-      />
-
       {!canEditPhase1 ? (
         <FvCallout tone="status" title="Read-only review">
           Review decisions are disabled for your role. You can still inspect
