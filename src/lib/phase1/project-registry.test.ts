@@ -224,6 +224,43 @@ describe("phase 1 project registry", () => {
     });
   });
 
+  it("normalizes malformed Phase 2 generation mode back to mock", () => {
+    const storage = new MemoryStorage();
+    const fixtureSource = createFixtureSourceMetadata(projectMetadata);
+    const fallbackWorkspaceState = createFixtureWorkspaceState(fixtureSource, [
+      parsedRequirement,
+    ]);
+    const project = createPhase1ProjectRecordFromWorkspaceState(
+      fallbackWorkspaceState,
+      {
+        currentStep: "review",
+        projectId: "malformed-phase2-mode",
+      },
+    );
+
+    storage.setItem(
+      PHASE1_PROJECT_REGISTRY_STORAGE_KEY,
+      JSON.stringify({
+        version: 4,
+        activeProjectId: project.projectId,
+        projects: [
+          {
+            ...project,
+            phase2: {
+              ...project.phase2,
+              active: true,
+              mode: "unsupported-provider-mode",
+            },
+          },
+        ],
+      }),
+    );
+
+    const registry = loadPhase1ProjectRegistry(storage, fallbackWorkspaceState);
+
+    expect(registry.projects[0]?.phase2.mode).toBe("mock");
+  });
+
   it("migrates a legacy v1 registry key and maps five-step values into the new flow", () => {
     const storage = new MemoryStorage();
     const fixtureSource = createFixtureSourceMetadata(projectMetadata);
@@ -361,13 +398,21 @@ describe("phase 1 project registry", () => {
     let reviewState = createRequirementsReviewState(
       workspaceState.reviewState.project,
     );
-    reviewState = updateRequirementsReviewState(reviewState, parsedRequirement, {
-      type: "storeMockGeneratedDraft",
-      generatedOutput: createMockGeneratedRequirementDraft(parsedRequirement),
-    });
-    reviewState = updateRequirementsReviewState(reviewState, parsedRequirement, {
-      type: "approve",
-    });
+    reviewState = updateRequirementsReviewState(
+      reviewState,
+      parsedRequirement,
+      {
+        type: "storeMockGeneratedDraft",
+        generatedOutput: createMockGeneratedRequirementDraft(parsedRequirement),
+      },
+    );
+    reviewState = updateRequirementsReviewState(
+      reviewState,
+      parsedRequirement,
+      {
+        type: "approve",
+      },
+    );
     workspaceState = {
       ...workspaceState,
       reviewState,
@@ -431,22 +476,33 @@ describe("phase 1 project registry", () => {
       workspaceState.reviewState.project,
     );
 
-    reviewState = updateRequirementsReviewState(reviewState, parsedRequirement, {
-      type: "storeMockGeneratedDraft",
-      generatedOutput: createMockGeneratedRequirementDraft(parsedRequirement),
-    });
-    reviewState = updateRequirementsReviewState(reviewState, parsedRequirement, {
-      type: "approve",
-    });
+    reviewState = updateRequirementsReviewState(
+      reviewState,
+      parsedRequirement,
+      {
+        type: "storeMockGeneratedDraft",
+        generatedOutput: createMockGeneratedRequirementDraft(parsedRequirement),
+      },
+    );
+    reviewState = updateRequirementsReviewState(
+      reviewState,
+      parsedRequirement,
+      {
+        type: "approve",
+      },
+    );
     workspaceState = {
       ...workspaceState,
       reviewState,
     };
 
-    const project = createPhase1ProjectRecordFromWorkspaceState(workspaceState, {
-      currentStep: "review",
-      projectId: "ready-before-script-project",
-    });
+    const project = createPhase1ProjectRecordFromWorkspaceState(
+      workspaceState,
+      {
+        currentStep: "review",
+        projectId: "ready-before-script-project",
+      },
+    );
 
     expect(project.snapshot.scriptVisited).toBe(false);
     expect(project.snapshot.exportReady).toBe(true);

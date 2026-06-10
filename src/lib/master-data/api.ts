@@ -1,8 +1,5 @@
 import type { ParsedRequirement } from "@/lib/requirements/types";
-import {
-  masterDataObjectTypes,
-  type MasterDataObjectType,
-} from "./types";
+import { masterDataObjectTypes, type MasterDataObjectType } from "./types";
 import type {
   MasterDataApplicableRequirement,
   MasterDataDraftObject,
@@ -73,7 +70,9 @@ export interface MasterDataGenerateErrorBody {
     code:
       | "invalid-request"
       | "generation-failed"
-      | "real-generation-unavailable";
+      | "real-generation-unavailable"
+      | "unauthorized"
+      | "forbidden";
     message: string;
   };
 }

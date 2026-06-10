@@ -128,6 +128,21 @@ interface GenerationFeedback {
   reason?: RequirementGenerationUnavailableReason;
 }
 
+export function inferMasterDataDefaultGenerationMode(
+  requirements: Array<
+    Pick<ReviewRequirement, "generatedOutput" | "reviewStatus">
+  >,
+): MasterDataGenerationMode {
+  return requirements.some(
+    (requirement) =>
+      requirement.reviewStatus === "approved" &&
+      requirement.generatedOutput.state === "mock-generated-draft" &&
+      requirement.generatedOutput.draft.generator !== "mock-ai",
+  )
+    ? "real"
+    : "mock";
+}
+
 interface SourceFeedback {
   tone: "neutral" | "success" | "error";
   message: string;
@@ -419,7 +434,9 @@ export function Phase1ProjectProvider({
   const storedMasterDataPhase2 =
     project?.phase2 ?? createInitialMasterDataPhase2State();
   const masterDataPhase2 = useMemo(() => {
-    const approvedRequirementKeySet = new Set(approvedMasterDataRequirementKeys);
+    const approvedRequirementKeySet = new Set(
+      approvedMasterDataRequirementKeys,
+    );
     const applicableRequirements =
       storedMasterDataPhase2.applicableRequirements.filter((requirement) =>
         approvedRequirementKeySet.has(requirement.requirementKey),
@@ -446,10 +463,14 @@ export function Phase1ProjectProvider({
       generationFeedback,
       mode: storedMasterDataPhase2.active
         ? storedMasterDataPhase2.mode
-        : "mock",
+        : inferMasterDataDefaultGenerationMode(reviewRequirements),
       selectedRequirementKeys,
     };
-  }, [approvedMasterDataRequirementKeys, storedMasterDataPhase2]);
+  }, [
+    approvedMasterDataRequirementKeys,
+    reviewRequirements,
+    storedMasterDataPhase2,
+  ]);
   const masterDataObjects = useMemo(
     () => flattenMasterDataObjects(masterDataPhase2.generatedObjects),
     [masterDataPhase2.generatedObjects],
@@ -483,7 +504,8 @@ export function Phase1ProjectProvider({
       if (!initialCanEditPhase1) {
         setPersistenceFeedback({
           tone: "error",
-          message: "Viewers can inspect this project, but cannot save Phase 1 changes.",
+          message:
+            "Viewers can inspect this project, but cannot save Phase 1 changes.",
         });
         return;
       }
@@ -495,43 +517,43 @@ export function Phase1ProjectProvider({
       });
 
       const saveProject = async (): Promise<void> => {
-          const expectedVersion = phase1VersionRef.current;
-          const response = await fetch(
-            `/projects/${nextProject.projectId}/phase1/state`,
-            {
-              body: JSON.stringify({
-                expectedVersion,
-                state: persistedState,
-              }),
-              headers: {
-                "content-type": "application/json",
-              },
-              method: "PATCH",
+        const expectedVersion = phase1VersionRef.current;
+        const response = await fetch(
+          `/projects/${nextProject.projectId}/phase1/state`,
+          {
+            body: JSON.stringify({
+              expectedVersion,
+              state: persistedState,
+            }),
+            headers: {
+              "content-type": "application/json",
             },
-          );
-          const responseBody = (await response
-            .json()
-            .catch(() => null)) as SavePhase1StateResponse | null;
+            method: "PATCH",
+          },
+        );
+        const responseBody = (await response
+          .json()
+          .catch(() => null)) as SavePhase1StateResponse | null;
 
-          if (!response.ok || !responseBody?.ok) {
-            setPersistenceFeedback({
-              tone: "error",
-              message:
-                response.status === 409
-                  ? "This project changed in another session. Reload to review the latest saved state before continuing."
-                  : responseBody && !responseBody.ok
-                    ? responseBody.error?.message ||
-                      "Phase 1 changes could not be saved."
-                    : "Phase 1 changes could not be saved.",
-            });
-            return;
-          }
-
-          phase1VersionRef.current = responseBody.version;
+        if (!response.ok || !responseBody?.ok) {
           setPersistenceFeedback({
-            tone: "success",
-            message: "Phase 1 changes saved.",
+            tone: "error",
+            message:
+              response.status === 409
+                ? "This project changed in another session. Reload to review the latest saved state before continuing."
+                : responseBody && !responseBody.ok
+                  ? responseBody.error?.message ||
+                    "Phase 1 changes could not be saved."
+                  : "Phase 1 changes could not be saved.",
           });
+          return;
+        }
+
+        phase1VersionRef.current = responseBody.version;
+        setPersistenceFeedback({
+          tone: "success",
+          message: "Phase 1 changes saved.",
+        });
       };
 
       phase1SaveQueueRef.current = phase1SaveQueueRef.current.then(() =>
@@ -621,7 +643,8 @@ export function Phase1ProjectProvider({
       if (hasServerProject && !initialCanEditPhase1) {
         setPersistenceFeedback({
           tone: "error",
-          message: "Viewers can inspect this project, but cannot save Phase 1 changes.",
+          message:
+            "Viewers can inspect this project, but cannot save Phase 1 changes.",
         });
         return;
       }
@@ -658,7 +681,8 @@ export function Phase1ProjectProvider({
       if (hasServerProject && !initialCanEditPhase1) {
         setPersistenceFeedback({
           tone: "error",
-          message: "Viewers can inspect this project, but cannot save Phase 1 changes.",
+          message:
+            "Viewers can inspect this project, but cannot save Phase 1 changes.",
         });
         return;
       }
@@ -690,7 +714,8 @@ export function Phase1ProjectProvider({
       if (hasServerProject && !initialCanEditPhase1) {
         setPersistenceFeedback({
           tone: "error",
-          message: "Viewers can inspect this project, but cannot save Phase 1 changes.",
+          message:
+            "Viewers can inspect this project, but cannot save Phase 1 changes.",
         });
         return;
       }
@@ -707,15 +732,14 @@ export function Phase1ProjectProvider({
       return;
     }
 
-    const shouldNormalizeApplicableRequirements =
-      !haveSameKeys(
-        storedMasterDataPhase2.applicableRequirements.map(
-          (requirement) => requirement.requirementKey,
-        ),
-        masterDataPhase2.applicableRequirements.map(
-          (requirement) => requirement.requirementKey,
-        ),
-      );
+    const shouldNormalizeApplicableRequirements = !haveSameKeys(
+      storedMasterDataPhase2.applicableRequirements.map(
+        (requirement) => requirement.requirementKey,
+      ),
+      masterDataPhase2.applicableRequirements.map(
+        (requirement) => requirement.requirementKey,
+      ),
+    );
     const shouldNormalizeSelectedRequirementKeys = !haveSameKeys(
       storedMasterDataPhase2.selectedRequirementKeys,
       masterDataPhase2.selectedRequirementKeys,
@@ -790,7 +814,8 @@ export function Phase1ProjectProvider({
     if (hasServerProject && !initialCanEditPhase1) {
       setSourceFeedback({
         tone: "error",
-        message: "Viewers can inspect workbook sources, but cannot replace them.",
+        message:
+          "Viewers can inspect workbook sources, but cannot replace them.",
       });
       return;
     }
@@ -895,7 +920,8 @@ export function Phase1ProjectProvider({
       if (hasServerProject && !initialCanUploadWorkbook) {
         setSourceFeedback({
           tone: "error",
-          message: "Viewers can inspect workbook sources, but cannot upload or replace them.",
+          message:
+            "Viewers can inspect workbook sources, but cannot upload or replace them.",
         });
         return false;
       }
@@ -919,9 +945,9 @@ export function Phase1ProjectProvider({
               method: "POST",
             },
           );
-          const responseBody = (await response.json().catch(() => null)) as
-            | UploadWorkbookResponse
-            | null;
+          const responseBody = (await response
+            .json()
+            .catch(() => null)) as UploadWorkbookResponse | null;
 
           if (!response.ok || !responseBody?.ok) {
             setSourceFeedback({
@@ -945,16 +971,16 @@ export function Phase1ProjectProvider({
         }
 
         const workbookBuffer = await file.arrayBuffer();
-        const { parseRequirementsWorkbook } = await import(
-          "@/lib/requirements/parser"
-        );
+        const { parseRequirementsWorkbook } =
+          await import("@/lib/requirements/parser");
         const parsedRequirements =
           await parseRequirementsWorkbook(workbookBuffer);
         const sourceMetadata = createUploadSourceMetadata(
           file.name,
           workbookBuffer,
           {
-            industryTemplateId: project.workspaceState.source.industryTemplateId,
+            industryTemplateId:
+              project.workspaceState.source.industryTemplateId,
           },
         );
         const uploadedWorkspaceState = createRequirementsWorkspaceState(
@@ -985,12 +1011,7 @@ export function Phase1ProjectProvider({
         return false;
       }
     },
-    [
-      hasServerProject,
-      initialCanUploadWorkbook,
-      project,
-      updateWorkspaceState,
-    ],
+    [hasServerProject, initialCanUploadWorkbook, project, updateWorkspaceState],
   );
 
   const generateRows = useCallback(
@@ -1012,7 +1033,8 @@ export function Phase1ProjectProvider({
       if (hasServerProject && !initialCanEditPhase1) {
         setGenerationFeedback({
           tone: "error",
-          message: "Viewers can inspect generated drafts, but cannot save workflow changes.",
+          message:
+            "Viewers can inspect generated drafts, but cannot save workflow changes.",
         });
         return false;
       }
@@ -1185,7 +1207,8 @@ export function Phase1ProjectProvider({
       if (hasServerProject && !initialCanEditPhase1) {
         setPersistenceFeedback({
           tone: "error",
-          message: "Viewers can inspect this project, but cannot save Phase 1 changes.",
+          message:
+            "Viewers can inspect this project, but cannot save Phase 1 changes.",
         });
         return;
       }
@@ -1258,9 +1281,9 @@ export function Phase1ProjectProvider({
           requirements: reviewRequirements.map(toMasterDataRequirementInput),
         }),
       });
-      const responseBody = (await response.json().catch(() => null)) as
-        | MasterDataAnalyzeRouteBody
-        | null;
+      const responseBody = (await response
+        .json()
+        .catch(() => null)) as MasterDataAnalyzeRouteBody | null;
 
       if (!response.ok || !responseBody || !responseBody.ok) {
         updateMasterDataState((currentState) => ({
@@ -1348,7 +1371,8 @@ export function Phase1ProjectProvider({
       active: true,
       currentStep: "process",
       generationStatus: "running",
-      generationFeedback: "Generating Master Data drafts for the selected slice.",
+      generationFeedback:
+        "Generating Master Data drafts for the selected slice.",
       generationLogs: [
         {
           id: "process:start",
@@ -1377,9 +1401,9 @@ export function Phase1ProjectProvider({
           selectedRequirementKeys,
         }),
       });
-      const responseBody = (await response.json().catch(() => null)) as
-        | MasterDataGenerateRouteBody
-        | null;
+      const responseBody = (await response
+        .json()
+        .catch(() => null)) as MasterDataGenerateRouteBody | null;
 
       if (!response.ok || !responseBody || !responseBody.ok) {
         updateMasterDataState((currentState) => ({
@@ -1506,9 +1530,9 @@ export function Phase1ProjectProvider({
         traceability: project.phase2.traceability,
       }),
     });
-    const responseBody = (await response.json().catch(() => null)) as
-      | MasterDataExportRouteBody
-      | null;
+    const responseBody = (await response
+      .json()
+      .catch(() => null)) as MasterDataExportRouteBody | null;
 
     if (!response.ok || !responseBody || !responseBody.ok) {
       updateMasterDataState((currentState) => ({
@@ -1521,8 +1545,9 @@ export function Phase1ProjectProvider({
       return responseBody;
     }
 
-    const bytes = Uint8Array.from(atob(responseBody.packageBase64), (character) =>
-      character.charCodeAt(0),
+    const bytes = Uint8Array.from(
+      atob(responseBody.packageBase64),
+      (character) => character.charCodeAt(0),
     );
     const blob = new Blob([bytes], {
       type: responseBody.mimeType,
@@ -1749,15 +1774,18 @@ function createServerProjectRegistry({
   if (!getPhase1Project(nextRegistry, routeProjectId)) {
     nextRegistry = upsertPhase1Project(
       nextRegistry,
-      createEmptyProjectFromServerIdentity({
-        createdAt: initialServerProject.createdAt,
-        customerName: initialServerProject.customerName,
-        projectId: initialServerProject.id,
-        projectName: initialServerProject.name,
-        updatedAt: initialServerProject.updatedAt,
-      }, {
-        industryTemplateId,
-      }),
+      createEmptyProjectFromServerIdentity(
+        {
+          createdAt: initialServerProject.createdAt,
+          customerName: initialServerProject.customerName,
+          projectId: initialServerProject.id,
+          projectName: initialServerProject.name,
+          updatedAt: initialServerProject.updatedAt,
+        },
+        {
+          industryTemplateId,
+        },
+      ),
     );
   }
 

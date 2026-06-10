@@ -107,7 +107,9 @@ export function loadPhase1ProjectRegistry(
   fallbackWorkspaceState: RequirementsWorkspaceState,
 ): Phase1ProjectRegistry {
   try {
-    const currentRawRegistry = storage.getItem(PHASE1_PROJECT_REGISTRY_STORAGE_KEY);
+    const currentRawRegistry = storage.getItem(
+      PHASE1_PROJECT_REGISTRY_STORAGE_KEY,
+    );
 
     if (currentRawRegistry) {
       return normalizeProjectRegistry(
@@ -241,7 +243,8 @@ export function ensureLocalProjectForRoute(
   const fallbackProject = fallbackWorkspaceState.reviewState.project;
   const workspaceState = applyProjectIdentity(fallbackWorkspaceState, {
     customerName:
-      fallbackProject.customerName || fallbackWorkspaceState.source.customerName,
+      fallbackProject.customerName ||
+      fallbackWorkspaceState.source.customerName,
     projectId,
     projectName:
       fallbackProject.projectName || fallbackWorkspaceState.source.projectName,
@@ -545,11 +548,11 @@ function createMigratedProjectRegistry(
     storage,
     fallbackWorkspaceState,
   );
-    const project = createPhase1ProjectRecordFromWorkspaceState(workspaceState, {
-      currentStep: getRecommendedWorkflowStep(
-        summarizePhase1Workspace(workspaceState, false),
-      ),
-    });
+  const project = createPhase1ProjectRecordFromWorkspaceState(workspaceState, {
+    currentStep: getRecommendedWorkflowStep(
+      summarizePhase1Workspace(workspaceState, false),
+    ),
+  });
   const registry = createPhase1ProjectRegistry([project], project.projectId);
 
   savePhase1ProjectRegistry(storage, registry);
@@ -576,7 +579,9 @@ function hasPersistedWorkspaceState(
 
     if (
       storage.getItem(
-        getRequirementsWorkspaceStorageKey(fallbackWorkspaceState.source.sourceId),
+        getRequirementsWorkspaceStorageKey(
+          fallbackWorkspaceState.source.sourceId,
+        ),
       )
     ) {
       return true;
@@ -654,7 +659,9 @@ function normalizeProjectRecord(
   );
   const phase2 = normalizePhase2State(value.phase2);
   const activeFlow =
-    value.activeFlow === "master-data" && phase2.active ? "master-data" : "phase1";
+    value.activeFlow === "master-data" && phase2.active
+      ? "master-data"
+      : "phase1";
 
   return createPhase1ProjectRecordFromWorkspaceState(workspaceState, {
     activeFlow,
@@ -864,11 +871,12 @@ function normalizePhase2State(value: unknown): MasterDataPhase2State {
 
   return {
     version: 1,
-    active: typeof value.active === "boolean" ? value.active : fallbackState.active,
+    active:
+      typeof value.active === "boolean" ? value.active : fallbackState.active,
     currentStep: isMasterDataWorkflowStep(value.currentStep)
       ? value.currentStep
       : fallbackState.currentStep,
-    mode: value.mode === "mock" ? "mock" : "real",
+    mode: value.mode === "real" ? "real" : "mock",
     applicableRequirements: Array.isArray(value.applicableRequirements)
       ? (value.applicableRequirements.filter(
           isRecord,
@@ -1121,7 +1129,9 @@ function isMasterDataObjectType(value: unknown) {
   );
 }
 
-function isLegacyWorkflowStep(value: unknown): value is LegacyPhase1WorkflowStep {
+function isLegacyWorkflowStep(
+  value: unknown,
+): value is LegacyPhase1WorkflowStep {
   return (
     value === "source" ||
     value === "generate" ||

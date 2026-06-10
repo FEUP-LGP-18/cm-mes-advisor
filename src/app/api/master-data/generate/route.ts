@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import { generateMasterDataDrafts } from "@/lib/master-data/generation";
 import { loadMasterDataTemplateDefinition } from "@/lib/master-data/template";
+import { requireProjectCapability } from "@/lib/projects/permissions.server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import {
   parseMasterDataGenerateRequestBody,
   type MasterDataGenerateRouteBody,
 } from "@/lib/master-data/api";
-import { buildMasterDataAiSuggestions, MasterDataRealGenerationUnavailableError } from "@/lib/master-data/server/provider";
+import {
+  buildMasterDataAiSuggestions,
+  MasterDataRealGenerationUnavailableError,
+} from "@/lib/master-data/server/provider";
 
 export async function POST(request: Request) {
   let rawBody: unknown;
@@ -24,6 +29,22 @@ export async function POST(request: Request) {
 
   if (!parsedBody.ok) {
     return errorResponse(400, "invalid-request", parsedBody.message);
+  }
+
+  if (isSupabaseConfigured()) {
+    const capabilityResult = await requireProjectCapability(
+      parsedBody.body.project.projectId,
+      "edit_project_state",
+    );
+    if (!capabilityResult.ok) {
+      const status =
+        capabilityResult.status === "not_authenticated" ? 401 : 403;
+      return errorResponse(
+        status,
+        status === 401 ? "unauthorized" : "forbidden",
+        capabilityResult.message,
+      );
+    }
   }
 
   try {
@@ -71,7 +92,9 @@ function errorResponse(
   code:
     | "invalid-request"
     | "generation-failed"
-    | "real-generation-unavailable",
+    | "real-generation-unavailable"
+    | "unauthorized"
+    | "forbidden",
   message: string,
 ) {
   const body: MasterDataGenerateRouteBody = {

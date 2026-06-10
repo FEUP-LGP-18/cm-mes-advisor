@@ -4,19 +4,70 @@ import {
 } from "@aws-sdk/client-bedrock-runtime";
 import { z } from "zod";
 import type { RequirementGenerationUnavailableReason } from "@/lib/requirements/generation-api";
+import { classifyBedrockAvailabilityFailure } from "@/lib/requirements/server/bedrock-client";
 import {
-  classifyBedrockAvailabilityFailure,
-} from "@/lib/requirements/server/bedrock-client";
-import { readRequirementGenerationServerConfig } from "@/lib/requirements/server/config";
+  getMissingRealGenerationConfigKeys,
+  readRequirementGenerationServerConfig,
+  type RequirementGenerationServerConfig,
+} from "@/lib/requirements/server/config";
+import {
+  AnthropicRequestError,
+  AnthropicResponseFormatError,
+  classifyAnthropicAvailabilityFailure,
+} from "@/lib/requirements/server/anthropic-client";
 import {
   createRequirementDocumentationClient,
   type McpDocumentationChunk,
+  type RequirementDocumentationClient,
 } from "@/lib/requirements/server/mcp-client";
+import { createSelfHostedRequirementDocumentationClient } from "@/lib/requirements/server/self-mcp-docs";
 import type { MasterDataGenerateRequestBody } from "../api";
-import type {
-  MasterDataConfidence,
-  MasterDataObjectType,
-} from "../types";
+import type { MasterDataConfidence, MasterDataObjectType } from "../types";
+
+const anthropicMessagesEndpoint = "https://api.anthropic.com/v1/messages";
+const masterDataSuggestionToolName = "emit_master_data_suggestion";
+const masterDataSuggestionTool = {
+  name: masterDataSuggestionToolName,
+  description:
+    "Emit one structured CM MES Phase 2 Master Data suggestion. Use this tool for every Master Data suggestion response.",
+  input_schema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      description: {
+        type: "string",
+        description:
+          "Short review-friendly object description grounded in the selected requirements and documentation.",
+      },
+      nameHint: {
+        type: "string",
+        description: "Optional object name hint.",
+      },
+      typeHint: {
+        type: "string",
+        description: "Optional object type or schema hint.",
+      },
+      confidenceLevel: {
+        type: "string",
+        enum: ["high", "medium", "low"],
+      },
+      confidenceRationale: {
+        type: "string",
+      },
+      warnings: {
+        type: "array",
+        maxItems: 5,
+        items: { type: "string" },
+      },
+    },
+    required: [
+      "description",
+      "confidenceLevel",
+      "confidenceRationale",
+      "warnings",
+    ],
+  },
+};
 
 const masterDataSuggestionSchema = z.object({
   description: z.string().trim().min(1),
@@ -34,6 +85,21 @@ interface MasterDataAiSuggestion {
   typeHint?: string;
   warnings?: string[];
 }
+
+type MasterDataModelClient =
+  | {
+      provider: "anthropic";
+      anthropicApiKey: string;
+      anthropicMaxTokens: number;
+      anthropicModel: string;
+      anthropicTemperature: number;
+      anthropicVersion: string;
+    }
+  | {
+      provider: "bedrock";
+      bedrockModelId: string;
+      bedrockRuntimeClient: BedrockRuntimeClient;
+    };
 
 export class MasterDataRealGenerationUnavailableError extends Error {
   readonly reason: RequirementGenerationUnavailableReason;
@@ -64,13 +130,7 @@ export async function buildMasterDataAiSuggestions({
   }
 
   const config = readRequirementGenerationServerConfig();
-  if (
-    config.mcpServerUrl === null ||
-    config.bedrockModelId === null ||
-    config.awsRegion === null ||
-    (config.awsBearerTokenBedrock === null &&
-      (config.awsAccessKeyId === null || config.awsSecretAccessKey === null))
-  ) {
+  if (getMissingRealGenerationConfigKeys(config).length > 0) {
     throw new MasterDataRealGenerationUnavailableError(
       "Grounded Master Data generation is not configured for this environment.",
       {
@@ -79,10 +139,9 @@ export async function buildMasterDataAiSuggestions({
     );
   }
 
-  const documentationClient = await createRequirementDocumentationClient({
-    mcpServerUrl: config.mcpServerUrl,
-    mcpUserAccount: config.mcpUserAccount,
-  }).catch((error) => {
+  const documentationClient = await createMasterDataDocumentationClient(
+    config,
+  ).catch((error) => {
     throw new MasterDataRealGenerationUnavailableError(
       "The Master Data documentation lookup client could not be initialized.",
       {
@@ -91,24 +150,21 @@ export async function buildMasterDataAiSuggestions({
       },
     );
   });
-  const modelClient = createBedrockRuntimeClient({
-    awsAccessKeyId: config.awsAccessKeyId,
-    awsBearerTokenBedrock: config.awsBearerTokenBedrock,
-    awsRegion: config.awsRegion,
-    awsSecretAccessKey: config.awsSecretAccessKey,
-    awsSessionToken: config.awsSessionToken,
-  });
+  const modelClient = createMasterDataModelClient(config);
 
   try {
-    const suggestions: Partial<Record<MasterDataObjectType, MasterDataAiSuggestion>> =
-      {};
+    const suggestions: Partial<
+      Record<MasterDataObjectType, MasterDataAiSuggestion>
+    > = {};
 
     for (const objectType of selectedObjectTypes) {
       const scopedRequirements = requirements
         .filter((requirement) => matchesObjectType(requirement, objectType))
         .slice(0, 2);
       const representativeRequirements =
-        scopedRequirements.length > 0 ? scopedRequirements : requirements.slice(0, 2);
+        scopedRequirements.length > 0
+          ? scopedRequirements
+          : requirements.slice(0, 2);
 
       const documentation = await collectDocumentationChunks(
         documentationClient,
@@ -120,13 +176,15 @@ export async function buildMasterDataAiSuggestions({
       }
 
       try {
-        suggestions[objectType] = await generateSuggestionForObjectType({
+        const suggestion = await generateSuggestionForObjectType({
           documentation,
           modelClient,
           objectType,
           requirements: representativeRequirements,
-          modelId: config.bedrockModelId,
         });
+        if (suggestion !== undefined) {
+          suggestions[objectType] = suggestion;
+        }
       } catch (error) {
         if (error instanceof MasterDataRealGenerationUnavailableError) {
           throw error;
@@ -140,8 +198,48 @@ export async function buildMasterDataAiSuggestions({
   }
 }
 
+async function createMasterDataDocumentationClient(
+  config: RequirementGenerationServerConfig,
+): Promise<RequirementDocumentationClient> {
+  if (config.mcpServerUrlKind === "self") {
+    return createSelfHostedRequirementDocumentationClient();
+  }
+
+  return createRequirementDocumentationClient({
+    mcpServerUrl: config.mcpServerUrl!,
+    mcpUserAccount: config.mcpUserAccount,
+  });
+}
+
+function createMasterDataModelClient(
+  config: RequirementGenerationServerConfig,
+): MasterDataModelClient {
+  if (config.generationProvider === "anthropic") {
+    return {
+      provider: "anthropic",
+      anthropicApiKey: config.anthropicApiKey!,
+      anthropicMaxTokens: config.anthropicMaxTokens,
+      anthropicModel: config.anthropicModel!,
+      anthropicTemperature: config.anthropicTemperature,
+      anthropicVersion: config.anthropicVersion,
+    };
+  }
+
+  return {
+    provider: "bedrock",
+    bedrockModelId: config.bedrockModelId!,
+    bedrockRuntimeClient: createBedrockRuntimeClient({
+      awsAccessKeyId: config.awsAccessKeyId,
+      awsBearerTokenBedrock: config.awsBearerTokenBedrock,
+      awsRegion: config.awsRegion!,
+      awsSecretAccessKey: config.awsSecretAccessKey,
+      awsSessionToken: config.awsSessionToken,
+    }),
+  };
+}
+
 async function collectDocumentationChunks(
-  documentationClient: Awaited<ReturnType<typeof createRequirementDocumentationClient>>,
+  documentationClient: RequirementDocumentationClient,
   requirements: MasterDataGenerateRequestBody["requirements"],
 ) {
   const chunks = await Promise.all(
@@ -162,22 +260,48 @@ async function collectDocumentationChunks(
 async function generateSuggestionForObjectType({
   documentation,
   modelClient,
-  modelId,
   objectType,
   requirements,
 }: {
   documentation: McpDocumentationChunk[];
-  modelClient: BedrockRuntimeClient;
-  modelId: string;
+  modelClient: MasterDataModelClient;
+  objectType: MasterDataObjectType;
+  requirements: MasterDataGenerateRequestBody["requirements"];
+}) {
+  if (modelClient.provider === "anthropic") {
+    return generateAnthropicSuggestionForObjectType({
+      documentation,
+      modelClient,
+      objectType,
+      requirements,
+    });
+  }
+
+  return generateBedrockSuggestionForObjectType({
+    documentation,
+    modelClient,
+    objectType,
+    requirements,
+  });
+}
+
+async function generateBedrockSuggestionForObjectType({
+  documentation,
+  modelClient,
+  objectType,
+  requirements,
+}: {
+  documentation: McpDocumentationChunk[];
+  modelClient: Extract<MasterDataModelClient, { provider: "bedrock" }>;
   objectType: MasterDataObjectType;
   requirements: MasterDataGenerateRequestBody["requirements"];
 }) {
   let responseText = "";
 
   try {
-    const response = await modelClient.send(
+    const response = await modelClient.bedrockRuntimeClient.send(
       new ConverseCommand({
-        modelId,
+        modelId: modelClient.bedrockModelId,
         inferenceConfig: {
           maxTokens: 800,
           temperature: 0.1,
@@ -231,6 +355,87 @@ async function generateSuggestionForObjectType({
   } satisfies MasterDataAiSuggestion;
 }
 
+async function generateAnthropicSuggestionForObjectType({
+  documentation,
+  modelClient,
+  objectType,
+  requirements,
+}: {
+  documentation: McpDocumentationChunk[];
+  modelClient: Extract<MasterDataModelClient, { provider: "anthropic" }>;
+  objectType: MasterDataObjectType;
+  requirements: MasterDataGenerateRequestBody["requirements"];
+}) {
+  let response: unknown;
+
+  try {
+    response = await postAnthropicMessages({
+      anthropicApiKey: modelClient.anthropicApiKey,
+      anthropicVersion: modelClient.anthropicVersion,
+      body: {
+        model: modelClient.anthropicModel,
+        max_tokens: modelClient.anthropicMaxTokens,
+        temperature: modelClient.anthropicTemperature,
+        system: buildSuggestionSystemPrompt(),
+        tools: [masterDataSuggestionTool],
+        tool_choice: {
+          type: "tool",
+          name: masterDataSuggestionToolName,
+        },
+        messages: [
+          {
+            role: "user",
+            content: buildSuggestionUserPrompt({
+              documentation,
+              objectType,
+              requirements,
+            }),
+          },
+        ],
+      },
+      fetcher: fetch,
+    });
+  } catch (error) {
+    if (error instanceof AnthropicRequestError) {
+      throw new MasterDataRealGenerationUnavailableError(
+        "Anthropic Master Data generation is currently unavailable.",
+        {
+          cause: error,
+          reason: classifyAnthropicAvailabilityFailure(error),
+        },
+      );
+    }
+
+    if (error instanceof AnthropicResponseFormatError) {
+      throw new MasterDataRealGenerationUnavailableError(
+        "Anthropic Master Data generation returned an unreadable response.",
+        {
+          cause: error,
+          reason: "check-failed",
+        },
+      );
+    }
+
+    throw error;
+  }
+
+  const parsed = parseSuggestion(extractAnthropicSuggestionResponse(response));
+  if (!parsed) {
+    return undefined;
+  }
+
+  return {
+    confidence: {
+      level: parsed.confidenceLevel,
+      rationale: parsed.confidenceRationale,
+    },
+    description: parsed.description,
+    nameHint: parsed.nameHint,
+    typeHint: parsed.typeHint,
+    warnings: parsed.warnings,
+  } satisfies MasterDataAiSuggestion;
+}
+
 function createBedrockRuntimeClient({
   awsAccessKeyId,
   awsBearerTokenBedrock,
@@ -262,6 +467,53 @@ function createBedrockRuntimeClient({
           },
         },
   );
+}
+
+async function postAnthropicMessages({
+  anthropicApiKey,
+  anthropicVersion,
+  body,
+  fetcher,
+}: {
+  anthropicApiKey: string;
+  anthropicVersion: string;
+  body: Record<string, unknown>;
+  fetcher: typeof fetch;
+}): Promise<unknown> {
+  let response: Response;
+
+  try {
+    response = await fetcher(anthropicMessagesEndpoint, {
+      method: "POST",
+      headers: {
+        "x-api-key": anthropicApiKey,
+        "anthropic-version": anthropicVersion,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (error) {
+    throw new AnthropicRequestError(
+      "Real Master Data generation could not reach Anthropic.",
+      { cause: error },
+    );
+  }
+
+  if (!response.ok) {
+    throw new AnthropicRequestError(
+      `Real Master Data generation could not reach Anthropic. HTTP status ${response.status}.`,
+      { status: response.status },
+    );
+  }
+
+  try {
+    return await response.json();
+  } catch (error) {
+    throw new AnthropicResponseFormatError(
+      "Anthropic returned a Master Data response body that could not be parsed.",
+      { cause: error },
+    );
+  }
 }
 
 function buildSuggestionSystemPrompt() {
@@ -320,15 +572,87 @@ function buildSuggestionUserPrompt({
   ].join("\n");
 }
 
-function parseSuggestion(responseText: string) {
+function parseSuggestion(responsePayload: unknown) {
   try {
-    const parsed = JSON.parse(responseText);
+    const parsed =
+      typeof responsePayload === "string"
+        ? JSON.parse(extractJsonObject(responsePayload))
+        : responsePayload;
     const result = masterDataSuggestionSchema.safeParse(parsed);
 
     return result.success ? result.data : null;
   } catch {
     return null;
   }
+}
+
+function extractAnthropicSuggestionResponse(response: unknown): unknown {
+  const toolInput = extractAnthropicToolInputResponse(response);
+  if (toolInput !== null) {
+    return toolInput;
+  }
+
+  return extractAnthropicTextResponse(response);
+}
+
+function extractAnthropicToolInputResponse(response: unknown): unknown | null {
+  if (!isRecord(response) || !Array.isArray(response.content)) {
+    return null;
+  }
+
+  for (const item of response.content) {
+    if (
+      isRecord(item) &&
+      item.type === "tool_use" &&
+      item.name === masterDataSuggestionToolName &&
+      "input" in item
+    ) {
+      return item.input;
+    }
+  }
+
+  return null;
+}
+
+function extractAnthropicTextResponse(response: unknown): string {
+  if (!isRecord(response) || !Array.isArray(response.content)) {
+    return "";
+  }
+
+  return response.content
+    .map((item) => {
+      if (
+        isRecord(item) &&
+        item.type === "text" &&
+        typeof item.text === "string"
+      ) {
+        return item.text;
+      }
+
+      return null;
+    })
+    .filter((value): value is string => typeof value === "string")
+    .join("\n")
+    .trim();
+}
+
+function extractJsonObject(value: string) {
+  const trimmed = value.trim();
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    return trimmed;
+  }
+
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start >= 0 && end > start) {
+    return trimmed.slice(start, end + 1);
+  }
+
+  return trimmed;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
 function extractBedrockTextResponse(response: {
