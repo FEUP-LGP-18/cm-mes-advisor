@@ -15,7 +15,7 @@ Think of the app as a guided workbench, not a chatbot shell, dashboard, or marke
 2. Open the app at `http://localhost:3000`.
 3. Use the project home to open or create a Phase 1 project.
 4. Follow the routed workflow: `source -> generate -> review -> script -> export`.
-5. Use mock generation for normal development. Real generation exists, but live validation is still blocked by partner Bedrock access.
+5. Use mock generation for normal development. Real generation exists with Bedrock and Anthropic provider options, but it still needs runtime-specific validation before demo claims.
 
 ## Where Do I Go For X?
 
@@ -34,7 +34,7 @@ Start with the job you are trying to do:
 - **Understand project roles and RLS:** [Project Collaboration Schema](/docs/project-collaboration-schema)
 - **Understand the Phase 1 screens:** [Phase 1 Flow](/docs/phase-1-flow)
 - **Trace Excel rows into comments and exports:** [Requirements Pipeline](/docs/requirements-pipeline)
-- **Work on MCP or Bedrock generation:** [Real Generation](/docs/real-generation)
+- **Work on MCP or real model generation:** [Real Generation](/docs/real-generation)
 
 ### Ship Safely
 
@@ -55,7 +55,7 @@ Inside the app:
 - **`src/components/phase1/`**: Project home, workflow shell, topbar, step route, and Phase 1 studios.
 - **`src/lib/phase1/`**: Project registry, local workflow state, step rules, and UI fixtures.
 - **`src/lib/requirements/`**: Excel parsing, generation, validation, review, script assembly, and export logic.
-- **`src/lib/requirements/server/`**: Server-only MCP, Bedrock, provider, config, and availability checks.
+- **`src/lib/requirements/server/`**: Server-only MCP, Bedrock, Anthropic, provider, config, and availability checks.
 - **`src/lib/supabase/`**: Supabase auth clients, session middleware, and server config helpers.
 - **`supabase/`**: Source-controlled migration scaffold for future schema and RLS work.
 - **`fixtures/`**: Committed Customer X sample workbook used for onboarding and QA.
@@ -79,7 +79,7 @@ These folders are not the product workflow, but they matter for day-to-day devel
 
 Phase 1 is Excel-first and human-reviewed. The current shipped workflow produces requirement-level comments, demo guidance, and a Markdown demo script. Phase 2 is available as an optional pilot demo continuation after approved Phase 1 rows exist, but the package is not MES-validated until manual partner import validation happens.
 
-The app must not expose Bedrock, AWS, MCP, MES, or partner credentials in the browser.
+The app must not expose Bedrock, Anthropic, AWS, MCP, MES, or partner credentials in the browser.
 
 ## Daily Development Loop
 

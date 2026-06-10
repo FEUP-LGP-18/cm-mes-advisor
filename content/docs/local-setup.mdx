@@ -111,11 +111,15 @@ Real mode requires server-side configuration. The expected variable names are do
 
 Important real-mode variables include:
 
-- `MCP_SERVER_URL`
-- `BEDROCK_MODEL_ID`
-- `AWS_REGION`
-- `AWS_BEARER_TOKEN_BEDROCK` or AWS access key credentials
+- `MCP_SERVER_URL`, either an external MCP URL or `self` for the app-hosted MCP documentation endpoint
+- `REQUIREMENT_GENERATION_PROVIDER=bedrock` with `BEDROCK_MODEL_ID`, `AWS_REGION`, and `AWS_BEARER_TOKEN_BEDROCK` or AWS access key credentials
+- `REQUIREMENT_GENERATION_PROVIDER=anthropic` with `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL`
 - `MCP_USER_ACCOUNT` when the MCP server expects a user account header
+
+Use `MCP_SERVER_URL=self` when you want the app to serve its own repo-grounded
+MCP documentation endpoint from `/api/requirements/mcp`. Use the archived local
+Docker MCP/RAG URL only when you specifically need to validate that support
+stack.
 
 Do not copy actual values into docs, commits, prompts, screenshots, or generated exports.
 

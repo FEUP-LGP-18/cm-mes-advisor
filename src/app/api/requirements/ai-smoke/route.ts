@@ -115,6 +115,7 @@ export async function POST(request: Request) {
       firstStepInstructions: draft.demoSteps[0]?.instructions.length ?? 0,
       generatedAtLooksRuntime: draft.generatedAt !== "deterministic-mock",
       generator: draft.generator,
+      mcpServerUrlKind: config.mcpServerUrlKind ?? "external",
       providerMode: result.providerMode,
       sourceReferences: draft.sourceReferences.length,
       warnings: draft.warnings.length,

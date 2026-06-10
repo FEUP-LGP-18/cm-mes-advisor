@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readRequirementGenerationServerConfig } from "./config";
+import { AnthropicRequestError } from "./anthropic-client";
 import { BedrockRequestError } from "./bedrock-client";
 import {
   createRequirementGenerationProvider,
@@ -94,6 +95,45 @@ describe("requirement generation provider", () => {
     expect(getRequirementGenerationAvailability(config)).toBeNull();
   });
 
+  it("reports unavailable real generation when Anthropic config is incomplete", async () => {
+    const provider = createRequirementGenerationProvider(
+      readRequirementGenerationServerConfig({
+        GENERATION_MODE: "real",
+        REQUIREMENT_GENERATION_PROVIDER: "anthropic",
+        MCP_SERVER_URL: "https://example.invalid/mcp",
+        ANTHROPIC_API_KEY: "sk-ant-secret-value",
+      }),
+    );
+
+    const result = await provider.generate([parsedRequirement]);
+
+    expect(result).toMatchObject({
+      ok: false,
+      providerMode: "real",
+      error: {
+        code: "real-generation-unavailable",
+        reason: "missing-config",
+      },
+    });
+    if (!result.ok && result.error.code === "real-generation-unavailable") {
+      expect(result.error.missingConfig).toEqual(["ANTHROPIC_MODEL"]);
+      expect(result.error.message).toContain("not configured yet");
+      expect(result.error.message).not.toContain("sk-ant-secret-value");
+    }
+  });
+
+  it("reports Anthropic real generation as available when config is complete", () => {
+    const config = readRequirementGenerationServerConfig({
+      GENERATION_MODE: "real",
+      REQUIREMENT_GENERATION_PROVIDER: "anthropic",
+      MCP_SERVER_URL: "https://example.invalid/mcp",
+      ANTHROPIC_API_KEY: "sk-ant-example-key",
+      ANTHROPIC_MODEL: "claude-haiku-4-5-20251001",
+    });
+
+    expect(getRequirementGenerationAvailability(config)).toBeNull();
+  });
+
   it("uses the real orchestration path when complete config is provided", async () => {
     const provider = createRequirementGenerationProvider(
       readRequirementGenerationServerConfig({
@@ -175,6 +215,87 @@ describe("requirement generation provider", () => {
     }
   });
 
+  it("uses the Anthropic real orchestration path when selected", async () => {
+    const provider = createRequirementGenerationProvider(
+      readRequirementGenerationServerConfig({
+        GENERATION_MODE: "real",
+        REQUIREMENT_GENERATION_PROVIDER: "anthropic",
+        MCP_SERVER_URL: "https://example.invalid/mcp",
+        ANTHROPIC_API_KEY: "sk-ant-example-key",
+        ANTHROPIC_MODEL: "claude-haiku-4-5-20251001",
+      }),
+      {
+        async createDocumentationClient() {
+          return {
+            async lookupRequirementDocumentation() {
+              return {
+                primaryChunks: [],
+                adjacentChunks: [],
+                allChunks: [
+                  {
+                    id: "chunk-1",
+                    title: "Electronic batch review",
+                    text: "Review by exception is configured from the batch review screen.",
+                    sourceUrl: "https://example.invalid/docs/review",
+                    docSource: "Documentation Portal",
+                    docVersion: "9.0",
+                    previousChunkId: null,
+                    nextChunkId: null,
+                  },
+                ],
+              };
+            },
+            async close() {},
+          };
+        },
+        createModelClient() {
+          return {
+            async checkAvailability() {},
+            async generateDraft() {
+              return {
+                generatedComment:
+                  "CM MES supports electronic batch review through the batch review screen.",
+                confidenceLevel: "high" as const,
+                confidenceRationale:
+                  "The retrieved documentation explicitly covers review by exception.",
+                assumptions: ["The batch review configuration is present."],
+                warnings: [],
+                demoSteps: [
+                  {
+                    title: "Open Batch Review",
+                    mesModuleOrScreen: "Batch Review",
+                    reviewStatus: "draft" as const,
+                    instructions: [
+                      "Open the batch review module.",
+                      "Select the batch under review by exception.",
+                    ],
+                  },
+                ],
+              };
+            },
+          };
+        },
+      },
+    );
+
+    const result = await provider.generate([parsedRequirement]);
+
+    expect(result).toMatchObject({
+      ok: true,
+      providerMode: "real",
+    });
+    if (result.ok) {
+      expect(result.drafts[0]).toMatchObject({
+        generator: "anthropic-mcp",
+        sourceReferences: [
+          {
+            kind: "mcp-documentation",
+          },
+        ],
+      });
+    }
+  });
+
   it("surfaces blocked real access as an unavailable result instead of a generic failure", async () => {
     const provider = createRequirementGenerationProvider(
       readRequirementGenerationServerConfig({
@@ -218,6 +339,64 @@ describe("requirement generation provider", () => {
                     "AccessDeniedException: User is not authorized to call bedrock:CallWithBearerToken",
                   name: "AccessDeniedException",
                 },
+              });
+            },
+          };
+        },
+      },
+    );
+
+    const result = await provider.generate([parsedRequirement]);
+
+    expect(result).toMatchObject({
+      ok: false,
+      providerMode: "real",
+      error: {
+        code: "real-generation-unavailable",
+        reason: "blocked",
+      },
+    });
+  });
+
+  it("surfaces blocked Anthropic access as an unavailable result", async () => {
+    const provider = createRequirementGenerationProvider(
+      readRequirementGenerationServerConfig({
+        GENERATION_MODE: "real",
+        REQUIREMENT_GENERATION_PROVIDER: "anthropic",
+        MCP_SERVER_URL: "https://example.invalid/mcp",
+        ANTHROPIC_API_KEY: "sk-ant-example-key",
+        ANTHROPIC_MODEL: "claude-haiku-4-5-20251001",
+      }),
+      {
+        async createDocumentationClient() {
+          return {
+            async lookupRequirementDocumentation() {
+              return {
+                primaryChunks: [],
+                adjacentChunks: [],
+                allChunks: [
+                  {
+                    id: "chunk-1",
+                    title: "Electronic batch review",
+                    text: "Review by exception is configured from the batch review screen.",
+                    sourceUrl: "https://example.invalid/docs/review",
+                    docSource: "Documentation Portal",
+                    docVersion: "9.0",
+                    previousChunkId: null,
+                    nextChunkId: null,
+                  },
+                ],
+              };
+            },
+            async close() {},
+          };
+        },
+        createModelClient() {
+          return {
+            async checkAvailability() {},
+            async generateDraft() {
+              throw new AnthropicRequestError("Blocked", {
+                status: 403,
               });
             },
           };

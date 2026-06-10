@@ -7,7 +7,10 @@ export type RequirementGenerationReferenceKind =
   | "mcp-placeholder"
   | "mcp-documentation";
 
-export type RequirementGenerationSource = "mock-ai" | "bedrock-mcp";
+export type RequirementGenerationSource =
+  | "mock-ai"
+  | "bedrock-mcp"
+  | "anthropic-mcp";
 
 export type GeneratedDemoStepReviewStatus = "draft" | "consultant-review";
 
@@ -488,7 +491,11 @@ function isRequirementGenerationReferenceKind(
 function isRequirementGenerationSource(
   value: unknown,
 ): value is RequirementGenerationSource {
-  return value === "mock-ai" || value === "bedrock-mcp";
+  return (
+    value === "mock-ai" ||
+    value === "bedrock-mcp" ||
+    value === "anthropic-mcp"
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

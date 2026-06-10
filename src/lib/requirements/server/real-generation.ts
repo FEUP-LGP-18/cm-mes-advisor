@@ -6,26 +6,45 @@ import {
   type GeneratedDemoStep,
   type GeneratedRequirementDraft,
   type RequirementGenerationConfidence,
+  type RequirementGenerationSource,
   type RequirementGenerationSourceReference,
   type RequirementSupportAssessment,
 } from "../generation";
 import type { RequirementGenerationUnavailableReason } from "../generation-api";
 import type { ParsedRequirement } from "../types";
-import type { RequirementGenerationServerConfig } from "./config";
+import {
+  getMissingRealGenerationConfigKeys,
+  type RequirementGenerationServerConfig,
+} from "./config";
+import {
+  AnthropicRequestError,
+  AnthropicResponseFormatError,
+  classifyAnthropicAvailabilityFailure,
+  createAnthropicRequirementGenerationClient,
+} from "./anthropic-client";
 import {
   BedrockRequestError,
   BedrockResponseFormatError,
   classifyBedrockAvailabilityFailure,
   createBedrockRequirementGenerationClient,
-  type BedrockRequirementGenerationClient,
 } from "./bedrock-client";
+import type {
+  RequirementGenerationModelClient,
+  RequirementGenerationModelDraft,
+} from "./model-draft-contract";
 import {
   createRequirementDocumentationClient,
   type McpDocumentationChunk,
   type RequirementDocumentationClient,
 } from "./mcp-client";
+import { createSelfHostedRequirementDocumentationClient } from "./self-mcp-docs";
 
 const defaultGenerationConcurrency = 3;
+
+type RealRequirementGenerationSource = Extract<
+  RequirementGenerationSource,
+  "bedrock-mcp" | "anthropic-mcp"
+>;
 
 export interface RealRequirementGenerationDependencies {
   createDocumentationClient?: (
@@ -33,7 +52,7 @@ export interface RealRequirementGenerationDependencies {
   ) => Promise<RequirementDocumentationClient>;
   createModelClient?: (
     config: RequirementGenerationServerConfig,
-  ) => BedrockRequirementGenerationClient;
+  ) => RequirementGenerationModelClient;
   concurrency?: number;
   now?: () => Date;
 }
@@ -54,20 +73,51 @@ export class RequirementGenerationInfrastructureError extends Error {
   }
 }
 
+function createDefaultModelClient(
+  config: RequirementGenerationServerConfig,
+): RequirementGenerationModelClient {
+  if (config.generationProvider === "anthropic") {
+    return createAnthropicRequirementGenerationClient({
+      anthropicApiKey: config.anthropicApiKey!,
+      anthropicMaxTokens: config.anthropicMaxTokens,
+      anthropicModel: config.anthropicModel!,
+      anthropicTemperature: config.anthropicTemperature,
+      anthropicVersion: config.anthropicVersion,
+    });
+  }
+
+  return createBedrockRequirementGenerationClient({
+    awsAccessKeyId: config.awsAccessKeyId,
+    awsBearerTokenBedrock: config.awsBearerTokenBedrock,
+    awsRegion: config.awsRegion!,
+    awsSecretAccessKey: config.awsSecretAccessKey,
+    awsSessionToken: config.awsSessionToken,
+    bedrockModelId: config.bedrockModelId!,
+  });
+}
+
+function getRealGenerationSource(
+  config: RequirementGenerationServerConfig,
+): RealRequirementGenerationSource {
+  return config.generationProvider === "anthropic"
+    ? "anthropic-mcp"
+    : "bedrock-mcp";
+}
+
+function getProviderDisplayName(
+  generator: RealRequirementGenerationSource,
+): "Anthropic" | "Bedrock" {
+  return generator === "anthropic-mcp" ? "Anthropic" : "Bedrock";
+}
+
 export async function generateRealRequirementDrafts(
   requirements: ParsedRequirement[],
   config: RequirementGenerationServerConfig,
   dependencies: RealRequirementGenerationDependencies = {},
 ): Promise<GeneratedRequirementDraft[]> {
-  if (
-    config.mcpServerUrl === null ||
-    config.bedrockModelId === null ||
-    config.awsRegion === null ||
-    (config.awsBearerTokenBedrock === null &&
-      (config.awsAccessKeyId === null || config.awsSecretAccessKey === null))
-  ) {
+  if (getMissingRealGenerationConfigKeys(config).length > 0) {
     throw new RequirementGenerationInfrastructureError(
-      "Real requirement generation is missing required MCP or Bedrock configuration.",
+      "Real requirement generation is missing required MCP or model provider configuration.",
       {
         reason: "missing-config",
       },
@@ -76,24 +126,14 @@ export async function generateRealRequirementDrafts(
 
   const createDocumentationClient =
     dependencies.createDocumentationClient ??
-    ((resolvedConfig: RequirementGenerationServerConfig) =>
-      createRequirementDocumentationClient({
-        mcpServerUrl: resolvedConfig.mcpServerUrl!,
-        mcpUserAccount: resolvedConfig.mcpUserAccount,
-      }));
+    createDefaultDocumentationClient;
   const createModelClient =
     dependencies.createModelClient ??
     ((resolvedConfig: RequirementGenerationServerConfig) =>
-      createBedrockRequirementGenerationClient({
-        awsAccessKeyId: resolvedConfig.awsAccessKeyId,
-        awsBearerTokenBedrock: resolvedConfig.awsBearerTokenBedrock,
-        awsRegion: resolvedConfig.awsRegion!,
-        awsSecretAccessKey: resolvedConfig.awsSecretAccessKey,
-        awsSessionToken: resolvedConfig.awsSessionToken,
-        bedrockModelId: resolvedConfig.bedrockModelId!,
-      }));
+      createDefaultModelClient(resolvedConfig));
   const now = dependencies.now ?? (() => new Date());
   const modelClient = createModelClient(config);
+  const generator = getRealGenerationSource(config);
   let documentationClient: RequirementDocumentationClient | null = null;
   let documentationClientWarning: string | null = null;
 
@@ -114,6 +154,7 @@ export async function generateRealRequirementDrafts(
           config,
           documentationClient,
           documentationClientWarning,
+          generator,
           modelClient,
           now,
         }),
@@ -125,11 +166,25 @@ export async function generateRealRequirementDrafts(
   }
 }
 
+async function createDefaultDocumentationClient(
+  config: RequirementGenerationServerConfig,
+) {
+  if (config.mcpServerUrlKind === "self") {
+    return createSelfHostedRequirementDocumentationClient();
+  }
+
+  return createRequirementDocumentationClient({
+    mcpServerUrl: config.mcpServerUrl!,
+    mcpUserAccount: config.mcpUserAccount,
+  });
+}
+
 async function generateDraftForRequirement({
   requirement,
   config,
   documentationClient,
   documentationClientWarning,
+  generator,
   modelClient,
   now,
 }: {
@@ -137,7 +192,8 @@ async function generateDraftForRequirement({
   config: RequirementGenerationServerConfig;
   documentationClient: RequirementDocumentationClient | null;
   documentationClientWarning: string | null;
-  modelClient: BedrockRequirementGenerationClient;
+  generator: RealRequirementGenerationSource;
+  modelClient: RequirementGenerationModelClient;
   now: () => Date;
 }): Promise<GeneratedRequirementDraft> {
   const assessment = assessRequirementSupport(requirement);
@@ -175,6 +231,7 @@ async function generateDraftForRequirement({
       requirement,
       assessment,
       generatedAt,
+      generator,
       sourceReferences,
       lookupWarning,
       modelDraft,
@@ -190,14 +247,28 @@ async function generateDraftForRequirement({
       );
     }
 
-    if (error instanceof BedrockResponseFormatError) {
+    if (error instanceof AnthropicRequestError) {
+      throw new RequirementGenerationInfrastructureError(
+        "Anthropic requirement generation is currently unavailable.",
+        {
+          cause: error,
+          reason: classifyAnthropicAvailabilityFailure(error),
+        },
+      );
+    }
+
+    if (
+      error instanceof BedrockResponseFormatError ||
+      error instanceof AnthropicResponseFormatError
+    ) {
       return createSafeFallbackDraft({
         requirement,
         assessment,
         generatedAt,
+        generator,
         sourceReferences,
         reason:
-          "The Bedrock response for this row did not match the expected draft format, so the output stays in consultant review.",
+          `The ${getProviderDisplayName(generator)} response for this row did not match the expected draft format, so the output stays in consultant review.`,
       });
     }
 
@@ -205,6 +276,7 @@ async function generateDraftForRequirement({
       requirement,
       assessment,
       generatedAt,
+      generator,
       sourceReferences,
       reason:
         "This row used a safe consultant-review fallback because the real draft could not be completed.",
@@ -216,6 +288,7 @@ function normalizeRealDraft({
   requirement,
   assessment,
   generatedAt,
+  generator,
   sourceReferences,
   lookupWarning,
   modelDraft,
@@ -223,11 +296,10 @@ function normalizeRealDraft({
   requirement: ParsedRequirement;
   assessment: RequirementSupportAssessment;
   generatedAt: string;
+  generator: RealRequirementGenerationSource;
   sourceReferences: RequirementGenerationSourceReference[];
   lookupWarning: string | null;
-  modelDraft: Awaited<
-    ReturnType<BedrockRequirementGenerationClient["generateDraft"]>
-  >;
+  modelDraft: RequirementGenerationModelDraft;
 }): GeneratedRequirementDraft {
   const reviewStatus =
     assessment.supportType === "standard" &&
@@ -258,7 +330,7 @@ function normalizeRealDraft({
 
   return {
     schemaVersion: 1,
-    generator: "bedrock-mcp",
+    generator,
     generatedAt,
     requirement: createRequirementGenerationIdentity(requirement),
     generatedComment: modelDraft.generatedComment.trim(),
@@ -289,9 +361,7 @@ function normalizeRealDemoStep({
   index: number;
   reviewStatus: GeneratedDemoStep["reviewStatus"];
   sourceReferences: RequirementGenerationSourceReference[];
-  step: Awaited<
-    ReturnType<BedrockRequirementGenerationClient["generateDraft"]>
-  >["demoSteps"][number];
+  step: RequirementGenerationModelDraft["demoSteps"][number];
 }): GeneratedDemoStep {
   return {
     id: `${requirement.sourceRowNumber}-real-demo-${index + 1}`,
@@ -311,12 +381,14 @@ function createSafeFallbackDraft({
   requirement,
   assessment,
   generatedAt,
+  generator,
   sourceReferences,
   reason,
 }: {
   requirement: ParsedRequirement;
   assessment: RequirementSupportAssessment;
   generatedAt: string;
+  generator: RealRequirementGenerationSource;
   sourceReferences: RequirementGenerationSourceReference[];
   reason: string;
 }): GeneratedRequirementDraft {
@@ -333,7 +405,7 @@ function createSafeFallbackDraft({
 
   return {
     ...base,
-    generator: "bedrock-mcp",
+    generator,
     generatedAt,
     generatedComment: `${base.generatedComment} ${commentSuffix}`.trim(),
     demoSteps: base.demoSteps.map((step) => ({

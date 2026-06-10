@@ -20,7 +20,7 @@ server repository work connects the app to these tables.
 | Phase 1 UI            | `src/components/phase1/`         | Project home, shell, topbar, and workflow studios            |
 | Phase 1 state         | `src/lib/phase1/`                | Project registry, workflow rules, fixtures                   |
 | Requirements pipeline | `src/lib/requirements/`          | Excel parsing, generation, review, validation, script export |
-| Server generation     | `src/lib/requirements/server/`   | Config, MCP client, Bedrock client, real provider            |
+| Server generation     | `src/lib/requirements/server/`   | Config, MCP client, Bedrock/Anthropic clients, real provider |
 | Supabase foundation   | `src/lib/supabase/`, `supabase/` | Auth clients, session middleware, config checks, migrations  |
 | QA                    | `src/**/*.test.ts`, `tests/e2e/` | Unit, surface, API, and browser checks                       |
 
@@ -92,13 +92,13 @@ Server-only files own:
 - reading the committed fixture from disk
 - generation provider selection
 - MCP document lookup
-- Bedrock calls
+- Bedrock or Anthropic model calls
 - generation availability checks
 - environment variable validation
 - Supabase config checks for future server repositories
 
-Never move AWS, Bedrock, MCP, MES, Supabase service-role, or partner secrets into
-client components.
+Never move AWS, Bedrock, Anthropic, MCP, MES, Supabase service-role, or partner
+secrets into client components.
 
 ## Old Shared Components
 
