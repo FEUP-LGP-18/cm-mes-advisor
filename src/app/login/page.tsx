@@ -25,6 +25,7 @@ function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -85,16 +86,57 @@ function LoginForm() {
               <label htmlFor="password" className="fv-auth-field-label" style={{ marginBottom: 0 }}>Password</label>
               <Link href="/forgot-password" className="fv-auth-forgot">Forgot password?</Link>
             </div>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.currentTarget.value)}
-              placeholder="Enter your password"
-              className="fv-auth-input"
-            />
+            <div className="fv-auth-password-wrap">
+              <input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.currentTarget.value)}
+                placeholder="Enter your password"
+                className="fv-auth-input fv-auth-input-password"
+              />
+              <button
+                type="button"
+                className="fv-auth-password-toggle"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-pressed={showPassword}
+                onClick={() => setShowPassword((current) => !current)}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  className="fv-auth-password-toggle-icon"
+                >
+                  <path
+                    d="M2.25 12s3.5-6.75 9.75-6.75S21.75 12 21.75 12s-3.5 6.75-9.75 6.75S2.25 12 2.25 12Z"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="3"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  />
+                  {showPassword ? (
+                    <path
+                      d="M4 20 20 4"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                    />
+                  ) : null}
+                </svg>
+              </button>
+            </div>
           </div>
 
           {setupMessage ? (
