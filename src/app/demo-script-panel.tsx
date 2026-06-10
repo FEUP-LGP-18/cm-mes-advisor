@@ -67,7 +67,9 @@ const GENERAL_OUTPUT_PREFS_STORAGE_KEY = "mes-advisor-general-prefs";
 export default function DemoScriptEditingPanel({
   assembly,
   draft,
+  exportReady = false,
   onDraftAction,
+  onSwitchToExport,
   onSwitchToReview,
   pendingReviewCount = 0,
   projectMetadata,
@@ -83,32 +85,10 @@ export default function DemoScriptEditingPanel({
     assembly.sections[0]?.steps[0]?.key ?? null,
   );
 
-  useEffect(() => {
-    if (
-      selectedSectionKey &&
-      assembly.sections.some((section) => section.key === selectedSectionKey)
-    ) {
-      return;
-    }
-
-    setSelectedSectionKey(assembly.sections[0]?.key ?? null);
-  }, [assembly.sections, selectedSectionKey]);
-
   const selectedSection =
     assembly.sections.find((section) => section.key === selectedSectionKey) ??
     assembly.sections[0] ??
     null;
-
-  useEffect(() => {
-    if (
-      selectedStepKey &&
-      selectedSection?.steps.some((step) => step.key === selectedStepKey)
-    ) {
-      return;
-    }
-
-    setSelectedStepKey(selectedSection?.steps[0]?.key ?? null);
-  }, [selectedSection, selectedStepKey]);
 
   const selectedStep =
     selectedSection?.steps.find((step) => step.key === selectedStepKey) ??
@@ -121,6 +101,26 @@ export default function DemoScriptEditingPanel({
 
   return (
     <section className="fv-page fv-script-output-page">
+      <div className="fv-phase-action-bar">
+        <button
+          className="fv-btn-secondary"
+          onClick={onSwitchToReview}
+          type="button"
+        >
+          Back to review
+        </button>
+        {onSwitchToExport ? (
+          <button
+            className="fv-btn-primary"
+            disabled={!exportReady}
+            onClick={onSwitchToExport}
+            type="button"
+          >
+            Continue to export
+          </button>
+        ) : null}
+      </div>
+
       <div className="fv-stats-row fv-script-stats-row">
         <FvStatCard
           helper={`${assembly.approvedRequirementCount} approved row${
@@ -434,6 +434,24 @@ export function DemoScriptExportPanel({
 
   return (
     <section className="fv-page fv-export-page">
+      <div className="fv-phase-action-bar">
+        <button
+          className="fv-btn-secondary"
+          onClick={onSwitchToScript}
+          type="button"
+        >
+          Back to Script
+        </button>
+        <button
+          className="fv-btn-primary"
+          disabled={!hasReadyPayload}
+          onClick={handleDownloadMarkdown}
+          type="button"
+        >
+          Download Markdown
+        </button>
+      </div>
+
       <div className="fv-stats-row fv-export-stats-row">
         <FvStatCard
           helper={`${assembly.approvedRequirementCount} approved row${

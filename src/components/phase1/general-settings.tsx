@@ -679,7 +679,7 @@ function AIConfigTab({
             Reset to defaults
           </button>
           <button type="button" onClick={onSave} className="fv-btn-primary">
-            Save changes
+            Save AI settings
           </button>
         </>
       }
@@ -940,7 +940,7 @@ function GeneralPrefsSection({
             Reset to defaults
           </button>
           <button type="button" onClick={onSave} className="fv-btn-primary">
-            Save changes
+            Save defaults
           </button>
         </>
       }

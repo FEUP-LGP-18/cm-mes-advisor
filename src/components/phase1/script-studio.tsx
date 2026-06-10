@@ -22,8 +22,10 @@ interface ScriptStudioProps {
 export default function ScriptStudio({
   assembly,
   draft,
+  exportReady = false,
   onDraftAction,
   onGoToReview,
+  onOpenExport,
   pendingReviewCount,
   projectMetadata,
 }: ScriptStudioProps) {
@@ -31,7 +33,9 @@ export default function ScriptStudio({
     <DemoScriptEditingPanel
       assembly={assembly}
       draft={draft}
+      exportReady={exportReady}
       onDraftAction={onDraftAction}
+      onSwitchToExport={onOpenExport}
       onSwitchToReview={onGoToReview}
       pendingReviewCount={pendingReviewCount}
       projectMetadata={projectMetadata}

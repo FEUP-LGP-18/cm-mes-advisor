@@ -9,12 +9,31 @@ import {
   createPhase1UiFixtureProjectRecord,
   createPhase1UiFixtureRegistry,
 } from "../../src/lib/phase1/ui-fixtures";
+import {
+  SETTINGS_BEHAVIOR_STORAGE_KEY,
+  type SettingsBehaviorSnapshot,
+} from "../../src/lib/settings";
 
 const GENERAL_OUTPUT_PREFS_STORAGE_KEY = "mes-advisor-general-prefs";
 const generalOutputPreferencesFixture = {
   consultantName: "Example Consultant",
   mesVersion: "CM V10",
   outputLanguage: "English",
+};
+const settingsBehaviorFixture: SettingsBehaviorSnapshot = {
+  aiPreferences: {
+    confidenceThreshold: 75,
+    includeExplanations: true,
+    modelAlias: "default",
+    verbosity: "medium",
+  },
+  generalOutputPreferences: {
+    consultantName: "Example Consultant",
+    mesVersion: "cm-v10",
+    outputLanguage: "en",
+    outputLanguageStatus: "saved-for-future-outputs",
+  },
+  industryTemplateId: null,
 };
 
 async function attachFullPageScreenshot(
@@ -45,6 +64,8 @@ async function seedProjectRegistry(
     ({
       generalPrefsStorageKey,
       generalPrefsValue,
+      settingsBehaviorStorageKey,
+      settingsBehaviorValue,
       storageKey,
       themeStorageKey,
       theme,
@@ -56,6 +77,10 @@ async function seedProjectRegistry(
         generalPrefsStorageKey,
         JSON.stringify(generalPrefsValue),
       );
+      window.localStorage.setItem(
+        settingsBehaviorStorageKey,
+        JSON.stringify(settingsBehaviorValue),
+      );
       window.localStorage.setItem(themeStorageKey, theme);
       document.documentElement.dataset.theme = theme;
       document.documentElement.style.colorScheme = theme;
@@ -63,6 +88,8 @@ async function seedProjectRegistry(
     {
       generalPrefsStorageKey: GENERAL_OUTPUT_PREFS_STORAGE_KEY,
       generalPrefsValue: generalOutputPreferencesFixture,
+      settingsBehaviorStorageKey: SETTINGS_BEHAVIOR_STORAGE_KEY,
+      settingsBehaviorValue: settingsBehaviorFixture,
       storageKey: PHASE1_PROJECT_REGISTRY_STORAGE_KEY,
       themeStorageKey,
       theme,
@@ -347,7 +374,7 @@ for (const theme of themes) {
     await page.goto(`/projects/${project.projectId}/script`);
     await expect(
       page.getByRole("heading", {
-        name: "Demo Script",
+        name: "Script",
       }),
     ).toBeVisible();
     await expect(page.getByText(/^Script title$/).first()).toBeVisible();
@@ -433,5 +460,132 @@ for (const theme of themes) {
     await expect(page).toHaveURL(
       new RegExp(`/projects/${project.projectId}/export$`),
     );
+  });
+
+  test(`${theme}: verifies auth surfaces and password visibility`, async ({
+    page,
+  }, testInfo) => {
+    await seedProjectRegistry(page, createPhase1ProjectRegistry(), theme);
+
+    await page.goto("/login");
+    await expect(
+      page.getByRole("heading", { name: "Sign in to continue" }),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /sign in/i })).toBeDisabled();
+    await expect(
+      page.getByRole("link", { name: "Continue in mock mode" }),
+    ).toBeVisible();
+    const passwordInput = page.getByRole("textbox", { name: "Password" });
+    await passwordInput.fill("secret-password");
+    await expect(passwordInput).toHaveAttribute("type", "password");
+    await page.getByRole("button", { name: "Show password" }).click();
+    await expect(passwordInput).toHaveAttribute("type", "text");
+    await page.getByRole("button", { name: "Hide password" }).click();
+    await expect(passwordInput).toHaveAttribute("type", "password");
+    await assertNoHorizontalOverflow(page);
+    await attachFullPageScreenshot(page, testInfo, `${theme}-auth-login`);
+
+    await page.goto("/signup");
+    await expect(page.getByRole("heading", { name: "Create account" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Create account" })).toBeDisabled();
+    await expect(
+      page.getByRole("link", { name: "Continue in mock mode" }),
+    ).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+
+    await page.goto("/forgot-password");
+    await expect(
+      page.getByRole("heading", { name: "Reset your password" }),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Send reset link" })).toBeDisabled();
+    await expect(
+      page.getByRole("link", { name: "Continue in mock mode" }),
+    ).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+
+    await page.goto("/reset-password");
+    await expect(page.getByRole("heading", { name: "Set new password" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Update password" })).toBeDisabled();
+    await expect(
+      page.getByRole("link", { name: "Continue in mock mode" }),
+    ).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+    await attachFullPageScreenshot(page, testInfo, `${theme}-auth-reset`);
+  });
+
+  test(`${theme}: verifies settings tabs, preferences, and about stats`, async ({
+    page,
+  }, testInfo) => {
+    const registry = createPhase1UiFixtureRegistry({
+      currentStep: "export",
+      statusesByRequirementId: {
+        "01.01": "approved",
+        "01.02": "approved",
+      },
+    });
+    const project = createPhase1UiFixtureProjectRecord({
+      currentStep: "export",
+      statusesByRequirementId: {
+        "01.01": "approved",
+        "01.02": "approved",
+      },
+    });
+
+    await seedProjectRegistry(page, registry, theme);
+
+    await page.goto(`/projects/${project.projectId}/settings/general`);
+    await expect(
+      page.getByRole("heading", { exact: true, name: "Settings" }),
+    ).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Settings sections" })).toBeVisible();
+    await expect(page.getByLabel("Default consultant name")).toHaveValue(
+      "Example Consultant",
+    );
+    await expect(page.getByLabel("Default MES version")).toHaveValue("cm-v10");
+    await expect(page.getByLabel("Output language")).toHaveValue("en");
+    await expect(page.getByRole("button", { name: "Save defaults" })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Save changes" })).toBeEnabled();
+    await assertNoHorizontalOverflow(page);
+    await attachFullPageScreenshot(page, testInfo, `${theme}-settings-general`);
+
+    await page.getByRole("button", { name: "Industry Templates" }).click();
+    await expect(
+      page.getByRole("heading", { exact: true, name: "Industry Template" }),
+    ).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+
+    await page.getByRole("button", { name: "AI Configuration" }).click();
+    await expect(page.getByText("AI Parameters")).toBeVisible();
+    await expect(page.getByLabel("Confidence threshold")).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+
+    await page.getByRole("button", { name: "About" }).click();
+    await expect(page.getByRole("heading", { name: "About" })).toBeVisible();
+    await expect(page.getByText("Local mock project")).toBeVisible();
+    const aboutStats = page.locator(".fv-settings-about-stats");
+    await expect(
+      aboutStats.locator(".fv-settings-metric").filter({ hasText: "Source rows" }).getByText("2"),
+    ).toBeVisible();
+    await expect(
+      aboutStats.locator(".fv-settings-metric").filter({ hasText: "Generated drafts" }).getByText("2"),
+    ).toBeVisible();
+    await expect(
+      aboutStats.locator(".fv-settings-metric").filter({ hasText: "Approved rows" }).getByText("2"),
+    ).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+    await attachFullPageScreenshot(page, testInfo, `${theme}-settings-about`);
+
+    await page.goto(`/projects/${project.projectId}/settings/collaboration`);
+    await expect(
+      page.getByText("Collaboration unavailable in local mode"),
+    ).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+
+    await page.goto("/settings");
+    await expect(
+      page.getByRole("heading", { name: "Workspace settings" }),
+    ).toBeVisible();
+    await expect(page.getByText("Environment status")).toBeVisible();
+    await assertNoHorizontalOverflow(page);
   });
 }

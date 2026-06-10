@@ -293,7 +293,7 @@ function ReviewEmptyState({
               onClick={onOpenScript}
               type="button"
             >
-              Generate Script
+              Open script studio
             </button>
           ) : null}
           <button
@@ -1281,6 +1281,17 @@ export default function ReviewStudio({
 
   return (
     <div className="fv-review-workspace">
+      <header className="fv-review-page-header">
+        <div>
+          <p className="fv-overline">Phase 1 / Review</p>
+          <h1 className="fv-page-title">Requirements Review</h1>
+          <p className="fv-page-subtitle">
+            Approve, flag, or skip generated rows before shaping the demo
+            script.
+          </p>
+        </div>
+      </header>
+
       {!canEditPhase1 ? (
         <FvCallout tone="status" title="Read-only review">
           Review decisions are disabled for your role. You can still inspect

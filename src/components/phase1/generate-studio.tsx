@@ -1,6 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import {
+  FvProgressPanel,
+  type FvProgressStep,
+  type FvProgressStepStatus,
+} from "@/components/ui/fv";
 import type {
   RequirementGenerationAvailabilityBody,
   RequirementGenerationModeCapability,
@@ -250,6 +255,24 @@ interface GenerateStudioProps {
   requirements: ReviewRequirement[];
 }
 
+type GenerationFeedback = GenerateStudioProps["generationFeedback"];
+type GenerationRun = GenerateStudioProps["mockGenerationRun"];
+type GenerationLifecycle = "ready" | "running" | "complete" | "failed";
+
+interface GenerationProcessingSummary {
+  description: string;
+  logEntries: Array<{
+    message: string;
+    tone: "info" | "ok" | "run" | "warn";
+  }>;
+  progress: number;
+  reviewReady: boolean;
+  status: GenerationLifecycle;
+  targetCount: number;
+  steps: FvProgressStep[];
+  title: string;
+}
+
 export default function GenerateStudio({
   canGenerateRows = true,
   demoRequirements,
@@ -296,6 +319,31 @@ export default function GenerateStudio({
     visibleRequirements.every((r) => selectedRequirementKeys.has(r.requirementKey));
   const realGenerationCapability =
     generationAvailability?.modes.real ?? createFallbackRealCapability();
+  const processingSummary = useMemo(
+    () =>
+      createGenerationProcessingSummary({
+        canGenerateRows,
+        demoCount: demoRequirements.length,
+        feedback: generationFeedback,
+        generatedCount,
+        isGenerating,
+        mode: generationMode,
+        mvpCount: mvpRequirements.length,
+        run: mockGenerationRun,
+        selectedCount: selectedRequirements.length,
+      }),
+    [
+      canGenerateRows,
+      demoRequirements.length,
+      generationFeedback,
+      generatedCount,
+      generationMode,
+      isGenerating,
+      mockGenerationRun,
+      mvpRequirements.length,
+      selectedRequirements.length,
+    ],
+  );
 
   useEffect(() => {
     setGenerationAvailability(initialGenerationAvailability);
@@ -442,7 +490,7 @@ export default function GenerateStudio({
               Generate selected ({selectedRequirements.length})
             </button>
           ) : null}
-          {generatedCount > 0 ? (
+          {processingSummary.reviewReady ? (
             <button
               type="button"
               onClick={onOpenReview}
@@ -465,38 +513,72 @@ export default function GenerateStudio({
           </div>
         ) : null}
 
-        {/* Stage progress */}
-        {mockGenerationRun.stages.some((s) => s.status !== "waiting") ? (
-          <div className="fv-card">
-            <div className="fv-card-title">Progress</div>
-            {mockGenerationRun.stages.map((stage) => {
-              const isDone = stage.status === "complete";
-              const isActive = stage.status === "running";
-              return (
-                <div
-                  key={stage.label}
-                  className={`fv-gen-step${isDone ? " fv-gen-step-done" : isActive ? " fv-gen-step-active" : ""}`}
-                >
-                  <div className={`fv-gen-circle${isDone ? " fv-gen-circle-done" : isActive ? " fv-gen-circle-active" : " fv-gen-circle-future"}`}>
-                    {isDone ? (
-                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-                        <polyline points="1.5 5 4 7.5 8.5 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    ) : null}
-                  </div>
-                  <span className="fv-gen-step-title">{stage.label}</span>
-                  <span className="fv-gen-step-sub" style={{ marginLeft: "auto" }}>{stage.status}</span>
-                </div>
-              );
-            })}
-          </div>
-        ) : null}
+        <FvProgressPanel
+          className={`fv-generation-panel fv-generation-panel-${processingSummary.status}`}
+          description={processingSummary.description}
+          log={<GenerationActivityLog entries={processingSummary.logEntries} />}
+          progress={processingSummary.progress}
+          progressLabel="AI processing progress"
+          stats={
+            <GenerationProcessingStats
+              generatedCount={generatedCount}
+              selectedCount={selectedRequirements.length}
+              targetCount={processingSummary.targetCount}
+            />
+          }
+          steps={processingSummary.steps}
+          title={processingSummary.title}
+        />
 
         {lastGenerationMode === "real" && generationMode === "mock" ? (
           <p className="fv-help-text">Last run used grounded generation. Rail is back to draft mode.</p>
         ) : null}
       </div>
     </div>
+  );
+}
+
+function GenerationActivityLog({
+  entries,
+}: {
+  entries: GenerationProcessingSummary["logEntries"];
+}) {
+  return (
+    <div className="fv-terminal" aria-label="Generation activity log">
+      <div className="fv-terminal-info">Activity log</div>
+      {entries.map((entry, index) => (
+        <div className={`fv-terminal-${entry.tone}`} key={`${index}-${entry.message}`}>
+          {entry.message}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function GenerationProcessingStats({
+  generatedCount,
+  selectedCount,
+  targetCount,
+}: {
+  generatedCount: number;
+  selectedCount: number;
+  targetCount: number;
+}) {
+  return (
+    <dl className="fv-generation-stats" aria-label="Generation metrics">
+      <div>
+        <dt>Target slice</dt>
+        <dd>{targetCount}</dd>
+      </div>
+      <div>
+        <dt>Selected rows</dt>
+        <dd>{selectedCount}</dd>
+      </div>
+      <div>
+        <dt>Generated drafts</dt>
+        <dd>{generatedCount}</dd>
+      </div>
+    </dl>
   );
 }
 
@@ -583,6 +665,220 @@ function createUnavailableRealCapability(
   missingConfig?: string[],
 ): RequirementGenerationModeCapability {
   return { available: false, message, missingConfig, mode: "real", status: reason };
+}
+
+function createGenerationProcessingSummary({
+  canGenerateRows,
+  demoCount,
+  feedback,
+  generatedCount,
+  isGenerating,
+  mode,
+  mvpCount,
+  run,
+  selectedCount,
+}: {
+  canGenerateRows: boolean;
+  demoCount: number;
+  feedback: GenerationFeedback;
+  generatedCount: number;
+  isGenerating: boolean;
+  mode: RequirementGenerationRouteMode;
+  mvpCount: number;
+  run: GenerationRun;
+  selectedCount: number;
+}): GenerationProcessingSummary {
+  const hasFailed = feedback?.tone === "error";
+  const hasActiveStage = run.stages.some((stage) => stage.status === "running");
+  const allStagesComplete = run.stages.every((stage) => stage.status === "complete");
+  const hasCompleted =
+    feedback?.tone === "success" || allStagesComplete || generatedCount > 0;
+  const status: GenerationLifecycle = hasFailed
+    ? "failed"
+    : isGenerating || hasActiveStage
+      ? "running"
+      : hasCompleted
+        ? "complete"
+        : "ready";
+  const completedStageCount = run.stages.filter(
+    (stage) => stage.status === "complete",
+  ).length;
+  const firstIncompleteIndex = run.stages.findIndex(
+    (stage) => stage.status !== "complete",
+  );
+  const progress =
+    status === "complete"
+      ? 100
+      : status === "ready"
+        ? 0
+        : Math.max(
+            status === "failed" ? 5 : 10,
+            Math.round((completedStageCount / run.stages.length) * 100),
+          );
+  const targetCount =
+    run.selectedCount || selectedCount || demoCount || mvpCount || 0;
+  const steps = run.stages.map((stage, index): FvProgressStep => ({
+    description: getGenerationStageDescription(stage.label),
+    label: stage.label,
+    meta: getGenerationStageMeta(stage.status, status),
+    status: getGenerationStepStatus({
+      firstIncompleteIndex,
+      index,
+      lifecycle: status,
+      stageStatus: stage.status,
+    }),
+  }));
+  const logEntries: GenerationProcessingSummary["logEntries"] = [
+    {
+      message:
+        mode === "real"
+          ? "mode > Grounded generation selected."
+          : "mode > Draft generation selected.",
+      tone: "info",
+    },
+    {
+      message: `ready > ${demoCount} demo rows and ${mvpCount} MVP rows are available.`,
+      tone: "info",
+    },
+  ];
+
+  if (!canGenerateRows) {
+    logEntries.push({
+      message: "warn > Viewer access can inspect generation state but cannot start a run.",
+      tone: "warn",
+    });
+  }
+
+  if (status === "ready") {
+    logEntries.push({
+      message: `ready > Choose a slice to generate. ${targetCount} rows are currently queued by the primary action.`,
+      tone: "info",
+    });
+  }
+
+  if (status === "running") {
+    logEntries.push({
+      message: `run > Processing ${targetCount} row${targetCount === 1 ? "" : "s"}.`,
+      tone: "run",
+    });
+  }
+
+  if (feedback?.message) {
+    logEntries.push({
+      message: `${feedback.tone === "error" ? "error" : feedback.tone === "success" ? "ok" : "info"} > ${feedback.message}`,
+      tone:
+        feedback.tone === "error"
+          ? "warn"
+          : feedback.tone === "success"
+            ? "ok"
+            : "info",
+    });
+  }
+
+  if (status === "complete") {
+    logEntries.push({
+      message: `ok > ${generatedCount} generated draft${generatedCount === 1 ? "" : "s"} ready for review.`,
+      tone: "ok",
+    });
+  }
+
+  if (status === "failed") {
+    logEntries.push({
+      message: "warn > No review handoff is unlocked from this failed run. Fix access/configuration or use draft mode.",
+      tone: "warn",
+    });
+  }
+
+  return {
+    description: getGenerationLifecycleDescription(status, mode),
+    logEntries,
+    progress,
+    reviewReady: status === "complete" && generatedCount > 0 && !isGenerating,
+    status,
+    targetCount,
+    steps,
+    title: getGenerationLifecycleTitle(status),
+  };
+}
+
+function getGenerationStepStatus({
+  firstIncompleteIndex,
+  index,
+  lifecycle,
+  stageStatus,
+}: {
+  firstIncompleteIndex: number;
+  index: number;
+  lifecycle: GenerationLifecycle;
+  stageStatus: GenerationRun["stages"][number]["status"];
+}): FvProgressStepStatus {
+  if (
+    lifecycle === "failed" &&
+    (stageStatus === "running" || index === firstIncompleteIndex)
+  ) {
+    return "error";
+  }
+  if (stageStatus === "complete") return "complete";
+  if (stageStatus === "running") return "active";
+  return "pending";
+}
+
+function getGenerationStageDescription(
+  label: (typeof mockGenerationStageLabels)[number],
+): string {
+  switch (label) {
+    case "Excel parsing":
+      return "Confirm workbook rows, flags, and requirement identity.";
+    case "MES knowledge lookup":
+      return "Check grounded MES context before drafting.";
+    case "Comment generation":
+      return "Create consultant-facing requirement comments.";
+    case "Demo script generation":
+      return "Prepare demo steps and traceability for review.";
+  }
+}
+
+function getGenerationStageMeta(
+  stageStatus: GenerationRun["stages"][number]["status"],
+  lifecycle: GenerationLifecycle,
+): string {
+  if (lifecycle === "failed" && stageStatus !== "complete") {
+    return "failed";
+  }
+  if (stageStatus === "complete") return "complete";
+  if (stageStatus === "running") return "running";
+  return "waiting";
+}
+
+function getGenerationLifecycleTitle(status: GenerationLifecycle): string {
+  switch (status) {
+    case "ready":
+      return "Ready to generate";
+    case "running":
+      return "Generation running";
+    case "complete":
+      return "Generation complete";
+    case "failed":
+      return "Generation failed";
+  }
+}
+
+function getGenerationLifecycleDescription(
+  status: GenerationLifecycle,
+  mode: RequirementGenerationRouteMode,
+): string {
+  const modeLabel = mode === "real" ? "grounded" : "draft";
+
+  switch (status) {
+    case "ready":
+      return `Choose a row slice and start ${modeLabel} generation when the source workbook looks correct.`;
+    case "running":
+      return `The ${modeLabel} generator is processing rows. Review stays locked until the run finishes.`;
+    case "complete":
+      return "Generated drafts are available. Continue to review before script/export.";
+    case "failed":
+      return `The ${modeLabel} generation attempt failed safely. Review remains locked for this run.`;
+  }
 }
 
 function searchRequirements(requirements: ReviewRequirement[], searchQuery: string): ReviewRequirement[] {

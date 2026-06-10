@@ -1,6 +1,12 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3001";
+const localFixtureEnv = {
+  ...process.env,
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "",
+  NEXT_PUBLIC_SUPABASE_URL: "",
+  SUPABASE_SERVICE_ROLE_KEY: "",
+};
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -29,6 +35,7 @@ export default defineConfig({
   ],
   webServer: {
     command: "sh -c 'pnpm build && pnpm exec next start -p 3001 -H 127.0.0.1'",
+    env: localFixtureEnv,
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     stdout: "ignore",

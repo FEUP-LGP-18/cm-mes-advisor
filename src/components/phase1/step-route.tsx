@@ -184,7 +184,7 @@ export default function Phase1ProjectStepRoute({
           onClick={handleDownloadMarkdown}
           type="button"
         >
-          Download Markdown
+          Download handoff
         </button>
         <button
           className="fv-btn-secondary"

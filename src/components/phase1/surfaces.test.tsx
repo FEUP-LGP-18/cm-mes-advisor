@@ -357,9 +357,87 @@ describe("phase 1 redesigned surfaces", () => {
     expect(html).toContain("Row explorer — search, filter, and select");
     expect(html).toContain("Generate Recommended Draft");
     expect(html).toContain("Generation Mode");
+    expect(html).toContain("Generation complete");
+    expect(html).toContain("AI processing progress");
+    expect(html).toContain("Activity log");
+    expect(html).toContain("100%");
     expect(html).toContain("Recheck access");
     expect(html).toContain("Open review queue");
     expect(html).toContain("Last run used grounded generation. Rail is back to draft mode.");
+  });
+
+  it("renders generate ready, running, and failed processing states", () => {
+    const requirements = createPhase1UiFixtureReviewRequirements({});
+    const demoRequirements = filterReviewRequirements(requirements, "demo");
+    const baseProps = {
+      demoRequirements,
+      initialGenerationAvailability: phase1UiFixtureBlockedRealAvailability,
+      lastGenerationMode: null,
+      onGenerateRows: async () => true,
+      onOpenReview: vi.fn(),
+      requirements,
+    };
+    const readyHtml = render(
+      <GenerateStudio
+        {...baseProps}
+        generatedCount={0}
+        generationFeedback={null}
+        isGenerating={false}
+        mockGenerationRun={{
+          generatedCount: 0,
+          selectedCount: 0,
+          stages: mockGenerationStageLabels.map((label) => ({
+            label,
+            status: "waiting",
+          })),
+        }}
+      />,
+    );
+    const runningHtml = render(
+      <GenerateStudio
+        {...baseProps}
+        generatedCount={0}
+        generationFeedback={null}
+        isGenerating
+        mockGenerationRun={{
+          generatedCount: 0,
+          selectedCount: 1,
+          stages: mockGenerationStageLabels.map((label, index) => ({
+            label,
+            status: index === 0 ? "running" : "waiting",
+          })),
+        }}
+      />,
+    );
+    const failedHtml = render(
+      <GenerateStudio
+        {...baseProps}
+        generatedCount={0}
+        generationFeedback={{
+          tone: "error",
+          message: "Generation failed safely.",
+        }}
+        isGenerating={false}
+        mockGenerationRun={{
+          generatedCount: 0,
+          selectedCount: 1,
+          stages: mockGenerationStageLabels.map((label, index) => ({
+            label,
+            status: index === 0 ? "complete" : "waiting",
+          })),
+        }}
+      />,
+    );
+
+    expect(readyHtml).toContain("Ready to generate");
+    expect(readyHtml).toContain("0%");
+    expect(runningHtml).toContain("Generation running");
+    expect(runningHtml).toContain("Processing 1 row");
+    expect(runningHtml).not.toContain("Open review queue");
+    expect(failedHtml).toContain("Generation failed");
+    expect(failedHtml).toContain("Generation failed safely.");
+    expect(failedHtml).toContain("failed");
+    expect(failedHtml).not.toContain("Open review queue");
   });
 
   it("renders the review blocker when generation has not started", () => {
@@ -472,7 +550,7 @@ describe("phase 1 redesigned surfaces", () => {
 
     expect(html).toContain("Review decisions complete");
     expect(html).toContain("Every generated requirement has a review decision");
-    expect(html).toContain("Generate Script");
+    expect(html).toContain("Open script studio");
     expect(html).not.toContain("No requirements generated yet");
     expect(html).not.toContain("No requirements match your filters");
   });
