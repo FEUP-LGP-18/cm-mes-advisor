@@ -1,6 +1,6 @@
 # Findings and Metrics — Build-Measure-Learn
 
-Last updated: 2026-06-07
+Last updated: 2026-06-11
 
 ---
 
@@ -22,6 +22,7 @@ Last updated: 2026-06-07
 | 24 Apr 2026 | Sprint planning session (45 min) — work distributed across 4 engineers for auth/collaboration track |
 | April 2026 | Phase 1 core implementation (source → generate → review → script → export) |
 | April 2026 | Real-mode Bedrock integration implemented; 403 credential issue identified |
+| **09 Jun 2026** | Rui Barbosa confirmed Bedrock key exhausted funds; provided Anthropic API key as alternative; real-mode generation switched to Anthropic direct API |
 | Apr–May 2026 | Auth and collaboration layer (Supabase schema, project roles, invites) |
 | May 2026 | Phase 2 Master Data pilot (setup → process → review → export → traceability) |
 | **29 May 2026** | **Beta Version** — Final Event Script (SFE) + Intermediate Strategic Plan delivered |
@@ -114,9 +115,10 @@ The following metrics are tracked and visible in the application:
 The AWS Bedrock integration was implemented and tested in April 2026. Both credential paths were implemented (standard AWS SigV4 and bearer-token auth). The blocker went through two distinct phases:
 
 1. **Budget exhaustion (April 2026)** — the partner's API key had a 75 USD budget that was exhausted before the team had made any successful calls. Rui Barbosa resolved this on the partner side; both the direct app flow and LibreChat were confirmed working briefly after the fix.
-2. **IAM permission error (June 2026)** — the `bedrock:CallWithBearerToken` permission is explicitly denied for key `BedrockAPIKey-ww58`. MCP/RAG side works correctly. Fix request sent to Rui Barbosa on 05 Jun 2026, pending response.
+2. **IAM permission error (June 2026)** — the `bedrock:CallWithBearerToken` permission is explicitly denied for key `BedrockAPIKey-ww58`. MCP/RAG side works correctly. Fix request sent to Rui Barbosa on 05 Jun 2026.
+3. **Resolution via Anthropic key (09 Jun 2026)** — Rui Barbosa confirmed the Bedrock key had again run out of funds and that the person responsible for recharging it was unavailable before the deadline. He provided an Anthropic API key as an alternative. The team switched the real-mode generation path to the Anthropic direct API. Phase 2 Master Data real-mode generation was implemented and tested with this key before the Final Event.
 
-**Impact:** Real-mode generation could not be fully validated end-to-end. Mock mode is the tested and deployed default.
+**Impact:** Real-mode generation via Bedrock was not end-to-end validated. Real-mode generation via Anthropic direct API is working and was used for final pre-event testing. Mock mode remains the default for teammates without credentials.
 
 **Reference:** `docs/discovery/phase-1-real-mode-validation-2026-04-20.md`
 
