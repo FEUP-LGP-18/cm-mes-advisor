@@ -498,14 +498,52 @@ function ReviewBulkActionBar({
   canEdit,
   onBulkAction,
   onClearSelection,
+  riskyCount,
   selectedCount,
 }: {
   canEdit: boolean;
   onBulkAction: (actionType: BulkReviewActionType) => void;
   onClearSelection: () => void;
+  riskyCount: number;
   selectedCount: number;
 }) {
+  const [confirmingApprove, setConfirmingApprove] = useState(false);
+
+  useEffect(() => {
+    setConfirmingApprove(false);
+  }, [selectedCount]);
+
   if (selectedCount === 0) return null;
+
+  if (confirmingApprove) {
+    return (
+      <section
+        aria-label="Confirm bulk approve"
+        className="fv-bulk-bar fv-review-bulk-bar"
+      >
+        <span className="fv-bulk-count">
+          {riskyCount} row{riskyCount === 1 ? "" : "s"} with medium confidence included. Approve all {selectedCount}?
+        </span>
+        <button
+          className="fv-bulk-action"
+          onClick={() => {
+            onBulkAction("approve");
+            setConfirmingApprove(false);
+          }}
+          type="button"
+        >
+          Confirm approve
+        </button>
+        <button
+          className="fv-bulk-clear"
+          onClick={() => setConfirmingApprove(false)}
+          type="button"
+        >
+          Cancel
+        </button>
+      </section>
+    );
+  }
 
   return (
     <section
@@ -513,12 +551,18 @@ function ReviewBulkActionBar({
       className="fv-bulk-bar fv-review-bulk-bar"
     >
       <span className="fv-bulk-count">
-        {selectedCount} {selectedCount === 1 ? "selected" : "selected"}
+        {selectedCount} selected
       </span>
       <button
         className="fv-bulk-action"
         disabled={!canEdit}
-        onClick={() => onBulkAction("approve")}
+        onClick={() => {
+          if (riskyCount > 0) {
+            setConfirmingApprove(true);
+          } else {
+            onBulkAction("approve");
+          }
+        }}
         type="button"
       >
         Approve selected
@@ -575,32 +619,36 @@ function ReviewQueueControls({
   readyBulkCount: number;
   reviewQueue: ReviewRequirement[];
 }) {
+  const position =
+    activeQueueIndex >= 0
+      ? `${activeQueueIndex + 1}/${reviewQueue.length}`
+      : null;
+
   return (
-    <section className="fv-card fv-review-queue-card">
-      <div>
-        <p className="fv-review-kicker">Review queue</p>
-        <h2 className="fv-review-card-title">Pending requirements</h2>
+    <div className="fv-review-queue-bar">
+      <div className="fv-review-queue-bar-meta">
+        <span className="fv-review-queue-bar-stat">{reviewQueue.length} pending</span>
+        <span className="fv-review-queue-bar-sep" aria-hidden="true">·</span>
+        <span className="fv-review-queue-bar-stat">{approvedCount} approved</span>
+        {position ? (
+          <>
+            <span className="fv-review-queue-bar-sep" aria-hidden="true">·</span>
+            <span className="fv-review-queue-bar-stat">{position}</span>
+          </>
+        ) : null}
       </div>
-      <div className="fv-review-queue-metrics">
-        <span>{reviewQueue.length} pending</span>
-        <span>{approvedCount} approved</span>
-        <span>
-          {activeQueueIndex >= 0
-            ? `${activeQueueIndex + 1}/${reviewQueue.length}`
-            : "0/0"}
-        </span>
-      </div>
-      <div className="fv-review-queue-actions">
+
+      <div className="fv-review-queue-bar-actions">
         <button
-          className="fv-btn-secondary"
+          className="fv-btn-secondary fv-btn-sm"
           disabled={reviewQueue.length === 0 || activeQueueIndex <= 0}
           onClick={() => onSelectPrevious(currentRequirement)}
           type="button"
         >
-          Previous
+          ← Prev
         </button>
         <button
-          className="fv-btn-secondary"
+          className="fv-btn-secondary fv-btn-sm"
           disabled={
             reviewQueue.length === 0 ||
             activeQueueIndex >= reviewQueue.length - 1
@@ -608,38 +656,40 @@ function ReviewQueueControls({
           onClick={() => onSelectNext(currentRequirement)}
           type="button"
         >
-          Next
+          Next →
         </button>
       </div>
+
       {canEdit ? (
-        <div className="fv-review-queue-actions">
+        <div className="fv-review-queue-bar-actions">
           <button
-            className="fv-btn-secondary"
+            className="fv-btn-secondary fv-btn-sm"
             disabled={readyBulkCount === 0}
             onClick={onApproveReadyRows}
             type="button"
           >
-            Approve ready rows
+            Approve ready
           </button>
           <button
-            className="fv-btn-secondary"
+            className="fv-btn-secondary fv-btn-sm"
             disabled={reviewQueue.length === 0}
             onClick={onSkipRemainingRows}
             type="button"
           >
-            Skip remaining rows
+            Skip remaining
           </button>
         </div>
       ) : null}
+
       <button
-        className="fv-btn-primary"
+        className="fv-btn-primary fv-btn-sm fv-review-queue-bar-cta"
         disabled={approvedCount === 0}
         onClick={onOpenScript}
         type="button"
       >
         Generate Script
       </button>
-    </section>
+    </div>
   );
 }
 
@@ -1135,10 +1185,7 @@ export default function ReviewStudio({
     (actionType: BulkReviewActionType) => {
       if (!canEditPhase1 || checkedRequirements.length === 0) return;
 
-      const actionableRequirements =
-        actionType === "approve"
-          ? checkedRequirements.filter(isRequirementReadyForBulkApproval)
-          : checkedRequirements;
+      const actionableRequirements = checkedRequirements;
 
       actionableRequirements.forEach((requirement) =>
         onReviewAction(requirement, { type: actionType }),
@@ -1281,17 +1328,6 @@ export default function ReviewStudio({
 
   return (
     <div className="fv-review-workspace">
-      <header className="fv-review-page-header">
-        <div>
-          <p className="fv-overline">Phase 1 / Review</p>
-          <h1 className="fv-page-title">Requirements Review</h1>
-          <p className="fv-page-subtitle">
-            Approve, flag, or skip generated rows before shaping the demo
-            script.
-          </p>
-        </div>
-      </header>
-
       {!canEditPhase1 ? (
         <FvCallout tone="status" title="Read-only review">
           Review decisions are disabled for your role. You can still inspect
@@ -1327,57 +1363,75 @@ export default function ReviewStudio({
         />
       </div>
 
-      <FvToolbar
-        className="fv-review-toolbar"
-        left={
-          <>
-            <input
-              className="fv-search-input fv-review-search"
-              onChange={(event) => handleQueryChange(event.target.value)}
-              placeholder="Search requirements..."
-              type="search"
-              value={explorerQuery}
-            />
-            <select
-              className="fv-select fv-review-filter"
-              onChange={(event) =>
-                handleFilterChange(event.currentTarget.value as ExplorerFilter)
-              }
-              value={explorerFilter}
-            >
-              {(Object.keys(FILTER_LABEL) as ExplorerFilter[]).map((filter) => (
-                <option key={filter} value={filter}>
-                  {FILTER_LABEL[filter]}
-                </option>
-              ))}
-            </select>
-            <select
-              className="fv-select fv-review-filter"
-              onChange={(event) =>
-                handleProcessFilterChange(event.currentTarget.value)
-              }
-              value={processFilter}
-            >
-              <option value="all">All processes</option>
-              {processOptions.map((process) => (
-                <option key={process} value={process}>
-                  {process}
-                </option>
-              ))}
-            </select>
-          </>
-        }
-        right={
-          <span className="fv-review-showing">
-            Showing {visibleRows.length} of {tableRows.length}
-          </span>
-        }
-      />
+      <div className="fv-review-control-block">
+        <FvToolbar
+          className="fv-review-toolbar-row"
+          left={
+            <>
+              <input
+                className="fv-search-input fv-review-search"
+                onChange={(event) => handleQueryChange(event.target.value)}
+                placeholder="Search requirements..."
+                type="search"
+                value={explorerQuery}
+              />
+              <select
+                className="fv-select fv-review-filter"
+                onChange={(event) =>
+                  handleFilterChange(event.currentTarget.value as ExplorerFilter)
+                }
+                value={explorerFilter}
+              >
+                {(Object.keys(FILTER_LABEL) as ExplorerFilter[]).map((filter) => (
+                  <option key={filter} value={filter}>
+                    {FILTER_LABEL[filter]}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="fv-select fv-review-filter"
+                onChange={(event) =>
+                  handleProcessFilterChange(event.currentTarget.value)
+                }
+                value={processFilter}
+              >
+                <option value="all">All processes</option>
+                {processOptions.map((process) => (
+                  <option key={process} value={process}>
+                    {process}
+                  </option>
+                ))}
+              </select>
+            </>
+          }
+          right={
+            <span className="fv-review-showing">
+              Showing {visibleRows.length} of {tableRows.length}
+            </span>
+          }
+        />
+        {!hasNoFilterResults ? (
+          <ReviewQueueControls
+            activeQueueIndex={activeQueueIndex}
+            approvedCount={approvedCount}
+            canEdit={canEditPhase1}
+            currentRequirement={currentRequirement}
+            onApproveReadyRows={handleApproveReadyRows}
+            onOpenScript={onOpenScript}
+            onSelectNext={selectNext}
+            onSelectPrevious={selectPrevious}
+            onSkipRemainingRows={handleSkipRemainingRows}
+            readyBulkCount={readyBulkRequirements.length}
+            reviewQueue={reviewQueue}
+          />
+        ) : null}
+      </div>
 
       <ReviewBulkActionBar
         canEdit={canEditPhase1}
         onBulkAction={handleBulkReviewAction}
         onClearSelection={clearCheckedRows}
+        riskyCount={checkedRequirements.filter((r) => !isRequirementReadyForBulkApproval(r)).length}
         selectedCount={checkedRequirements.length}
       />
 
@@ -1414,22 +1468,6 @@ export default function ReviewStudio({
 
       {!hasNoFilterResults ? (
         <>
-          <div className="fv-review-queue-strip">
-            <ReviewQueueControls
-              activeQueueIndex={activeQueueIndex}
-              approvedCount={approvedCount}
-              canEdit={canEditPhase1}
-              currentRequirement={currentRequirement}
-              onApproveReadyRows={handleApproveReadyRows}
-              onOpenScript={onOpenScript}
-              onSelectNext={selectNext}
-              onSelectPrevious={selectPrevious}
-              onSkipRemainingRows={handleSkipRemainingRows}
-              readyBulkCount={readyBulkRequirements.length}
-              reviewQueue={reviewQueue}
-            />
-          </div>
-
           <div className="fv-mobile-action-bar">
             <button
               className="fv-btn-primary"

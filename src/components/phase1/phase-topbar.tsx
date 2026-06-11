@@ -20,10 +20,12 @@ function getDisplayName(email?: string | null): string {
 
 export default function Phase1Topbar({
   email,
+  hideProjectsLink = false,
   projectId,
   variant = "app",
 }: {
   email?: string | null;
+  hideProjectsLink?: boolean;
   projectId?: string | null;
   variant?: "app" | "landing";
 }) {
@@ -57,13 +59,11 @@ export default function Phase1Topbar({
           <span className="fv-topbar-project-pill">{projectId}</span>
         ) : null}
 
-        <Link
-          href="/"
-          className={`fv-topbar-link${isLanding ? " fv-topbar-link-active" : ""}`}
-          aria-current={isLanding ? "page" : undefined}
-        >
-          Projects
-        </Link>
+        {!isLanding && !hideProjectsLink ? (
+          <Link href="/" className="fv-topbar-link">
+            Projects
+          </Link>
+        ) : null}
 
         {email ? (
           <span className="fv-topbar-username">{getDisplayName(email)}</span>

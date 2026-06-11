@@ -15,6 +15,12 @@
   box-sizing: border-box;
 }
 
+html,
+body {
+  overflow: hidden;
+  height: 100%;
+}
+
 html {
   background: var(--background);
   scroll-behavior: smooth;
@@ -5557,6 +5563,18 @@ textarea {
   max-width: 1440px;
 }
 
+.fv-page.fv-script-output-page,
+.fv-page.fv-export-page {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/* Strip outer fv-page bottom padding so there's no blank scroll space */
+.fv-page:has(> .fv-script-output-page),
+.fv-page:has(> .fv-export-page) {
+  padding-bottom: 0;
+}
+
 .fv-phase-action-bar {
   display: flex;
   align-items: center;
@@ -5572,6 +5590,7 @@ textarea {
 }
 
 .fv-script-status-callout {
+  margin-inline: -2.5rem;
   margin-bottom: 1rem;
 }
 
@@ -5582,7 +5601,7 @@ textarea {
     minmax(0, 1fr)
     clamp(220px, 16vw, 280px);
   gap: 1rem;
-  align-items: start;
+  align-items: stretch;
   margin-inline: -2.5rem;
 }
 
@@ -5598,6 +5617,8 @@ textarea {
   display: grid;
   gap: 1rem;
   min-width: 0;
+  overflow-y: auto;
+  align-content: start;
 }
 
 .fv-script-panel-heading {
@@ -5746,15 +5767,20 @@ textarea {
   min-width: 0;
 }
 
-.fv-script-section-title-input {
-  border-color: transparent;
-  background: transparent;
-  font-weight: 700;
-  padding-left: 0;
+.fv-script-section-detail > .fv-card-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.75rem;
 }
 
 .fv-script-section-title-input {
+  border-color: transparent;
+  background: transparent;
   font-size: 1.25rem;
+  font-weight: 700;
+  padding-left: 0;
+  width: 100%;
 }
 
 .fv-script-step-title-input {
@@ -5933,6 +5959,10 @@ textarea {
     margin-inline: -1rem;
   }
 
+  .fv-script-status-callout {
+    margin-inline: -1rem;
+  }
+
   .fv-script-workspace,
   .fv-script-document-header {
     grid-template-columns: minmax(0, 1fr);
@@ -5965,11 +5995,20 @@ textarea {
   .fv-script-stats-row {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  .fv-script-status-callout {
+    margin-inline: 0;
+  }
 }
+
 
 /* ── Export workspace ───────────────────────────────────────── */
 .fv-export-page {
   max-width: 1440px;
+}
+
+.fv-page.fv-export-page {
+  padding-top: 0;
 }
 
 .fv-export-header-actions,
@@ -6640,7 +6679,7 @@ textarea {
   margin-bottom: 0;
 }
 
-.fv-review-toolbar {
+.fv-review-control-block {
   background: var(--surface);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-md);
@@ -6648,14 +6687,27 @@ textarea {
   padding: 0.75rem 1rem;
 }
 
+.fv-review-toolbar-row {
+  padding: 0;
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+
+.fv-review-toolbar-row .fv-toolbar-left {
+  flex-wrap: nowrap;
+}
+
 .fv-review-search {
-  min-width: min(320px, 100%);
+  flex: 1;
+  min-width: 0;
 }
 
 .fv-review-filter {
   width: auto;
-  min-width: 156px;
-  max-width: 260px;
+  min-width: 140px;
+  max-width: 220px;
+  flex-shrink: 0;
 }
 
 .fv-review-showing {
@@ -6955,6 +7007,51 @@ textarea {
   max-width: 360px;
 }
 
+.fv-review-queue-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  padding: 0.625rem 0 0;
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--surface-border);
+}
+
+.fv-review-queue-bar-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8rem;
+  color: var(--muted-fg);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.fv-review-queue-bar-sep {
+  color: var(--subtle-fg);
+}
+
+.fv-review-queue-bar-stat {
+  color: var(--foreground);
+}
+
+.fv-review-queue-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-shrink: 0;
+}
+
+.fv-review-queue-bar-cta {
+  margin-left: auto;
+}
+
+.fv-btn-sm {
+  font-size: 0.78rem;
+  padding: 0.3rem 0.75rem;
+  min-height: 0;
+}
+
 .fv-review-transition-grid {
   align-items: start;
   display: grid;
@@ -7129,9 +7226,9 @@ textarea {
 }
 
 @media (max-width: 900px) {
-  .fv-review-toolbar,
-  .fv-review-toolbar .fv-toolbar-left,
-  .fv-review-toolbar .fv-toolbar-right {
+  .fv-review-toolbar-row,
+  .fv-review-toolbar-row .fv-toolbar-left,
+  .fv-review-toolbar-row .fv-toolbar-right {
     align-items: stretch;
   }
 

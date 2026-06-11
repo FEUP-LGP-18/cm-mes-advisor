@@ -51,7 +51,7 @@ export default function Phase1ProjectHome({
 
   return (
     <div className="fv-shell">
-      <Phase1Topbar email={currentUser?.email} />
+      <Phase1Topbar email={currentUser?.email} hideProjectsLink />
       <div className="fv-body">
         {/* Sidebar */}
         <nav className="fv-sidebar" aria-label="Navigation">

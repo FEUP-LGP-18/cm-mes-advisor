@@ -101,26 +101,6 @@ export default function DemoScriptEditingPanel({
 
   return (
     <section className="fv-page fv-script-output-page">
-      <div className="fv-phase-action-bar">
-        <button
-          className="fv-btn-secondary"
-          onClick={onSwitchToReview}
-          type="button"
-        >
-          Back to review
-        </button>
-        {onSwitchToExport ? (
-          <button
-            className="fv-btn-primary"
-            disabled={!exportReady}
-            onClick={onSwitchToExport}
-            type="button"
-          >
-            Continue to export
-          </button>
-        ) : null}
-      </div>
-
       <div className="fv-stats-row fv-script-stats-row">
         <FvStatCard
           helper={`${assembly.approvedRequirementCount} approved row${
@@ -406,24 +386,6 @@ export function DemoScriptExportPanel({
 
         <section className="fv-card fv-export-blocked-card">
           <FvEmptyState
-            action={
-              <div className="fv-export-action-row">
-                <button
-                  className="fv-btn-primary"
-                  onClick={onSwitchToReview}
-                  type="button"
-                >
-                  Back to Review
-                </button>
-                <button
-                  className="fv-btn-secondary"
-                  onClick={onSwitchToScript}
-                  type="button"
-                >
-                  Back to Script
-                </button>
-              </div>
-            }
             body={blockerCopy?.body}
             title={blockerCopy?.title ?? "Export is still blocked"}
           />
@@ -434,24 +396,6 @@ export function DemoScriptExportPanel({
 
   return (
     <section className="fv-page fv-export-page">
-      <div className="fv-phase-action-bar">
-        <button
-          className="fv-btn-secondary"
-          onClick={onSwitchToScript}
-          type="button"
-        >
-          Back to Script
-        </button>
-        <button
-          className="fv-btn-primary"
-          disabled={!hasReadyPayload}
-          onClick={handleDownloadMarkdown}
-          type="button"
-        >
-          Download Markdown
-        </button>
-      </div>
-
       <div className="fv-stats-row fv-export-stats-row">
         <FvStatCard
           helper={`${assembly.approvedRequirementCount} approved row${
@@ -511,19 +455,21 @@ export function DemoScriptExportPanel({
           <div className="fv-export-card-header">
             <div className="fv-export-title-stack">
               <p className="fv-overline">Markdown handoff</p>
-              <h2 className="fv-card-title" id="export-deliverable-heading">
-                Finalize Markdown handoff
-              </h2>
+              <div className="fv-export-title-row">
+                <h2 className="fv-card-title" id="export-deliverable-heading">
+                  Finalize Markdown handoff
+                </h2>
+                <div className="fv-export-badge-row">
+                  <FvBadge tone={hasReadyPayload ? "success" : "warning"}>
+                    {hasReadyPayload ? "Ready to download" : "Blocked"}
+                  </FvBadge>
+                  <FvBadge tone="info">Phase 1 only</FvBadge>
+                </div>
+              </div>
               <p className="fv-body-muted">
                 Review the script package, confirm the metadata that will be
                 included, and download the supported Markdown file for handoff.
               </p>
-            </div>
-            <div className="fv-export-badge-row">
-              <FvBadge tone={hasReadyPayload ? "success" : "warning"}>
-                {hasReadyPayload ? "Ready to download" : "Blocked"}
-              </FvBadge>
-              <FvBadge tone="info">Phase 1 only</FvBadge>
             </div>
           </div>
 
