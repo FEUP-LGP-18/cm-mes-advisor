@@ -1,6 +1,6 @@
 # Findings and Metrics — Build-Measure-Learn
 
-Last updated: 2026-06-11
+Last updated: 2026-06-15
 
 ---
 
@@ -55,7 +55,7 @@ The sample customer workbook used in development contains 178 requirements acros
 
 Rui Barbosa confirmed the product scope via Teams and WhatsApp:
 - Phase 1: generate demo scripts from customer requirements Excel files
-- Phase 2: generate Master Data objects for applicable requirements, importable into MES
+- Phase 2: generate Master Data objects for applicable requirements, intended for partner MES import validation
 - Provided: MES test environment, MCP Server, AWS Bedrock API key
 
 Key guidance from Rui (April 2026 session):
@@ -110,15 +110,15 @@ The following metrics are tracked and visible in the application:
 
 ## Technical Findings
 
-### Real-Mode Bedrock Integration
+### Real-Mode Provider Integration
 
-The AWS Bedrock integration was implemented and tested in April 2026. Both credential paths were implemented (standard AWS SigV4 and bearer-token auth). The blocker went through two distinct phases:
+The AWS Bedrock integration was implemented and tested in April 2026. Both credential paths were implemented (standard AWS SigV4 and bearer-token auth). Bedrock remains supported, but validation hit partner-side access problems. Anthropic direct API support was then added as the practical fallback.
 
 1. **Budget exhaustion (April 2026)** — the partner's API key had a 75 USD budget that was exhausted before the team had made any successful calls. Rui Barbosa resolved this on the partner side; both the direct app flow and LibreChat were confirmed working briefly after the fix.
-2. **IAM permission error (June 2026)** — the `bedrock:CallWithBearerToken` permission is explicitly denied for key `BedrockAPIKey-ww58`. MCP/RAG side works correctly. Fix request sent to Rui Barbosa on 05 Jun 2026.
-3. **Resolution via Anthropic key (09 Jun 2026)** — Rui Barbosa confirmed the Bedrock key had again run out of funds and that the person responsible for recharging it was unavailable before the deadline. He provided an Anthropic API key as an alternative. The team switched the real-mode generation path to the Anthropic direct API. Phase 2 Master Data real-mode generation was implemented and tested with this key before the Final Event.
+2. **IAM permission error (June 2026)** — the Bedrock bearer-token path was denied the required `bedrock:CallWithBearerToken` permission. MCP/RAG side worked correctly. Fix request sent to Rui Barbosa on 05 Jun 2026.
+3. **Resolution via Anthropic fallback (09 Jun 2026)** — Rui Barbosa confirmed the Bedrock key had again run out of funds and that the person responsible for recharging it was unavailable before the deadline. He provided Anthropic access as an alternative. The team switched the real-mode generation path to the Anthropic direct API. Phase 2 Master Data real-mode generation was implemented and tested through the same fallback path before the Final Event.
 
-**Impact:** Real-mode generation via Bedrock was not end-to-end validated. Real-mode generation via Anthropic direct API is working and was used for final pre-event testing. Mock mode remains the default for teammates without credentials.
+**Impact:** Real-mode generation supports Bedrock and Anthropic provider paths. Bedrock was not end-to-end validated because of partner key, budget, and IAM issues. Anthropic direct API was used for final pre-event testing. Mock mode remains the default for teammates without credentials.
 
 **Reference:** `docs/discovery/phase-1-real-mode-validation-2026-04-20.md`
 
@@ -160,7 +160,7 @@ Key outcomes:
 
 - **Mock-first development pays off early.** Having a working mock mode from the start allowed the team to develop and test without depending on partner credential access.
 - **Design handoff benefits from target screenshots.** The MM mockups provided clear per-surface targets that reduced ambiguity and made implementation reviews faster.
-- **Real-mode credential dependencies are a risk.** Partner infrastructure issues (Bedrock 403) blocked live validation for weeks. Future projects should plan for a credential-availability buffer.
+- **Real-mode credential dependencies are a risk.** Partner infrastructure issues around Bedrock budget and IAM access blocked live validation for weeks. Future projects should plan for a credential-availability buffer and a documented fallback provider path.
 - **Phase 2 simplified scope was the right call.** Starting with a small, importable Master Data subset rather than the full CookieFactory scale let the team deliver a working demo path within the BML timeline.
 - **Workflow gates improve consultant trust.** Requiring explicit approval before export — and making it impossible to skip review steps — was well-received in both the advisor meeting and the partner validation.
 - **Tech stack pivot paid off.** LibreChat + MCP was the original plan from the KOM (March 6). The team pivoted to a custom Next.js application, which gave full control over the consultant-facing UX and the approval workflow — something LibreChat's chat interface could not have provided.
