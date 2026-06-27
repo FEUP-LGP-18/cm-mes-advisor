@@ -1,14 +1,14 @@
 # Architecture and Technologies
 
-Last updated: 2026-06-15
+Last updated: 2026-06-07
 
 ---
 
 ## Overview
 
-CM MES Demo Advisor is a consultant-facing web application that turns customer requirements Excel workbooks into reviewable MES demo outputs. It was built for Critical Manufacturing as a two-phase workflow: Phase 1 produces a demo script from approved requirements; Phase 2 optionally generates a pilot Master Data package for partner MES import validation.
+CM MES Demo Advisor is a consultant-facing web application that turns customer requirements Excel workbooks into reviewable MES demo outputs. It was built for Critical Manufacturing as a two-phase workflow: Phase 1 produces a demo script from approved requirements; Phase 2 generates a Master Data package for direct MES import.
 
-The application operates in two modes: **mock** (local, no partner credentials needed) and **real** (server-side MCP/RAG documentation lookup plus Bedrock or Anthropic model-provider integration).
+The application operates in two modes: **mock** (local, no partner credentials needed) and **real** (server-side AWS Bedrock and Critical Manufacturing MCP integration).
 
 ---
 
@@ -22,7 +22,7 @@ The application operates in two modes: **mock** (local, no partner credentials n
 | Authentication | Supabase Auth — email/password, PKCE callback |
 | Database | Supabase PostgreSQL with Row Level Security (RLS) |
 | File storage | Supabase Storage — private `project-files` bucket |
-| AI generation (real mode) | Server-side Bedrock or Anthropic provider paths, grounded with MCP/RAG documentation lookup |
+| AI generation (real mode) | AWS Bedrock via partner-provided API key |
 | MES integration (real mode) | Critical Manufacturing MCP Server |
 | Deployment | Vercel (Git Integration) + GitHub Actions (CI and fallback) |
 | Unit/surface testing | Vitest |
@@ -98,7 +98,7 @@ setup → process → review → export → traceability
 | `export` | Download the Master Data package (Excel + JSON manifest) |
 | `traceability` | Inspect the requirement-to-object-to-field audit trail |
 
-Phase 2 is only accessible after Phase 1 rows are approved. It is an optional pilot continuation, not a production MES import guarantee. Supported MES object types (partner-defined hierarchy): Enterprise, Site, Facility, Area, Resource, Product, Material.
+Phase 2 is only accessible after Phase 1 rows are approved. Supported MES object types (partner-defined hierarchy): Enterprise, Site, Facility, Area, Resource, Product, Material.
 
 ---
 
@@ -152,13 +152,11 @@ All AI and MES calls are server-side only — partner credentials are never expo
 - Safe for local development, CI, and onboarding.
 
 **Real mode** (`GENERATION_MODE=real`):
-- Requires `MCP_SERVER_URL` plus the selected model provider configuration.
-- `REQUIREMENT_GENERATION_PROVIDER=bedrock` uses `BEDROCK_MODEL_ID`, `AWS_REGION`, and either AWS credentials or Bedrock bearer-token auth.
-- `REQUIREMENT_GENERATION_PROVIDER=anthropic` uses `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL`.
-- Phase 1: `/api/requirements/generate` calls MCP/RAG documentation lookup and the selected Bedrock or Anthropic provider.
-- Phase 2: `/api/master-data/generate` uses the same server-only provider selection for grounded Master Data suggestions.
+- Requires: `MCP_SERVER_URL`, `BEDROCK_MODEL_ID`, `AWS_REGION`, and AWS credentials or bearer-token auth.
+- Phase 1: `/api/requirements/generate` calls AWS Bedrock with MCP-sourced MES documentation context.
+- Phase 2: `/api/master-data/generate` uses the same server boundary.
 
-Real-mode validation status: Bedrock support is implemented but was blocked by partner key, budget, and IAM access issues during validation. Anthropic direct API support was added as the practical fallback and used for final pre-event testing. Mock mode remains the safe default for teammate onboarding, previews, and normal demos without server-side credentials.
+Real-mode validation status: integration is implemented and reaches the partner Bedrock endpoint. A credential authorization issue (403) was identified during live testing in April 2026 — see `docs/discovery/phase-1-real-mode-validation-2026-04-20.md`. Mock mode is the safe and tested default for the MVP.
 
 ---
 
@@ -179,7 +177,7 @@ Both Preview and Production use `GENERATION_MODE=mock` for safe builds without p
 | Decision | Rationale |
 |---|---|
 | Project-first UX | One project per customer engagement; multiple concurrent projects supported |
-| Server-side generation boundary | Partner credentials (Bedrock, Anthropic, AWS, MCP, MES) stay server-side only |
+| Server-side generation boundary | Partner credentials (Bedrock, MCP, MES) stay server-side only |
 | Mock-first development | Team can develop without partner access; CI always runs in mock mode |
 | Excel-first input | Scope defined by partner — broad document ingestion is explicitly out of scope |
 | Human-in-the-loop review | All AI output is reviewed and approved by the consultant before export |

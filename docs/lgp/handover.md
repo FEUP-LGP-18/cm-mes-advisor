@@ -1,6 +1,6 @@
 # Hand-Over Document
 
-Last updated: 2026-06-15
+Last updated: 2026-06-07
 
 **From:** FEUP LGP Team 18
 **To:** Critical Manufacturing (partner contact: Rui Barbosa)
@@ -9,7 +9,7 @@ Last updated: 2026-06-15
 
 ## What Is Being Delivered
 
-The CM MES Demo Advisor — a consultant-facing web application that automates the preparation of MES demo scripts and pilot Master Data packages from customer requirements Excel workbooks.
+The CM MES Demo Advisor — a consultant-facing web application that automates the preparation of MES demo scripts and Master Data packages from customer requirements Excel workbooks.
 
 The deliverable includes:
 
@@ -45,7 +45,7 @@ Process:
 3. Consultant reviews and approves each object
 4. Export as an Excel workbook + JSON manifest package
 
-Output: a pilot Master Data package intended for partner import validation via **Administration → Master Data Package**
+Output: a Master Data package for import into MES via **Administration → Master Data Package**
 
 > **Important:** the Phase 2 package is a pilot demo artifact. It was designed to be import-compatible but has not been validated by a live MES import. Critical Manufacturing should validate by importing it into the test MES environment.
 
@@ -73,8 +73,7 @@ The application was built to integrate with the infrastructure Critical Manufact
 |---|---|
 | MES environment (`lgp2026.apps.rhosdmz.criticalmes.dev`) | Reference for MES object types and import format |
 | MCP Server | Provides MES documentation context for real-mode AI generation |
-| AWS Bedrock | Supported LLM provider path for real-mode requirement comment and Master Data generation |
-| Anthropic direct API | Practical fallback LLM provider path added after Bedrock key, budget, and IAM access issues |
+| AWS Bedrock (partner API key) | LLM for real-mode requirement comment and Master Data generation |
 
 In mock mode (the deployed default) none of these are required — the app runs with deterministic generation.
 
@@ -102,7 +101,7 @@ pnpm dev
 
 App available at `http://localhost:3000`. See `README.md` for the full setup guide.
 
-To enable real-mode AI generation, set `GENERATION_MODE=real`, configure `MCP_SERVER_URL`, and choose a server-side provider with `REQUIREMENT_GENERATION_PROVIDER`. Bedrock requires `BEDROCK_MODEL_ID`, `AWS_REGION`, and either AWS credentials or Bedrock bearer-token auth. Anthropic requires `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL`. Keep all values in server-side environment variables only.
+To enable real-mode AI generation, set the env vars from `.env.example` including `MCP_SERVER_URL`, `BEDROCK_MODEL_ID`, `AWS_REGION`, and AWS credentials or the partner bearer token.
 
 ---
 
@@ -110,8 +109,7 @@ To enable real-mode AI generation, set `GENERATION_MODE=real`, configure `MCP_SE
 
 | Item | Status | Action needed |
 |---|---|---|
-| Real-mode Bedrock generation | Implemented, not the only real-mode path | Prior validation hit partner-side Bedrock budget and IAM access issues. Revalidate when Critical Manufacturing provides working Bedrock access |
-| Real-mode Anthropic generation | Implemented fallback path | Direct Anthropic provider support exists for Phase 1 and Phase 2 real generation. Revalidate in the final target runtime with server-side credentials before making production claims |
+| Real-mode Bedrock generation | Implemented, blocked by IAM permission error | Key `BedrockAPIKey-ww58` is denied `bedrock:CallWithBearerToken`. MCP/RAG side works. Fix: enable that permission for the key, or provide the correct Bedrock access path/credential |
 | Phase 2 MES import validation | Not validated | Import generated package via **Administration → Master Data Package** in MES and confirm format |
 | Phase 2 DEE file generation | Out of scope (stretch goal) | Future iteration if needed |
 
@@ -129,8 +127,7 @@ docs/
 │   ├── requirements.md          ← user stories and functional requirements
 │   ├── user-manual.md           ← consultant-facing usage guide
 │   ├── handover.md              ← this document
-│   ├── findings.md              ← build-measure-learn findings and metrics
-│   └── final-deliverables-checklist.md ← closure deliverables checklist
+│   └── findings.md              ← build-measure-learn findings and metrics
 ├── discovery/                   ← partner conversations, validation notes, scope history
 ├── design/                      ← UI design guidelines and audit docs
 └── ui-revamp-assets/            ← design mockups from MM and current screenshots

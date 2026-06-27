@@ -1,6 +1,6 @@
 # Requirements — User Stories
 
-Last updated: 2026-06-15
+Last updated: 2026-06-07
 
 This document lists the user stories developed throughout the project, grouped by functional area. Stories are sourced directly from GitHub issues and from feature development tracked in pull requests.
 
@@ -84,11 +84,11 @@ _([#65](https://github.com/FEUP-LGP-18/cm-mes-advisor/issues/65) — Script, Exp
 
 ## Phase 2 — Master Data
 
-**As a consultant, I can continue from approved Phase 1 rows to an optional Phase 2 Master Data generation workflow so I can produce a pilot Master Data package for partner validation.**
+**As a consultant, I can continue from Phase 1 to a Phase 2 Master Data generation workflow so I can produce a demo-ready MES data package.**
 
 - Phase 2 is only available after Phase 1 rows are approved.
 - The Phase 2 flow is: Setup → Process → Review → Export → Traceability.
-- Phase 2 is a pilot continuation; the Phase 1 MVP workflow remains complete without running Phase 2.
+- Phase 2 is a pilot demo path and does not require Phase 1 completion to be considered done.
 
 **As a consultant, I can select applicable requirements and object types so the Master Data generation is scoped to what the customer needs.**
 
@@ -102,11 +102,10 @@ _([#67](https://github.com/FEUP-LGP-18/cm-mes-advisor/issues/67) — Phase 2 Mas
 - Each object shows its fields, AI rationale, confidence level, warnings, and source requirements.
 - Objects can be approved, flagged, or edited field-by-field.
 
-**As a consultant, I can download a Master Data package when all objects are approved so it can be validated through partner MES import testing.**
+**As a consultant, I can download a Master Data package when all objects are approved so it is ready for import into CM MES.**
 
 - The download includes an Excel workbook and a JSON manifest.
 - The export is only available when all objects are approved.
-- The package is a pilot artifact until Critical Manufacturing validates the import format in MES.
 
 **As a consultant, I can view a traceability report linking each source requirement to the Master Data objects and fields it generated.**
 
@@ -120,7 +119,7 @@ _([#67](https://github.com/FEUP-LGP-18/cm-mes-advisor/issues/67) — Phase 2 Mas
 **As a user, I can configure general preferences (consultant name, MES version, language) so they appear in generated outputs.**
 _([#54](https://github.com/FEUP-LGP-18/cm-mes-advisor/issues/54) — General Prefs)_
 
-**As a user, I can configure safe AI generation preferences so future outputs follow the supported settings contract.**
+**As a user, I can configure AI generation behavior (model, temperature, system prompt) so generation reflects my preferred style.**
 _([#51](https://github.com/FEUP-LGP-18/cm-mes-advisor/issues/51) — AI Config)_
 
 **As a user, I can view my profile and update my display name and avatar.**
@@ -130,8 +129,8 @@ _([#15](https://github.com/FEUP-LGP-18/cm-mes-advisor/issues/15) — Profile and
 
 ## Non-Functional Requirements
 
-- The app runs in mock mode locally without partner credentials; real mode requires server-side MCP/RAG documentation lookup plus the selected Bedrock or Anthropic provider configuration.
-- All partner credentials (Bedrock, Anthropic, AWS, MCP, MES) are server-side only and never exposed to the browser.
+- The app runs in mock mode locally without partner credentials; real mode requires server-side Bedrock and MCP configuration.
+- All partner credentials (Bedrock, AWS, MCP, MES) are server-side only and never exposed to the browser.
 - Route protection is enforced by the Next.js proxy layer; unauthenticated requests to protected routes return 401 or redirect to login.
 - Mobile layout is required for all product surfaces.
 - Phase 2 exports are pilot demo artifacts and are not MES-validated until a partner manually imports and accepts the package.

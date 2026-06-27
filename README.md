@@ -18,7 +18,7 @@ The optional pilot Phase 2 demo continuation lives under:
 - `master-data/export`
 - `master-data/traceability`
 
-Mock generation is the default so teammates can run the app locally without partner credentials. Real grounded generation is implemented behind server route boundaries with Bedrock and direct Anthropic provider options plus MCP/RAG documentation lookup; Anthropic was added as the practical fallback after Bedrock key, budget, and IAM issues. Phase 2 exports are not MES-validated until a partner manually imports and accepts the package.
+Mock generation is the default so teammates can run the app locally without partner credentials. Real grounded requirement generation is implemented behind the server route boundary with Bedrock and direct Anthropic provider options; prior validation notes still record Bedrock bearer-token access as partner-blocked. Phase 2 exports are not MES-validated until a partner manually imports and accepts the package.
 
 ## What The Product Does Now
 
@@ -157,8 +157,7 @@ Real mode requires the server-side values shown in [`.env.example`](.env.example
 Current status:
 
 - mock mode is the safe default and should work for normal teammate onboarding
-- real mode is implemented for Phase 1 requirement generation and Phase 2 Master Data generation through server-side Bedrock or Anthropic provider paths
-- Anthropic is the practical fallback path after Bedrock credential, budget, and IAM access issues; Bedrock remains supported but should be revalidated with working partner access
+- real mode is implemented for requirement generation; Phase 2 Master Data generation still uses the existing Bedrock server path
 - use the existing validation notes in `docs/discovery/` for partner-stack history and retest evidence
 
 ## Quality Commands
@@ -202,7 +201,6 @@ Artefacts produced for the FEUP LGP 2025/2026 academic milestone:
 - [docs/lgp/user-manual.md](docs/lgp/user-manual.md): consultant-facing guide for Phase 1 and Phase 2
 - [docs/lgp/handover.md](docs/lgp/handover.md): what is delivered and how Critical Manufacturing can take it over
 - [docs/lgp/findings.md](docs/lgp/findings.md): partner validation, metrics, development stats, lessons learned
-- [docs/lgp/final-deliverables-checklist.md](docs/lgp/final-deliverables-checklist.md): final closure checklist and human-confirmation items
 
 See also [COLLABORATORS.md](COLLABORATORS.md) for the full team list.
 
@@ -247,7 +245,7 @@ This repo should currently be understood as:
 
 What is still not done:
 
-- production-validated real-mode partner generation in the final target runtime
+- fully validated direct real-mode partner generation
 - manual partner MES import validation for Phase 2 packages
 - production operations hardening beyond the documented pilot checklist
 - alternative export formats such as PDF or Word
