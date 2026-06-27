@@ -12,8 +12,8 @@ pilot-ready, not production-ready.
 
 - A fresh user can sign up or sign in when Supabase is configured.
 - The user can create or open a project from the project desk.
-- Phase 1 runs end to end: source, generate, review, script, export.
-- Phase 2 is available as an optional pilot demo flow and runs end to end in mock mode:
+- Phase 1 is the main MVP workflow and runs end to end: source, generate, review, script, export.
+- Phase 2 is available only after approved Phase 1 rows and remains an optional pilot demo flow. It runs end to end in mock mode:
   setup, generate, review, export, traceability.
 - Phase 2 export copy stays explicit that the package is not MES-validated.
 
@@ -45,6 +45,7 @@ pnpm review:ui
 
 ## External Blockers To Keep Visible
 
-- Real model generation needs MCP plus selected provider credentials and access.
+- Real model generation needs MCP/RAG documentation lookup plus selected Bedrock or Anthropic provider credentials and access.
+- Anthropic is the practical fallback after prior Bedrock key, budget, and IAM issues; Bedrock remains supported but requires partner revalidation.
 - MES import validation needs a manual partner import pass.
 - Production operations need reviewed Supabase, Vercel, email, redirect, and storage settings.
